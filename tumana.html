@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Tumana – Delivery Yako</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Leaflet Maps - Free & OpenSource -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
@@ -18,6 +23,47 @@ body{font-family:'Space Grotesk',sans-serif;color:#fff;font-size:15px}
   --br:rgba(255,255,255,0.07);--br2:rgba(255,255,255,0.13);
   --t2:rgba(255,255,255,0.45);--t3:rgba(255,255,255,0.2);
 }
+/* ── LIGHT MODE ─────────────────────────────────────────── */
+body.light{background:#f0f4f0;color:#111}
+body.light .app{background:#f9fafb;box-shadow:0 0 40px rgba(0,0,0,.1)}
+body.light .sb{background:#fff;border-bottom:1px solid #e5e7eb}
+body.light .sb span,body.light .sb img{opacity:1}
+body.light .rs-cards .rc{background:#fff;border-color:#e5e7eb;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+body.light .rc-name{color:#111} body.light .perk{color:#666}
+body.light .rs-tabs,body.light .shop-tabs{background:#e5e7eb}
+body.light .rtab,body.light .stab{color:#888}
+body.light .hdr{background:#fff}
+body.light .srch{background:#f3f4f6;border-color:#e5e7eb;color:#aaa}
+body.light .sc,body.light .pc,body.light .oc,body.light .do-card,body.light .active-job,body.light .job-card,body.light .ci,body.light .sbox,body.light .sum-box{background:#fff;border-color:#e5e7eb}
+body.light .sc-name,body.light .pn,body.light .rc-name{color:#111}
+body.light .scard,body.light .r-tog,body.light .flow-box{background:#f3f4f6;border-color:#e5e7eb}
+body.light .sv{color:#111}
+body.light .fld input,body.light .fld select,body.light .fld textarea{background:#f9fafb;border-color:#e5e7eb;color:#111}
+body.light .loc-f{background:#f9fafb;border-color:#e5e7eb}
+body.light .loc-f input{color:#111}
+body.light .mp-inp{background:#f9fafb;color:#111}
+body.light .page{background:#f9fafb}
+body.light .bnav{background:#fff;border-top-color:#e5e7eb}
+body.light .modal{background:linear-gradient(180deg,#fff,#f9fafb)}
+body.light .sh{background:linear-gradient(180deg,#fffbeb,#f9fafb)}
+body.light .rh{background:linear-gradient(180deg,#f5f3ff,#f9fafb)}
+body.light .overlay{background:rgba(0,0,0,.6)}
+body.light .empty-title{color:#111} body.light .empty-sub{color:#999}
+body.light .pay-box{background:rgba(16,185,129,.06)}
+body.light .dist-opt{background:#fff!important}
+body.light .profile-hdr{background:linear-gradient(135deg,#ecfdf5,#fff)}
+body.light .pu-hero{background:linear-gradient(135deg,#f0fdf4,#f5f3ff)}
+body.light .out-btn{border-color:#e5e7eb;color:#888}
+/* ── MAP ─────────────────────────────────────────────────── */
+#pickup-map{height:240px;border-radius:14px;overflow:hidden;margin-bottom:14px;
+            border:1.5px solid rgba(255,255,255,0.1);position:relative;z-index:0}
+body.light #pickup-map{border-color:#e5e7eb}
+.leaflet-container{font-family:'Space Grotesk',sans-serif!important}
+/* ── THEME TOGGLE ────────────────────────────────────────── */
+.theme-btn{background:none;border:1.5px solid var(--br2);border-radius:20px;
+           padding:5px 10px;cursor:pointer;font-size:12px;
+           color:var(--t2);font-family:'Space Grotesk',sans-serif;flex-shrink:0}
+body.light .theme-btn{border-color:#e5e7eb;color:#888}
 .app{width:100%;max-width:430px;height:100%;margin:0 auto;display:flex;flex-direction:column;background:var(--bg);box-shadow:0 0 60px rgba(0,0,0,.8);overflow:hidden}
 .page{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .page::-webkit-scrollbar{display:none}
@@ -221,6 +267,17 @@ body{font-family:'Space Grotesk',sans-serif;color:#fff;font-size:15px}
 </style>
 </head>
 <body>
+<script>
+// ── THEME ──────────────────────────────────────────────
+let isDark = localStorage.getItem('tumana_theme') !== 'light';
+function applyTheme(){
+  document.body.classList.toggle('light', !isDark);
+  const btn = document.getElementById('theme-btn');
+  if(btn) btn.textContent = isDark ? '☀️' : '🌙';
+  localStorage.setItem('tumana_theme', isDark ? 'dark' : 'light');
+}
+function toggleTheme(){isDark=!isDark;applyTheme();}
+</script>
 <div id="loading">
   <img src="data:image/png;base64,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" style="height:64px;object-fit:contain;margin-bottom:8px" alt="Tumana"/>
   <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:16px">Chemelil · Fast Local Delivery</div>
@@ -231,7 +288,10 @@ body{font-family:'Space Grotesk',sans-serif;color:#fff;font-size:15px}
   <div class="sb">
     <span>9:41</span>
     <img id="sb-logo" src="data:image/png;base64,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" style="height:20px;object-fit:contain;vertical-align:middle" alt="Tumana"/>
-    <span id="sb-reset" style="cursor:pointer;font-size:11px;color:var(--t3)">↺</span>
+    <div style="display:flex;gap:6px;align-items:center">
+    <button id="theme-btn" class="theme-btn" onclick="toggleTheme()">☀️</button>
+    <span id="sb-reset" style="cursor:pointer;font-size:11px;color:var(--t3)" onclick="if(confirm('Reset app?')) hardReset()">↺</span>
+  </div>
   </div>
   <div id="main" class="page"></div>
   <div id="bnav" class="bnav" style="display:none"></div>
@@ -343,7 +403,7 @@ function setSbLabel(role){
   else{lbl.textContent='TUMANA';lbl.style.color='var(--g)';}
 }
 function hardReset(){localStorage.clear();USER=null;CART=[];SHOPS=[];CURRENTSHOP=null;showRoleScreen();}
-document.getElementById('sb-reset').onclick=()=>{if(confirm('Reset app?')) hardReset();};
+// sb-reset handled inline
 
 // ══════════════════════════════════════════════════════════
 // ROLE SCREEN
@@ -616,7 +676,6 @@ async function confirmOrder(total,sub,fee,riderGets,platGets){
 
 // ORDERS
 let ordersUnsub=null;
-function showOrders(){
   setNav('customer','orders');
   document.getElementById('main').innerHTML=`<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700;margin-bottom:4px">My Orders</div><div style="font-size:12px;color:var(--t2);margin-bottom:12px">Live tracking · 7 stages</div></div><div id="orders-list" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div></div></div>`;
   if(ordersUnsub) ordersUnsub();
@@ -667,140 +726,276 @@ function saveFavRider(name,phone){
 // PICKUP
 function showPickup(){
   setNav('customer','pickup');
-  const pr=USER.preferred_rider;
-  // Distance options with fares pre-calculated
-  const distOpts=[
-    {km:.5,label:'< 0.5 km',fee:calcFee(.5)},
-    {km:1,label:'1 km',fee:calcFee(1)},
-    {km:2,label:'2 km',fee:calcFee(2)},
-    {km:3,label:'3 km',fee:calcFee(3)},
-    {km:5,label:'5 km',fee:calcFee(5)},
-    {km:8,label:'8 km',fee:calcFee(8)},
-    {km:10,label:'10 km',fee:calcFee(10)},
-  ];
-  const defaultFee=calcFee(1);
+  // Get user location first
   document.getElementById('main').innerHTML=`
     <div style="padding:0 0 100px">
-      <!-- UBER-STYLE HEADER -->
-      <div style="background:linear-gradient(180deg,#0d0d0f,var(--bg));padding:20px 18px 16px;border-bottom:1px solid var(--br)">
-        <div style="font-size:22px;font-weight:800;margin-bottom:4px">Where to?</div>
-        <div style="font-size:13px;color:var(--t2)">Enter pickup and drop-off location</div>
+      <!-- HEADER -->
+      <div style="background:linear-gradient(180deg,#0d1a11,var(--bg));padding:18px 18px 14px;border-bottom:1px solid var(--br)">
+        <div style="font-size:20px;font-weight:800;margin-bottom:2px">📍 Where to?</div>
+        <div style="font-size:12px;color:var(--t2)">Enter locations below — fare auto-calculated</div>
       </div>
-
-      <!-- LOCATION INPUTS -->
-      <div style="padding:16px 18px;background:var(--bg)">
-        <!-- FROM -->
-        <div style="display:flex;gap:12px;align-items:center;background:var(--c);border:1.5px solid var(--br2);border-radius:14px;padding:14px 16px;margin-bottom:10px">
-          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
+      <!-- MAP -->
+      <div style="padding:14px 18px 0">
+        <div id="pickup-map"></div>
+        <div id="map-status" style="font-size:11px;color:var(--t2);text-align:center;margin-bottom:10px">
+          📡 Getting your location…
+        </div>
+      </div>
+      <!-- INPUTS -->
+      <div style="padding:0 18px">
+        <div style="display:flex;gap:10px;align-items:center;background:var(--c);border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px 15px;margin-bottom:8px">
+          <div style="display:flex;flex-direction:column;align-items:center">
             <div style="width:12px;height:12px;border-radius:50%;background:var(--g);box-shadow:0 0 0 3px rgba(16,185,129,.2)"></div>
           </div>
           <div style="flex:1">
-            <div style="font-size:10px;font-weight:700;color:var(--g);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Pickup</div>
-            <input type="text" id="pu-from" placeholder="Enter pickup location…" 
-              style="background:transparent;border:none;font-size:16px;color:#fff;font-family:Space Grotesk,sans-serif;width:100%;outline:none"
-              autocomplete="off"/>
+            <div style="font-size:10px;font-weight:700;color:var(--g);letter-spacing:1px;margin-bottom:3px">PICKUP FROM</div>
+            <input id="pu-from" type="text" placeholder="e.g. Chemelil Market, Stage, Hospital…" autocomplete="off"
+              style="background:transparent;border:none;font-size:15px;color:var(--txt,#fff);font-family:Space Grotesk,sans-serif;width:100%;outline:none"
+              oninput="updateMapFromInputs()"/>
           </div>
         </div>
-        <!-- LINE -->
-        <div style="width:2px;height:10px;background:var(--br2);margin:0 0 0 22px"></div>
-        <!-- TO -->
-        <div style="display:flex;gap:12px;align-items:center;background:var(--c);border:1.5px solid var(--br2);border-radius:14px;padding:14px 16px;margin-top:4px">
-          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
+        <div style="width:2px;height:8px;background:var(--br2);margin:0 0 0 20px"></div>
+        <div style="display:flex;gap:10px;align-items:center;background:var(--c);border:1.5px solid rgba(239,68,68,.3);border-radius:13px;padding:13px 15px;margin-top:4px;margin-bottom:14px">
+          <div style="display:flex;flex-direction:column;align-items:center">
             <div style="width:12px;height:12px;border-radius:3px;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.2)"></div>
           </div>
           <div style="flex:1">
-            <div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Drop-off</div>
-            <input type="text" id="pu-to" placeholder="Enter destination…"
-              style="background:transparent;border:none;font-size:16px;color:#fff;font-family:Space Grotesk,sans-serif;width:100%;outline:none"
-              autocomplete="off"/>
+            <div style="font-size:10px;font-weight:700;color:#ef4444;letter-spacing:1px;margin-bottom:3px">DROP OFF AT</div>
+            <input id="pu-to" type="text" placeholder="e.g. My house, School, Chemelil Sugar…" autocomplete="off"
+              style="background:transparent;border:none;font-size:15px;color:var(--txt,#fff);font-family:Space Grotesk,sans-serif;width:100%;outline:none"
+              oninput="updateMapFromInputs()"/>
           </div>
         </div>
       </div>
-
-      <!-- FARE OPTIONS (tap to select distance) -->
-      <div style="padding:0 18px 16px">
-        <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Select Distance</div>
-        <div style="display:flex;flex-direction:column;gap:8px" id="dist-options">
-          ${distOpts.map((d,i)=>`
-            <div class="dist-opt ${i===1?'selected':''}" data-km="${d.km}" data-fee="${d.fee}" onclick="selectDist(this,${d.km},${d.fee})"
-              style="display:flex;justify-content:space-between;align-items:center;background:${i===1?'rgba(16,185,129,.08)':'var(--c)'};border:1.5px solid ${i===1?'var(--g)':'var(--br)'};border-radius:12px;padding:14px 16px;cursor:pointer;transition:.15s">
+      <!-- QUICK LANDMARKS -->
+      <div style="padding:0 18px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Quick Select Chemelil Landmarks</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${['Chemelil Market','Chemelil Hospital','Stage Area','Sugar Factory','Police Station','Railway Station','Chemelil Academy','Muhoroni'].map(p=>`
+            <div onclick="setPickupFrom('${p}')" style="background:var(--c);border:1px solid var(--br2);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--t2)">${p}</div>`).join('')}
+        </div>
+      </div>
+      <!-- FARE CARDS -->
+      <div style="padding:0 18px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Select Fare</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          ${[
+            {km:.5,eta:'5-10',icon:'🏍️',label:'Nearby'},
+            {km:1,eta:'8-15',icon:'🏍️',label:'1 km'},
+            {km:2,eta:'12-20',icon:'🏍️',label:'2 km'},
+            {km:3,eta:'15-25',icon:'🏍️',label:'3 km'},
+            {km:5,eta:'20-35',icon:'🏍️',label:'5 km'},
+            {km:8,eta:'30-45',icon:'🏍️',label:'Muhoroni'},
+            {km:12,eta:'40-55',icon:'🏍️',label:'Awasi/Kibos'},
+          ].map((d,i)=>`
+            <div class="fare-card ${i===1?'fare-selected':''}" data-km="${d.km}" onclick="selectFare(this,${d.km})"
+              style="display:flex;justify-content:space-between;align-items:center;
+                     background:${i===1?'rgba(16,185,129,.08)':'var(--c)'};
+                     border:1.5px solid ${i===1?'var(--g)':'var(--br)'};
+                     border-radius:12px;padding:13px 15px;cursor:pointer;transition:.15s">
               <div style="display:flex;align-items:center;gap:12px">
-                <div style="font-size:22px">🏍️</div>
+                <div style="font-size:24px">${d.icon}</div>
                 <div>
-                  <div style="font-weight:700;font-size:14px">${d.label}</div>
-                  <div style="font-size:11px;color:var(--t2)">~${Math.round(d.km*4+10)}-${Math.round(d.km*5+15)} min</div>
+                  <div style="font-weight:700;font-size:14px;color:${i===1?'var(--g)':'inherit'}">${d.label}</div>
+                  <div style="font-size:11px;color:var(--t2)">~${d.eta} min</div>
                 </div>
               </div>
               <div style="text-align:right">
-                <div style="font-size:18px;font-weight:800;color:${i===1?'var(--g)':'#fff'}">KSh ${d.fee}</div>
-                <div style="font-size:10px;color:var(--t2)">Rider: KSh ${Math.round(d.fee*.9)}</div>
+                <div style="font-size:18px;font-weight:800;color:${i===1?'var(--g)':'inherit'}">KSh ${calcFee(d.km)}</div>
+                <div style="font-size:10px;color:var(--t2)">Rider: KSh ${Math.round(calcFee(d.km)*.9)}</div>
               </div>
             </div>`).join('')}
         </div>
       </div>
-
-      <!-- SELECTED FARE SUMMARY -->
-      <div style="margin:0 18px 16px;background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <!-- FARE SUMMARY + PAY INFO -->
+      <div style="margin:0 18px 14px;background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <span style="font-size:13px;color:var(--t2)">Your fare</span>
-          <span style="font-size:22px;font-weight:800;color:var(--g)" id="pu-fee-display">KSh ${defaultFee}</span>
+          <span id="fare-display" style="font-size:22px;font-weight:800;color:var(--g)">KSh ${calcFee(1)}</span>
         </div>
-        <div style="font-size:11px;color:var(--t2);line-height:1.6">
-          Send <strong style="color:var(--g)" id="pu-fee-pay">KSh ${defaultFee}</strong> 
-          to 📱 <strong style="color:var(--g)">${MPESA}</strong> 
-          after booking. Ref: <strong>TUM${USER.phone.slice(-4)}</strong>
+        <div style="font-size:11px;color:var(--t2);line-height:1.7">
+          Pay <strong id="fare-pay" style="color:var(--g)">KSh ${calcFee(1)}</strong> to 
+          <strong style="color:var(--g)">📱 ${MPESA}</strong><br>
+          Ref: <strong>TUM${USER.phone.slice(-4)}</strong> · Rider assigned in ~2 min
         </div>
       </div>
-
-      ${pr?`<div style="margin:0 18px 16px;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.12);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px"><div style="font-size:20px">⭐</div><div><div style="font-size:12px;font-weight:700;color:var(--g)">${pr.name} gets first chance</div><div style="font-size:11px;color:var(--t2);margin-top:2px">Auto-assigned — no action needed from you</div></div></div>`:''}
-
+      ${USER.preferred_rider?`<div style="margin:0 18px 14px;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:10px;padding:11px;display:flex;align-items:center;gap:10px"><div style="font-size:18px">⭐</div><div><div style="font-size:12px;font-weight:700;color:var(--g)">${USER.preferred_rider.name} gets first chance</div><div style="font-size:11px;color:var(--t2)">Auto-assigned — no action needed from you</div></div></div>`:''}
       <div style="padding:0 18px">
-        <button class="btn btn-g" style="font-size:16px;padding:18px" onclick="placePickup()">
+        <button class="btn btn-g" style="font-size:16px;padding:17px" onclick="placePickup()">
           🏍️ Request Rider
         </button>
-        <div style="font-size:11px;color:var(--t2);text-align:center;margin-top:10px">
-          Rider assigned within 2 minutes · Track in Orders tab
-        </div>
       </div>
     </div>`;
 
-  // Store selected dist
-  window._puDist=1;
-  window._puFee=defaultFee;
+  // Init map centered on Chemelil
+  window._puDist = 1;
+  window._puFee = calcFee(1);
+  window._pickupMap = null;
+  window._fromMarker = null;
+  window._toMarker = null;
+
+  setTimeout(()=>{
+    const CHEMELIL = [-0.0821, 35.1351];
+    const map = L.map('pickup-map',{zoomControl:true,attributionControl:false}).setView(CHEMELIL, 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+    // Custom markers
+    const greenIcon = L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:#10b981;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+    const redIcon = L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:3px;background:#ef4444;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+
+    // Add Chemelil landmarks
+    const landmarks = [
+      {name:'Market',lat:-0.0825,lng:35.1340},
+      {name:'Hospital',lat:-0.0810,lng:35.1365},
+      {name:'Stage',lat:-0.0830,lng:35.1348},
+      {name:'Sugar Factory',lat:-0.0800,lng:35.1380},
+      {name:'Police Station',lat:-0.0835,lng:35.1355},
+      {name:'Railway Station',lat:-0.0845,lng:35.1370},
+    ];
+    landmarks.forEach(lm=>{
+      L.marker([lm.lat,lm.lng],{icon:L.divIcon({className:'',html:'<div style="background:rgba(0,0,0,.7);color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:10px;white-space:nowrap">'+lm.name+'</div>',iconAnchor:[30,0]})}).addTo(map);
+    });
+
+    // User location
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const lat=pos.coords.latitude, lng=pos.coords.longitude;
+        const userMarker=L.circleMarker([lat,lng],{radius:8,color:'#10b981',fillColor:'#10b981',fillOpacity:.8,weight:3}).addTo(map);
+        userMarker.bindPopup('📍 You are here').openPopup();
+        map.setView([lat,lng],16);
+        document.getElementById('map-status').textContent='📍 Location found — tap map or type above';
+        // Auto-fill pickup from current location
+        if(!document.getElementById('pu-from').value){
+          document.getElementById('pu-from').value='My current location';
+          window._fromCoords=[lat,lng];
+        }
+      },()=>{
+        document.getElementById('map-status').textContent='📍 Chemelil area map — type locations above';
+      });
+    }
+
+    // Tap map to set destination
+    map.on('click',e=>{
+      const {lat,lng}=e.latlng;
+      if(window._fromMarker){
+        // Set destination if pickup already set
+        if(window._toMarker) map.removeLayer(window._toMarker);
+        window._toMarker=L.marker([lat,lng],{icon:redIcon}).addTo(map);
+        window._toMarker.bindPopup('Drop-off point').openPopup();
+        window._toCoords=[lat,lng];
+        if(!document.getElementById('pu-to').value)
+          document.getElementById('pu-to').value='Selected on map ('+lat.toFixed(4)+','+lng.toFixed(4)+')';
+        drawRoute(map,window._fromCoords||CHEMELIL,[lat,lng]);
+      } else {
+        // Set pickup
+        if(window._fromMarker) map.removeLayer(window._fromMarker);
+        window._fromMarker=L.marker([lat,lng],{icon:greenIcon}).addTo(map);
+        window._fromMarker.bindPopup('Pickup point').openPopup();
+        window._fromCoords=[lat,lng];
+        if(!document.getElementById('pu-from').value)
+          document.getElementById('pu-from').value='Selected on map ('+lat.toFixed(4)+','+lng.toFixed(4)+')';
+      }
+    });
+
+    window._pickupMap=map;
+  },300);
 }
 
-function selectDist(el,km,fee){
-  // Deselect all
-  document.querySelectorAll('.dist-opt').forEach(d=>{
-    d.style.background='var(--c)';
-    d.style.borderColor='var(--br)';
-    d.querySelector('div:last-child div:first-child').style.color='#fff';
+function drawRoute(map,from,to){
+  // Remove existing route
+  if(window._routeLine) map.removeLayer(window._routeLine);
+  // Draw simple straight line (OSRM routing is free but needs API call)
+  window._routeLine = L.polyline([from,to],{color:'#10b981',weight:4,opacity:.7,dashArray:'8,6'}).addTo(map);
+  // Calculate distance
+  const dist = map.distance(from,to)/1000;
+  window._puDist = dist;
+  window._puFee = calcFee(dist);
+  const fd=document.getElementById('fare-display');
+  const fp=document.getElementById('fare-pay');
+  if(fd) fd.textContent='KSh '+window._puFee;
+  if(fp) fp.textContent='KSh '+window._puFee;
+  map.fitBounds([from,to],{padding:[30,30]});
+}
+
+function updateMapFromInputs(){
+  // Basic geocoding for known Chemelil places
+  const places={
+    'chemelil market':[-0.0825,35.1340],
+    'market':[-0.0825,35.1340],
+    'hospital':[-0.0810,35.1365],
+    'chemelil hospital':[-0.0810,35.1365],
+    'stage':[-0.0830,35.1348],
+    'stage area':[-0.0830,35.1348],
+    'sugar factory':[-0.0800,35.1380],
+    'chemelil sugar':[-0.0800,35.1380],
+    'police':[-0.0835,35.1355],
+    'police station':[-0.0835,35.1355],
+    'railway':[-0.0845,35.1370],
+    'railway station':[-0.0845,35.1370],
+    'academy':[-0.0815,35.1325],
+    'chemelil academy':[-0.0815,35.1325],
+    'muhoroni':[-0.1500,35.2100],
+    'awasi':[-0.1000,35.0800],
+  };
+  const map=window._pickupMap; if(!map) return;
+  const fromVal=(document.getElementById('pu-from')||{}).value||'';
+  const toVal=(document.getElementById('pu-to')||{}).value||'';
+  const fromKey=fromVal.toLowerCase().trim();
+  const toKey=toVal.toLowerCase().trim();
+  const greenIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:#10b981;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+  const redIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:3px;background:#ef4444;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+  if(places[fromKey]){
+    if(window._fromMarker) map.removeLayer(window._fromMarker);
+    window._fromMarker=L.marker(places[fromKey],{icon:greenIcon}).addTo(map);
+    window._fromCoords=places[fromKey];
+  }
+  if(places[toKey]){
+    if(window._toMarker) map.removeLayer(window._toMarker);
+    window._toMarker=L.marker(places[toKey],{icon:redIcon}).addTo(map);
+    window._toCoords=places[toKey];
+  }
+  if(window._fromCoords&&window._toCoords) drawRoute(map,window._fromCoords,window._toCoords);
+}
+
+function setPickupFrom(name){
+  const inp=document.getElementById('pu-from');
+  if(inp){inp.value=name;updateMapFromInputs();}
+}
+
+function selectFare(el,km){
+  document.querySelectorAll('.fare-card').forEach(c=>{
+    c.style.background='var(--c)';c.style.borderColor='var(--br)';
+    const price=c.querySelector('div:last-child div:first-child');
+    const label=c.querySelector('div div:first-child');
+    if(price) price.style.color='inherit';
+    if(label) label.style.color='inherit';
   });
-  // Select clicked
-  el.style.background='rgba(16,185,129,.08)';
-  el.style.borderColor='var(--g)';
-  el.querySelector('div:last-child div:first-child').style.color='var(--g)';
-  // Update summary
-  document.getElementById('pu-fee-display').textContent='KSh '+fee;
-  document.getElementById('pu-fee-pay').textContent='KSh '+fee;
-  window._puDist=km;
-  window._puFee=fee;
+  el.style.background='rgba(16,185,129,.08)';el.style.borderColor='var(--g)';
+  const price=el.querySelector('div:last-child div:first-child');
+  const label=el.querySelector('div div:first-child');
+  if(price) price.style.color='var(--g)';
+  if(label) label.style.color='var(--g)';
+  window._puDist=km; window._puFee=calcFee(km);
+  const fd=document.getElementById('fare-display');
+  const fp=document.getElementById('fare-pay');
+  if(fd) fd.textContent='KSh '+window._puFee;
+  if(fp) fp.textContent='KSh '+window._puFee;
 }
 
 async function placePickup(){
-  const from=(document.getElementById('pu-from').value||'').trim();
-  const to=(document.getElementById('pu-to').value||'').trim();
-  if(!from){toast('Enter pickup location');document.getElementById('pu-from').focus();return;}
-  if(!to){toast('Enter drop-off destination');document.getElementById('pu-to').focus();return;}
+  const from=(document.getElementById('pu-from')||{}).value||'';
+  const to=(document.getElementById('pu-to')||{}).value||'';
+  if(!from.trim()){toast('Enter pickup location');document.getElementById('pu-from').focus();return;}
+  if(!to.trim()){toast('Enter drop-off destination');document.getElementById('pu-to').focus();return;}
   const dist=window._puDist||1;
   const fee=window._puFee||calcFee(1);
   try{
     await db.collection('delivery_orders').add({
-      type:'pickup',
-      customer_phone:USER.phone,customer_name:USER.name,
-      pickup_from:from,delivery_address:to,
-      item_description:'Pickup: '+from+' → '+to,
-      distance:dist,delivery_fee:fee,total:fee,
+      type:'pickup',customer_phone:USER.phone,customer_name:USER.name,
+      pickup_from:from.trim(),delivery_address:to.trim(),
+      item_description:'Pickup: '+from.trim()+' → '+to.trim(),
+      from_coords:window._fromCoords||null,to_coords:window._toCoords||null,
+      distance:parseFloat(dist.toFixed(2)),delivery_fee:fee,total:fee,
       rider_earnings:Math.round(fee*.9),platform_earnings:Math.round(fee*.1),
       status:'placed',rider_phone:null,rider_name:null,
       preferred_rider:USER.preferred_rider||null,
@@ -811,7 +1006,53 @@ async function placePickup(){
   showOrders();
 }
 
-// PROFILE
+function showOrders(){
+
+  setNav('customer','orders');
+  document.getElementById('main').innerHTML=`
+    <div style="padding:16px 18px 0">
+      <div style="font-size:19px;font-weight:700;margin-bottom:4px">My Orders</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:12px">Live tracking · 7 stages</div>
+    </div>
+    <div id="orders-list" style="padding:0 18px 100px">
+      <div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div></div>
+    </div>`;
+  if(ordersUnsub) ordersUnsub();
+  ordersUnsub=db.collection('delivery_orders').where('customer_phone','==',USER.phone).limit(30)
+    .onSnapshot(s=>{
+      const orders=s.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b)=>(b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+      renderOrders(orders);
+    },()=>renderOrders([]));
+}
+
+function renderOrders(orders){
+  const list=document.getElementById('orders-list'); if(!list) return;
+  if(!orders.length){list.innerHTML=`<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No orders yet</div><div class="empty-sub">Shop orders and pickup requests appear here</div></div>`;return;}
+  const SP={placed:{cls:'s1',label:'Placed'},confirmed:{cls:'s2',label:'Payment OK'},assigned:{cls:'s3',label:'Rider Coming'},heading:{cls:'s3',label:'En Route'},picked:{cls:'s4',label:'Picked Up'},transit:{cls:'s5',label:'In Transit'},delivered:{cls:'s6',label:'Delivered ✅'}};
+  const SF={shop:['placed','confirmed','assigned','heading','picked','transit','delivered'],pickup:['placed','assigned','heading','picked','transit','delivered']};
+  const SL={placed:{shop:'Order Placed',pickup:'Request Placed',icon:'🕐'},confirmed:{shop:'Payment Confirmed',pickup:'Payment Confirmed',icon:'✅'},assigned:{shop:'Rider Assigned',pickup:'Rider Assigned',icon:'🏍️'},heading:{shop:'Heading to Shop',pickup:'Heading to Pickup',icon:'🔍'},picked:{shop:'Order Picked Up',pickup:'Item Picked Up',icon:'📦'},transit:{shop:'Out for Delivery',pickup:'On the Way',icon:'🚴'},delivered:{shop:'Delivered',pickup:'Delivered',icon:'✅'}};
+  list.innerHTML=orders.map(o=>{
+    const sp=SP[o.status]||SP.placed;
+    const flow=SF[o.type||'shop'];
+    const curIdx=flow.indexOf(o.status);
+    const trackerHtml=flow.map((key,i)=>{
+      const isDone=i<curIdx,isAct=i===curIdx,isLast=i===flow.length-1;
+      const info=SL[key]||{};
+      const label=info[o.type||'shop']||key;
+      return `<div class="tr-step"><div class="tr-left"><div class="tr-dot ${isDone?'done':isAct?'active':'todo'}">${isDone?'✓':info.icon||'•'}</div>${!isLast?`<div class="tr-line ${isDone?'done':'todo'}"></div>`:''}</div><div class="tr-body"><div class="tr-name" style="color:${isDone?'var(--g)':isAct?'#fff':'var(--t2)'}">${label}</div>${isAct?'<div class="tr-time">Now</div>':isDone?'<div class="tr-time" style="color:var(--g)">Done ✓</div>':''}</div></div>`;
+    }).join('');
+    const isFavRider=USER.preferred_rider?.phone===o.rider_phone;
+    const riderHtml=o.rider_name?`<div class="rider-row"><div style="font-size:20px">🏍️</div><div><div style="font-weight:700;font-size:13px">${o.rider_name}</div><div style="font-size:11px;color:var(--t2)">${o.rider_phone}</div></div><div style="margin-left:auto;text-align:center"><button style="background:none;border:none;font-size:18px;cursor:pointer" onclick="saveFavRider('${o.rider_name}','${o.rider_phone}')">${isFavRider?'⭐':'☆'}</button><div style="font-size:9px;color:var(--t2)">${isFavRider?'Saved':'Save'}</div></div></div>`:'';
+    return `<div class="oc"><div class="oc-head"><div><div style="font-weight:700;font-size:14px">${o.type==='pickup'?'🏍️ Pickup':'🛒 Order'} #${o.id.slice(-6).toUpperCase()}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${o.shopName||o.pickup_from||'Order'}</div></div><span class="spill ${sp.cls}">${sp.label}</span></div><div class="tracker">${trackerHtml}</div><div style="font-size:12px;color:var(--t2);margin-bottom:5px">${o.type==='pickup'?(o.pickup_from||'')+' → '+(o.delivery_address||''):(o.items||[]).map(i=>i.name+' ×'+i.quantity).join(' · ')}</div><div style="font-weight:700;color:var(--g)">KSh ${o.total}</div>${riderHtml}</div>`;
+  }).join('');
+}
+
+function saveFavRider(name,phone){
+  USER.preferred_rider={name,phone}; saveUser();
+  toast('⭐ '+name+' saved as favourite rider'); showOrders();
+}
+
 function showProfile(){
   setNav('customer','profile');
   const letter=(USER.name||USER.phone||'?').charAt(0).toUpperCase();
@@ -826,13 +1067,11 @@ function showProfile(){
       </div>
       <div class="sbox">
         <div class="sbox-t">⭐ Favourite Rider</div>
-        ${pr
-          ?`<div style="display:flex;align-items:center;gap:10px"><div style="font-size:24px">🏍️</div><div><div style="font-weight:700">${pr.name}</div><div style="font-size:11px;color:var(--t2)">${pr.phone}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">Gets priority on your pickup requests</div></div><button style="margin-left:auto;background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer" onclick="removeRider()">✕</button></div>`
-          :'<div style="font-size:12px;color:var(--t2);line-height:1.6">No favourite rider yet. After a delivery, tap ☆ next to rider in Orders to save them.</div>'}
+        ${pr?`<div style="display:flex;align-items:center;gap:10px"><div style="font-size:24px">🏍️</div><div><div style="font-weight:700">${pr.name}</div><div style="font-size:11px;color:var(--t2)">${pr.phone}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">Gets priority on your pickup requests</div></div><button style="margin-left:auto;background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer" onclick="removeRider()">✕</button></div>`:`<div style="font-size:12px;color:var(--t2);line-height:1.6">No favourite rider yet. After a delivery, tap ☆ next to rider in Orders to save them.</div>`}
       </div>
       <div class="sbox">
         <div class="sbox-t">🏪 Favourite Shops</div>
-        <div style="font-size:12px;color:var(--t2)">${favCount?favCount+' shop(s) saved — shown at top of home screen':'No favourite shops yet. Tap ☆ on any shop to save it.'}</div>
+        <div style="font-size:12px;color:var(--t2)">${favCount?favCount+' shop(s) saved':'No favourite shops yet. Tap ☆ on any shop.'}</div>
       </div>
       <div class="sbox">
         <div class="sbox-t">Account</div>
@@ -846,373 +1085,380 @@ function removeRider(){USER.preferred_rider=null;saveUser();toast('Rider prefere
 // ══════════════════════════════════════════════════════════
 // SHOP DASHBOARD
 // ══════════════════════════════════════════════════════════
-let shopDelivOn=false, shopOrdersUnsub=null, shopOrders=[], shopMpesaCodes={};
+let shopDelivOn=false,shopOrdersUnsub=null,shopOrders=[],shopMpesaCodes={};
 function startShop(){
-  db.collection('shops').doc(USER.phone).get().then(d=>{if(d.exists) shopDelivOn=d.data().delivery_enabled||false;renderShopHeader();}).catch(()=>{renderShopHeader();});
-  showShopOrders();
+  // CHECK: does this shop exist in CHAWKPRO?
+  db.collection('shops').doc(USER.phone).get().then(d=>{
+    if(d.exists){
+      shopDelivOn=d.data().delivery_enabled||false;
+      renderShopHeader();
+    } else {
+      // Shop not in CHAWKPRO — prompt to create
+      document.getElementById('main').innerHTML=`
+        <div style="padding:40px 24px;text-align:center">
+          <div style="font-size:64px;margin-bottom:16px">🏪</div>
+          <div style="font-size:20px;font-weight:800;margin-bottom:8px">Set Up Your Shop</div>
+          <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:24px">
+            Your shop is not set up yet.<br>
+            Customers cannot see you until you create your shop profile<br>and add your products.
+          </div>
+          <button class="btn btn-a" onclick="createShopProfile()" style="margin-bottom:10px">Create My Shop Profile</button>
+          <div style="font-size:11px;color:var(--t2);margin-top:8px">100% Free · Takes 2 minutes</div>
+        </div>`;
+      document.getElementById('bnav').style.display='none';
+    }
+  }).catch(()=>renderShopHeader());
 }
+
+function createShopProfile(){
+  document.getElementById('main').innerHTML=`
+    <div style="padding:20px 20px 80px">
+      <div class="bk" onclick="startShop()">← Back</div>
+      <div class="fi">🏪</div>
+      <div class="ft" style="color:var(--a)">Create Your Shop</div>
+      <div class="fs">Fill in your shop details. Your products (stock) will be visible to Tumana customers once you enable delivery.</div>
+      <div class="fld"><label>Shop Name</label><input id="cs-name" type="text" placeholder="e.g. Mama Jane Grocery" value="${USER.shopName||''}"/></div>
+      <div class="fld"><label>Category</label>
+        <select id="cs-cat">
+          <option>Grocery</option><option>Pharmacy</option><option>Vegetables / Mama Mboga</option>
+          <option>Butchery</option><option>Bakery</option><option>Hardware</option>
+          <option>Electronics</option><option>Cosmetics</option><option>General Store</option>
+        </select>
+      </div>
+      <div class="fld"><label>Location in Chemelil</label><input id="cs-loc" type="text" placeholder="e.g. Near Market, Stage Area, Hospital Road"/></div>
+      <div class="fld"><label>Shop Icon (emoji)</label><input id="cs-icon" type="text" value="🏪" maxlength="4"/></div>
+      <button class="btn btn-a" onclick="saveShopProfile()">Save & Open Shop →</button>
+    </div>`;
+}
+
+async function saveShopProfile(){
+  const name=(document.getElementById('cs-name').value||'').trim();
+  const cat=document.getElementById('cs-cat').value;
+  const loc=(document.getElementById('cs-loc').value||'').trim();
+  const icon=document.getElementById('cs-icon').value||'🏪';
+  if(!name){toast('Enter your shop name');return;}
+  if(!loc){toast('Enter your location');return;}
+  try{
+    await db.collection('shops').doc(USER.phone).set({
+      name,category:cat,location:loc,icon,
+      owner_phone:USER.phone,owner_name:USER.name,
+      delivery_enabled:false,distance_km:0.5,rating:5.0,
+      created_at:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    USER.shopName=name;
+    saveUser();
+    toast('✅ Shop created! Add your products to stock.');
+    renderShopHeader();
+  }catch(e){toast('Error saving — check connection');}
+}
+
 function renderShopHeader(){
-  const letter=(USER.shopName||USER.name||USER.phone||'?').charAt(0).toUpperCase();
+  document.getElementById('bnav').style.display='flex';
+  setNav('shop','orders');
   document.getElementById('main').innerHTML=`
     <div class="sh">
       <div class="sh-row">
-        <div><div style="font-size:17px;font-weight:700">${USER.shopName||USER.name}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">Tumana Shop · ${USER.phone} · <span style='color:var(--g)'>FREE</span></div></div>
+        <div>
+          <div style="font-size:17px;font-weight:700">${USER.shopName||USER.name}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">Tumana Shop · ${USER.phone} · <span style="color:var(--g)">FREE</span></div>
+        </div>
         <button class="out-btn" onclick="if(confirm('Logout?')) logout()">Out</button>
       </div>
       <div class="sgrid">
-        <div class="scard"><div class="sv" style="color:var(--a)">KSh 8,450</div><div class="slbl">Today Sales</div></div>
+        <div class="scard"><div class="sv" style="color:var(--a)" id="shop-today-sales">KSh 0</div><div class="slbl">Today Sales</div></div>
         <div class="scard"><div class="sv" style="color:var(--g)" id="shop-transit-count">0</div><div class="slbl">Out for Delivery</div></div>
       </div>
       <div class="tog-strip">
-        <div><div style="font-weight:700;font-size:13px;color:${shopDelivOn?'var(--g)':'var(--t2)'}">${shopDelivOn?'🟢 Accepting Delivery Orders':'🔴 Delivery Off'}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${shopDelivOn?'Customers see your shop on Tumana':'Toggle to receive Tumana orders'}</div></div>
+        <div>
+          <div style="font-weight:700;font-size:13px;color:${shopDelivOn?'var(--g)':'var(--t2)'}">${shopDelivOn?'🟢 Accepting Delivery Orders':'🔴 Delivery Off'}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">${shopDelivOn?'Customers can see your shop on Tumana':'Toggle to start receiving delivery orders'}</div>
+        </div>
         <div class="tog-track ${shopDelivOn?'on':''}" id="shop-tog" onclick="toggleShopDelivery()"><div class="tog-thumb"></div></div>
       </div>
     </div>
     <div class="shop-tabs">
-      <div class="stab act" id="stab-orders" onclick="showShopOrders()">📋 Orders</div>
-      <div class="stab" id="stab-sales" onclick="showShopEmpty('sales')">💰 Sales</div>
-      <div class="stab" id="stab-stock" onclick="showShopEmpty('stock')">📦 Stock</div>
-      <div class="stab" id="stab-settings" onclick="showShopEmpty('settings')">⚙️</div>
+      <div class="stab act" id="stab-orders" onclick="showShopTab('orders')">📋 Orders</div>
+      <div class="stab" id="stab-sales" onclick="showShopTab('sales')">💰 Sales</div>
+      <div class="stab" id="stab-stock" onclick="showShopTab('stock')">📦 Stock</div>
+      <div class="stab" id="stab-settings" onclick="showShopTab('settings')">⚙️</div>
     </div>
-    <div id="shop-content"></div>`;
-  setNav('shop','orders');
+    <div id="shop-content" class="page" style="padding-bottom:80px"></div>`;
   loadShopOrders();
+  loadTodaySales();
 }
+
+function showShopTab(tab){
+  ['orders','sales','stock','settings'].forEach(t=>{
+    const el=document.getElementById('stab-'+t);
+    if(el) el.classList.toggle('act',t===tab);
+  });
+  if(tab==='orders') renderShopOrdersList();
+  else if(tab==='sales') showShopSales();
+  else if(tab==='stock') showShopStock();
+  else showShopSettings();
+}
+
+function loadTodaySales(){
+  db.collection('shops').doc(USER.phone).collection('sales')
+    .get().then(s=>{
+      const today=new Date().toDateString();
+      const total=s.docs.map(d=>d.data()).filter(d=>{
+        const dt=d.date?.toDate?.()||d.created_at?.toDate?.();
+        return dt&&dt.toDateString()===today;
+      }).reduce((sum,d)=>sum+(d.total||d.amount||0),0);
+      const el=document.getElementById('shop-today-sales');
+      if(el) el.textContent='KSh '+(total||0).toLocaleString();
+    }).catch(()=>{});
+}
+
 async function toggleShopDelivery(){
   shopDelivOn=!shopDelivOn;
+  const tog=document.getElementById('shop-tog');
+  if(tog){tog.classList.toggle('on',shopDelivOn);}
   try{
-    await db.collection('shops').doc(USER.phone).set({delivery_enabled:shopDelivOn,name:USER.shopName||USER.name,owner_phone:USER.phone,location:'Chemelil',category:'General',icon:'🏪',distance_km:.5,rating:5.0,updated_at:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    await db.collection('shops').doc(USER.phone).set({
+      delivery_enabled:shopDelivOn,name:USER.shopName||USER.name,
+      owner_phone:USER.phone,location:'Chemelil',category:'General',
+      icon:'🏪',distance_km:0.5,rating:5.0,
+      updated_at:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
     toast(shopDelivOn?'✅ Delivery ON — customers can see your shop':'Delivery paused');
-  }catch(e){shopDelivOn=!shopDelivOn;}
+  }catch(e){shopDelivOn=!shopDelivOn;toast('Error — check connection');}
   renderShopHeader();
 }
+
 function loadShopOrders(){
   if(shopOrdersUnsub) shopOrdersUnsub();
   shopOrdersUnsub=db.collection('delivery_orders').where('shop_id','==',USER.phone).limit(50)
     .onSnapshot(s=>{
-      shopOrders=s.docs.map(d=>({id:d.id,...d.data()})).filter(o=>!['delivered','rejected'].includes(o.status)).sort((a,b)=>(b.created_at?.seconds||0)-(a.created_at?.seconds||0));
-      const tc=document.getElementById('shop-transit-count');if(tc) tc.textContent=shopOrders.filter(o=>o.status==='transit').length;
+      shopOrders=s.docs.map(d=>({id:d.id,...d.data()}))
+        .filter(o=>!['delivered','rejected'].includes(o.status))
+        .sort((a,b)=>(b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+      const tc=document.getElementById('shop-transit-count');
+      if(tc) tc.textContent=shopOrders.filter(o=>o.status==='transit').length;
       renderShopOrdersList();
     },()=>{});
 }
-function showShopOrders(){
-  const tabs=['orders','sales','stock','settings'];
-  tabs.forEach(t=>{const el=document.getElementById('stab-'+t);if(el) el.classList.toggle('act',t==='orders');});
-  renderShopOrdersList();
-}
-function showShopEmpty(tab){
-  const tabs=['orders','sales','stock','settings'];
-  tabs.forEach(t=>{const el=document.getElementById('stab-'+t);if(el) el.classList.toggle('act',t===tab);});
-  if(tab==='sales') showShopSales();
-  else if(tab==='stock') showShopStock();
-  else if(tab==='settings') showShopSettings();
-  else showShopOrders();
-}
 
-// ── SHOP SALES TAB ────────────────────────────────────────
-function showShopSales(){
-  const content=document.getElementById('shop-content');
-  if(!content) return;
-  content.innerHTML=`<div style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></div>`;
-  // Load from CHAWKPRO sales collection
-  db.collection('shops').doc(USER.phone).collection('sales')
-    .orderBy('date','desc').limit(100)
-    .get().then(s=>{
-      const sales=s.docs.map(d=>({id:d.id,...d.data()}));
-      renderShopSales(sales);
-    }).catch(()=>{
-      // Also try 'transactions' collection used by CHAWKPRO
-      db.collection('shops').doc(USER.phone).collection('transactions')
-        .limit(100).get()
-        .then(s=>renderShopSales(s.docs.map(d=>({id:d.id,...d.data()}))))
-        .catch(()=>renderShopSales([]));
-    });
-}
-function renderShopSales(sales){
-  const content=document.getElementById('shop-content');if(!content) return;
-  // Calculate totals
-  const today=new Date().toDateString();
-  const todaySales=sales.filter(s=>{
-    const d=s.date?.toDate?.()||s.created_at?.toDate?.();
-    return d&&d.toDateString()===today;
-  });
-  const todayTotal=todaySales.reduce((sum,s)=>sum+(s.total||s.amount||s.selling_price||0),0);
-  const weekStart=new Date();weekStart.setDate(weekStart.getDate()-7);
-  const weekTotal=sales.filter(s=>{
-    const d=s.date?.toDate?.()||s.created_at?.toDate?.();
-    return d&&d>=weekStart;
-  }).reduce((sum,s)=>sum+(s.total||s.amount||0),0);
-  const allTotal=sales.reduce((sum,s)=>sum+(s.total||s.amount||0),0);
-
-  // Also load delivery orders earnings for this shop
-  db.collection('delivery_orders')
-    .where('shop_id','==',USER.phone)
-    .where('status','==','delivered')
-    .limit(50).get()
-    .then(s=>{
-      const deliveries=s.docs.map(d=>d.data());
-      const delivTotal=deliveries.reduce((sum,d)=>sum+(d.subtotal||0),0);
-      const todayDeliv=deliveries.filter(d=>{
-        const dt=d.delivered_at?.toDate?.()||d.created_at?.toDate?.();
-        return dt&&dt.toDateString()===today;
-      }).reduce((sum,d)=>sum+(d.subtotal||0),0);
-
-      content.innerHTML=`
-        <div style="padding:14px 18px 100px">
-          <!-- SUMMARY CARDS -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-            <div style="background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.2);border-radius:14px;padding:14px;text-align:center">
-              <div style="font-size:11px;color:var(--a);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Today</div>
-              <div style="font-size:24px;font-weight:800;color:var(--a)">KSh ${(todayTotal+todayDeliv).toLocaleString()}</div>
-              <div style="font-size:10px;color:var(--t2);margin-top:2px">${todaySales.length} walk-in + delivery</div>
-            </div>
-            <div style="background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px;text-align:center">
-              <div style="font-size:11px;color:var(--g);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Delivery</div>
-              <div style="font-size:24px;font-weight:800;color:var(--g)">KSh ${delivTotal.toLocaleString()}</div>
-              <div style="font-size:10px;color:var(--t2);margin-top:2px">${deliveries.length} orders via Tumana</div>
-            </div>
-          </div>
-          <div style="background:var(--c);border:1.5px solid var(--br);border-radius:14px;padding:14px;margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">
-            <div><div style="font-size:18px;font-weight:800">KSh ${weekTotal.toLocaleString()}</div><div style="font-size:10px;color:var(--t2);margin-top:2px;text-transform:uppercase;letter-spacing:.5px">This Week</div></div>
-            <div style="border-left:1px solid var(--br)"><div style="font-size:18px;font-weight:800">KSh ${(allTotal+delivTotal).toLocaleString()}</div><div style="font-size:10px;color:var(--t2);margin-top:2px;text-transform:uppercase;letter-spacing:.5px">All Time</div></div>
-          </div>
-
-          <!-- DELIVERY BREAKDOWN -->
-          <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Tumana Delivery Earnings</div>
-          ${deliveries.length===0
-            ?`<div style="background:var(--c);border:1.5px solid var(--br);border-radius:12px;padding:16px;text-align:center;color:var(--t2);font-size:13px;margin-bottom:14px">No delivery orders yet.<br>Enable delivery in Orders tab to start receiving.</div>`
-            :deliveries.slice(0,20).map(d=>{
-              const dt=d.delivered_at?.toDate?.()||d.created_at?.toDate?.();
-              return `<div style="background:var(--c);border:1.5px solid var(--br);border-left:3px solid var(--g);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-                <div>
-                  <div style="font-weight:700;font-size:13px">#${d.customer_phone?.slice(-4)||'????'} · ${d.customer_name||'Customer'}</div>
-                  <div style="font-size:11px;color:var(--t2);margin-top:2px">${(d.items||[]).map(i=>i.name+' ×'+i.quantity).join(', ')||'Delivery order'}</div>
-                  <div style="font-size:10px;color:var(--t3);margin-top:2px">${dt?dt.toLocaleDateString('en-KE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Recent'}</div>
-                </div>
-                <div style="text-align:right">
-                  <div style="font-size:16px;font-weight:800;color:var(--g)">KSh ${d.subtotal||0}</div>
-                  <div style="font-size:10px;color:var(--t2)">100% yours</div>
-                </div>
-              </div>`;
-            }).join('')}
-
-          <!-- WALK-IN SALES -->
-          ${sales.length>0?`
-            <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Walk-in Sales (CHAWKPRO)</div>
-            ${sales.slice(0,15).map(s=>{
-              const d=s.date?.toDate?.()||s.created_at?.toDate?.();
-              return `<div style="background:var(--c);border:1.5px solid var(--br);border-left:3px solid var(--a);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-                <div>
-                  <div style="font-weight:700;font-size:13px">${s.customer_name||s.customer||'Customer'}</div>
-                  <div style="font-size:11px;color:var(--t2);margin-top:2px">${s.items?s.items.map(i=>i.name||i.product_name).join(', '):s.product_name||'Sale'}</div>
-                  <div style="font-size:10px;color:var(--t3);margin-top:2px">${d?d.toLocaleDateString('en-KE',{day:'numeric',month:'short'}):'Recent'} · ${s.payment_method||s.type||'Cash'}</div>
-                </div>
-                <div style="text-align:right">
-                  <div style="font-size:16px;font-weight:800;color:var(--a)">KSh ${s.total||s.amount||s.selling_price||0}</div>
-                  <div style="font-size:10px;color:${s.is_debt||s.status==='debt'?'#ef4444':'var(--t2)'};">${s.is_debt||s.status==='debt'?'⚠️ Debt':'Paid'}</div>
-                </div>
-              </div>`;
-            }).join('')}`:''}
-        </div>`;
-    }).catch(()=>{
-      content.innerHTML=`<div style="padding:14px 18px 100px">${empty('💰','Sales Dashboard','Connect to CHAWKPRO — sales data loading from Firestore').outerHTML}</div>`;
-    });
-}
-
-// ── SHOP STOCK TAB ────────────────────────────────────────
-function showShopStock(){
-  const content=document.getElementById('shop-content');if(!content) return;
-  content.innerHTML=`<div style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></div>`;
-  db.collection('shops').doc(USER.phone).collection('stock')
-    .orderBy('name').get()
-    .then(s=>renderShopStock(s.docs.map(d=>({id:d.id,...d.data()}))))
-    .catch(()=>{
-      // Try inventory collection
-      db.collection('shops').doc(USER.phone).collection('inventory')
-        .get().then(s=>renderShopStock(s.docs.map(d=>({id:d.id,...d.data()}))))
-        .catch(()=>renderShopStock([]));
-    });
-}
-function renderShopStock(items){
-  const content=document.getElementById('shop-content');if(!content) return;
-  const lowStock=items.filter(i=>(i.quantity||0)<5);
-  const totalValue=items.reduce((s,i)=>s+((i.quantity||0)*(i.cost_price||i.buying_price||0)),0);
-  const totalItems=items.reduce((s,i)=>s+(i.quantity||0),0);
-
-  content.innerHTML=`
-    <div style="padding:14px 18px 100px">
-      <!-- STOCK SUMMARY -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-        <div style="background:var(--c2);border:1.5px solid var(--br);border-radius:12px;padding:12px;text-align:center">
-          <div style="font-size:20px;font-weight:800;color:var(--a)">${items.length}</div>
-          <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Products</div>
-        </div>
-        <div style="background:var(--c2);border:1.5px solid var(--br);border-radius:12px;padding:12px;text-align:center">
-          <div style="font-size:20px;font-weight:800;color:var(--g)">${totalItems}</div>
-          <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">In Stock</div>
-        </div>
-        <div style="background:${lowStock.length>0?'rgba(239,68,68,.08)':'var(--c2)'};border:1.5px solid ${lowStock.length>0?'rgba(239,68,68,.25)':'var(--br)'};border-radius:12px;padding:12px;text-align:center">
-          <div style="font-size:20px;font-weight:800;color:${lowStock.length>0?'#ef4444':'var(--t2)'}">${lowStock.length}</div>
-          <div style="font-size:10px;color:${lowStock.length>0?'#ef4444':'var(--t2)'};text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Low Stock</div>
-        </div>
-      </div>
-
-      ${lowStock.length>0?`
-        <div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:14px">
-          <div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:6px">⚠️ Low Stock Alert</div>
-          ${lowStock.map(i=>`<div style="font-size:12px;color:var(--t2);margin:3px 0">• ${i.name||i.product_name} — ${i.quantity||0} left</div>`).join('')}
-        </div>`:''}
-
-      <!-- DELIVERY SYNC STATUS -->
-      <div style="background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.12);border-radius:12px;padding:12px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--g);margin-bottom:6px">🔄 Tumana Delivery Sync</div>
-        <div style="font-size:12px;color:var(--t2);line-height:1.6">Your ${items.filter(i=>(i.quantity||0)>0).length} in-stock items automatically appear to Tumana customers when you accept delivery orders. Free with no commission on sales.</div>
-      </div>
-
-      <!-- STOCK LIST -->
-      <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">All Products</div>
-      ${items.length===0
-        ?`<div style="background:var(--c);border:1.5px solid var(--br);border-radius:12px;padding:20px;text-align:center;color:var(--t2);font-size:13px">No stock found.<br>Add products in CHAWKPRO to see them here.</div>`
-        :items.map(item=>{
-          const qty=item.quantity||0;
-          const cost=item.cost_price||item.buying_price||0;
-          const sell=item.selling_price||item.price||0;
-          const profit=sell-cost;
-          const isLow=qty<5;
-          return `<div style="background:var(--c);border:1.5px solid ${isLow?'rgba(239,68,68,.25)':'var(--br)'};border-radius:12px;padding:13px;margin-bottom:9px">
-            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
-              <div style="display:flex;gap:10px;align-items:center">
-                <div style="font-size:28px">${item.emoji||item.icon||'🛒'}</div>
-                <div>
-                  <div style="font-weight:700;font-size:14px">${item.name||item.product_name}</div>
-                  <div style="font-size:11px;color:var(--t2);margin-top:2px">${item.category||item.unit||''}</div>
-                </div>
-              </div>
-              <div style="text-align:right">
-                <div style="font-weight:800;font-size:16px;color:${isLow?'#ef4444':qty>20?'var(--g)':'var(--a)'}">${qty} left</div>
-                <div style="font-size:10px;color:var(--t2);margin-top:2px">${isLow?'⚠️ Restock':qty>20?'✅ Good':'Fair'}</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:6px">
-              ${cost>0?`<div style="flex:1;background:var(--c2);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--t2);margin-bottom:2px">Cost</div><div style="font-weight:700;font-size:13px">KSh ${cost}</div></div>`:''}
-              <div style="flex:1;background:var(--c2);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--t2);margin-bottom:2px">Selling</div><div style="font-weight:700;font-size:13px;color:var(--g)">KSh ${sell}</div></div>
-              ${cost>0?`<div style="flex:1;background:rgba(16,185,129,.06);border-radius:8px;padding:8px;text-align:center"><div style="font-size:10px;color:var(--t2);margin-bottom:2px">Profit</div><div style="font-weight:700;font-size:13px;color:var(--g)">KSh ${profit}</div></div>`:''}
-            </div>
-          </div>`;
-        }).join('')}
-    </div>`;
-}
-
-// ── SHOP SETTINGS TAB ─────────────────────────────────────
-function showShopSettings(){
-  const content=document.getElementById('shop-content');if(!content) return;
-  content.innerHTML=`
-    <div style="padding:14px 18px 100px">
-      <!-- DELIVERY SETTINGS -->
-      <div class="sbox">
-        <div class="sbox-t">🚴 Tumana Delivery</div>
-        <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:12px">
-          Status: <strong style="color:${shopDelivOn?'var(--g)':'#ef4444'}">${shopDelivOn?'✅ Active — Customers can see your shop':'🔴 Off — Enable in Orders tab'}</strong><br>
-          Commission: <strong style="color:#fff">0% on sales</strong><br>
-          Subscription: <strong style="color:var(--g)">FREE for now</strong><br>
-          Rider gets: <strong style="color:#fff">90% of delivery fee</strong>
-        </div>
-      </div>
-
-      <!-- SHOP INFO -->
-      <div class="sbox">
-        <div class="sbox-t">Shop Details</div>
-        <div style="font-size:13px;color:var(--t2);line-height:1.8">
-          Name: <strong style="color:#fff">${USER.shopName||USER.name}</strong><br>
-          Phone: <strong style="color:#fff">${USER.phone}</strong><br>
-          M-Pesa: <strong style="color:#fff">${USER.phone}</strong><br>
-          Location: <strong style="color:#fff">Chemelil</strong>
-        </div>
-      </div>
-
-      <!-- SUBSCRIPTION -->
-      <div style="background:rgba(245,158,11,.05);border:1.5px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:var(--a);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Subscription</div>
-        <div style="font-size:13px;color:var(--t2);line-height:1.7">
-          Plan: <strong style="color:var(--g)">Tumana FREE Plan</strong><br>
-          Cost: <strong style="color:var(--g)">FREE</strong><br>
-          Status: <strong style="color:var(--g)">✅ Active — No payment required</strong>
-        </div>
-      </div>
-
-      <!-- CHAWKPRO LINK -->
-      <div class="sbox">
-        <div class="sbox-t">📊 Full Management Dashboard</div>
-        <div style="font-size:13px;color:var(--t2);margin-bottom:12px;line-height:1.6">Access your full shop management tools — sales recording, stock tracking, staff management, debt tracking and more.</div>
-        <a href="https://kwachdavid123-beep.github.io/Chawkpro/" target="_blank"
-           style="display:block;width:100%;padding:13px;border-radius:10px;border:1.5px solid var(--a);color:var(--a);text-align:center;font-weight:700;font-size:14px;text-decoration:none">
-          Open Shop Dashboard →
-        </a>
-      </div>
-
-      <button class="btn btn-ghost" onclick="if(confirm('Logout?')) logout()">Logout</button>
-    </div>`;
-}
-const STATUS_LABELS_SHOP={placed:'Awaiting M-Pesa',confirmed:'Confirmed ✅',assigned:'Rider Assigned',heading:'Rider En Route',picked:'Picked Up',transit:'Out for Delivery'};
 function renderShopOrdersList(){
-  const content=document.getElementById('shop-content');
-  if(!content) return;
+  const content=document.getElementById('shop-content');if(!content) return;
   const pending=shopOrders.filter(o=>o.status==='placed').length;
-  const pendBadge=document.querySelector('.nb .badge');
-  if(pendBadge) pendBadge.textContent=pending;
+  const SP={placed:{cls:'s1',label:'Awaiting M-Pesa'},confirmed:{cls:'s2',label:'Confirmed ✅'},assigned:{cls:'s3',label:'Rider Assigned'},heading:{cls:'s3',label:'Rider En Route'},picked:{cls:'s4',label:'Picked Up'},transit:{cls:'s5',label:'Out for Delivery'}};
   if(!shopOrders.length){
-    content.innerHTML=empty('📋',shopDelivOn?'No orders yet':'Delivery is Off',shopDelivOn?'Tumana orders appear here instantly':'Enable delivery above').outerHTML;
+    content.innerHTML=`<div style="padding:14px 18px">${shopDelivOn?'<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No orders yet</div><div class="empty-sub">Tumana orders appear here instantly when customers order</div></div>':'<div class="empty"><div class="empty-icon">🔴</div><div class="empty-title">Delivery is Off</div><div class="empty-sub">Toggle the switch above to start receiving delivery orders</div></div>'}</div>`;
     return;
   }
   content.innerHTML=`<div style="padding:10px 18px 100px">${shopOrders.map(o=>`
     <div class="do-card">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <div><div style="font-weight:700">#${o.id.slice(-6).toUpperCase()}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${o.customer_name||''} · ${o.customer_phone||''}</div></div>
-        <span class="spill ${SP[o.status]?.cls||'s1'}">${STATUS_LABELS_SHOP[o.status]||o.status}</span>
+        <div>
+          <div style="font-weight:700">#${o.id.slice(-6).toUpperCase()}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">${o.customer_name||''} · ${o.customer_phone||''}</div>
+        </div>
+        <span class="spill ${SP[o.status]?.cls||'s1'}">${SP[o.status]?.label||o.status}</span>
       </div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:8px">${(o.items||[]).map(i=>i.name+' ×'+i.quantity).join(' · ')}</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:8px">${(o.items||[]).map(i=>i.name+' ×'+i.quantity).join(' · ')||o.item_description||''}</div>
       <div style="display:flex;gap:7px;margin-bottom:8px">
-        <div style="flex:1;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.13);border-radius:8px;padding:8px 9px;text-align:center"><div style="font-size:9px;color:var(--t2);margin-bottom:2px">YOU EARN</div><div style="font-weight:800;color:var(--g)">KSh ${o.subtotal||0}</div></div>
-        <div style="flex:1;background:var(--c2);border-radius:8px;padding:8px 9px;text-align:center"><div style="font-size:9px;color:var(--t2);margin-bottom:2px">TOTAL PAID</div><div style="font-weight:800">KSh ${o.total||0}</div></div>
+        <div style="flex:1;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.13);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:9px;color:var(--t2);margin-bottom:2px">YOU EARN</div>
+          <div style="font-weight:800;color:var(--g)">KSh ${o.subtotal||o.total||0}</div>
+        </div>
+        <div style="flex:1;background:var(--c2);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:9px;color:var(--t2);margin-bottom:2px">CUSTOMER PAID</div>
+          <div style="font-weight:800">KSh ${o.total||0}</div>
+        </div>
       </div>
-      ${o.status==='placed'?`<input class="mp-inp" type="text" placeholder="M-Pesa code from SMS e.g. RGH456XYZ" oninput="shopMpesaCodes['${o.id}']=this.value.toUpperCase();this.value=this.value.toUpperCase()"/><div class="act-row"><button class="btn-rej">❌ Reject</button><button class="btn-cfm" onclick="confirmShopPay('${o.id}')">✅ Confirm</button></div>`:''}
+      ${o.status==='placed'?`
+        <input class="mp-inp" type="text" placeholder="Enter M-Pesa code from your SMS e.g. RGH456XYZ"
+          oninput="shopMpesaCodes['${o.id}']=this.value.toUpperCase();this.value=this.value.toUpperCase()"/>
+        <div class="act-row">
+          <button class="btn-rej" onclick="rejectOrder('${o.id}')">❌ Reject</button>
+          <button class="btn-cfm" onclick="confirmShopPay('${o.id}')">✅ Confirm Payment</button>
+        </div>`:''}
       ${o.rider_name?`<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.14);border-radius:8px;padding:9px;font-size:12px;color:var(--p);margin-top:6px">🏍️ ${o.rider_name} · ${o.rider_phone}</div>`:''}
     </div>`).join('')}</div>`;
 }
+
 async function confirmShopPay(id){
   const code=(shopMpesaCodes[id]||'').trim();
   if(!code||code.length<5){toast('Enter M-Pesa code from your SMS');return;}
   try{
-    await db.collection('delivery_orders').doc(id).update({status:'confirmed',mpesa_code:code,confirmed_at:firebase.firestore.FieldValue.serverTimestamp()});
-    toast('✅ Confirmed! Notifying riders…');
+    await db.collection('delivery_orders').doc(id).update({
+      status:'confirmed',mpesa_code:code,
+      confirmed_at:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('✅ Confirmed! Notifying available riders…');
   }catch(e){toast('Error — check connection');}
+}
+
+async function rejectOrder(id){
+  if(!confirm('Reject this order?')) return;
+  try{
+    await db.collection('delivery_orders').doc(id).update({status:'rejected'});
+    toast('Order rejected');
+  }catch(e){}
+}
+
+function showShopSales(){
+  const content=document.getElementById('shop-content');if(!content) return;
+  content.innerHTML=`<div style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></div>`;
+  db.collection('shops').doc(USER.phone).collection('sales').limit(100).get()
+    .then(s=>renderShopSales(s.docs.map(d=>({id:d.id,...d.data()}))))
+    .catch(()=>renderShopSales([]));
+}
+
+function renderShopSales(sales){
+  const content=document.getElementById('shop-content');if(!content) return;
+  const today=new Date().toDateString();
+  const todayTotal=sales.filter(s=>{const d=s.date?.toDate?.()||s.created_at?.toDate?.();return d&&d.toDateString()===today;}).reduce((s,r)=>s+(r.total||r.amount||0),0);
+  const allTotal=sales.reduce((s,r)=>s+(r.total||r.amount||0),0);
+  db.collection('delivery_orders').where('shop_id','==',USER.phone).where('status','==','delivered').limit(50).get()
+    .then(s=>{
+      const deliveries=s.docs.map(d=>d.data());
+      const delivTotal=deliveries.reduce((s,d)=>s+(d.subtotal||0),0);
+      content.innerHTML=`<div style="padding:14px 18px 100px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div style="background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.2);border-radius:14px;padding:14px;text-align:center">
+            <div style="font-size:11px;color:var(--a);font-weight:700;margin-bottom:4px">TODAY</div>
+            <div style="font-size:22px;font-weight:800;color:var(--a)">KSh ${todayTotal.toLocaleString()}</div>
+          </div>
+          <div style="background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px;text-align:center">
+            <div style="font-size:11px;color:var(--g);font-weight:700;margin-bottom:4px">DELIVERY</div>
+            <div style="font-size:22px;font-weight:800;color:var(--g)">KSh ${delivTotal.toLocaleString()}</div>
+          </div>
+        </div>
+        <div style="background:var(--c);border:1.5px solid var(--br);border-radius:14px;padding:14px;margin-bottom:14px;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:var(--a)">KSh ${(allTotal+delivTotal).toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:4px">ALL TIME EARNINGS</div>
+        </div>
+        ${deliveries.length?`
+          <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Tumana Delivery Orders</div>
+          ${deliveries.slice(0,20).map(d=>`<div style="background:var(--c);border:1.5px solid var(--br);border-left:3px solid var(--g);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${d.customer_name||'Customer'}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${(d.items||[]).map(i=>i.name+' ×'+i.quantity).join(', ')||'Delivery'}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:800;color:var(--g)">KSh ${d.subtotal||0}</div><div style="font-size:10px;color:var(--t2)">100% yours</div></div></div>`).join('')}`:
+          '<div style="background:var(--c);border:1.5px solid var(--br);border-radius:12px;padding:16px;text-align:center;color:var(--t2);font-size:13px">No delivery orders yet. Enable delivery to start.</div>'}
+        ${sales.length?`
+          <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Walk-in Sales</div>
+          ${sales.slice(0,15).map(s=>`<div style="background:var(--c);border:1.5px solid var(--br);border-left:3px solid var(--a);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${s.customer_name||s.customer||'Customer'}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${s.product_name||'Sale'}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:800;color:var(--a)">KSh ${s.total||s.amount||0}</div><div style="font-size:10px;color:${s.is_debt?'#ef4444':'var(--t2)'};">${s.is_debt?'⚠️ Debt':'Paid'}</div></div></div>`).join('')}`:''}
+      </div>`;
+    }).catch(()=>{
+      content.innerHTML=`<div style="padding:14px 18px">${empty('💰','Sales Dashboard','No data yet — record sales in CHAWKPRO dashboard').outerHTML}</div>`;
+    });
+}
+
+function showShopStock(){
+  const content=document.getElementById('shop-content');if(!content) return;
+  content.innerHTML=`<div style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></div>`;
+  db.collection('shops').doc(USER.phone).collection('stock').get()
+    .then(s=>renderShopStock(s.docs.map(d=>({id:d.id,...d.data()}))))
+    .catch(()=>renderShopStock([]));
+}
+
+function renderShopStock(items){
+  const content=document.getElementById('shop-content');if(!content) return;
+  const low=items.filter(i=>(i.quantity||0)<5);
+  content.innerHTML=`<div style="padding:14px 18px 100px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="scard" style="text-align:center"><div class="sv" style="color:var(--a)">${items.length}</div><div class="slbl">Products</div></div>
+      <div class="scard" style="text-align:center"><div class="sv" style="color:var(--g)">${items.reduce((s,i)=>s+(i.quantity||0),0)}</div><div class="slbl">In Stock</div></div>
+      <div class="scard" style="text-align:center;background:${low.length?'rgba(239,68,68,.08)':'var(--c2)'};border-color:${low.length?'rgba(239,68,68,.25)':'var(--br)'}"><div class="sv" style="color:${low.length?'#ef4444':'var(--t2)'}">${low.length}</div><div class="slbl" style="color:${low.length?'#ef4444':'var(--t2)'}">Low Stock</div></div>
+    </div>
+    ${low.length?`<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:6px">⚠️ Restock Needed</div>${low.map(i=>`<div style="font-size:12px;color:var(--t2);margin:3px 0">• ${i.name||i.product_name} — ${i.quantity||0} left</div>`).join('')}</div>`:''}
+    <div style="background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.12);border-radius:12px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--g);margin-bottom:6px">🔄 Tumana Sync</div>
+      <div style="font-size:12px;color:var(--t2)">Your ${items.filter(i=>(i.quantity||0)>0).length} in-stock items auto-appear to Tumana customers when delivery is ON.</div>
+    </div>
+    ${items.length===0?`<div style="background:var(--c);border:1.5px solid var(--br);border-radius:12px;padding:20px;text-align:center;color:var(--t2);font-size:13px">No stock yet.<br>Add products via the CHAWKPRO dashboard below.</div>`
+    :items.map(item=>{
+      const qty=item.quantity||0,sell=item.selling_price||0,cost=item.cost_price||item.buying_price||0;
+      const isLow=qty<5;
+      return `<div style="background:var(--c);border:1.5px solid ${isLow?'rgba(239,68,68,.25)':'var(--br)'};border-radius:12px;padding:13px;margin-bottom:9px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="font-size:26px">${item.emoji||item.icon||'🛒'}</div>
+            <div><div style="font-weight:700;font-size:14px">${item.name||item.product_name}</div><div style="font-size:11px;color:var(--t2)">${item.category||''}</div></div>
+          </div>
+          <div style="text-align:right"><div style="font-weight:800;font-size:16px;color:${isLow?'#ef4444':qty>20?'var(--g)':'var(--a)'}">${qty}</div><div style="font-size:10px;color:var(--t2)">${isLow?'⚠️ Low':'in stock'}</div></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${cost?`<div style="flex:1;background:var(--c2);border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:var(--t2);margin-bottom:1px">Cost</div><div style="font-weight:700;font-size:13px">KSh ${cost}</div></div>`:''}
+          <div style="flex:1;background:var(--c2);border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:var(--t2);margin-bottom:1px">Selling</div><div style="font-weight:700;font-size:13px;color:var(--g)">KSh ${sell}</div></div>
+          ${cost&&sell?`<div style="flex:1;background:rgba(16,185,129,.06);border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:var(--t2);margin-bottom:1px">Profit</div><div style="font-weight:700;font-size:13px;color:var(--g)">KSh ${sell-cost}</div></div>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function showShopSettings(){
+  const content=document.getElementById('shop-content');if(!content) return;
+  content.innerHTML=`<div style="padding:14px 18px 100px">
+    <div class="sbox">
+      <div class="sbox-t">🚴 Delivery Status</div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:10px">
+        Status: <strong style="color:${shopDelivOn?'var(--g)':'#ef4444'}">${shopDelivOn?'✅ ON — customers can order from you':'🔴 OFF — enable in Orders tab'}</strong><br>
+        Commission: <strong style="color:#fff">0% on sales</strong><br>
+        Plan: <strong style="color:var(--g)">FREE</strong>
+      </div>
+    </div>
+    <div class="sbox">
+      <div class="sbox-t">Shop Details</div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.8">
+        Name: <strong style="color:#fff">${USER.shopName||USER.name}</strong><br>
+        Phone: <strong style="color:#fff">${USER.phone}</strong><br>
+        Location: <strong style="color:#fff">Chemelil</strong>
+      </div>
+    </div>
+    <div class="sbox">
+      <div class="sbox-t">📊 Full Management Dashboard</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:12px;line-height:1.6">Sales recording, stock tracking, staff management, debt tracking and more.</div>
+      <a href="https://kwachdavid123-beep.github.io/Chawkpro/" target="_blank"
+         style="display:block;width:100%;padding:13px;border-radius:10px;border:1.5px solid var(--a);color:var(--a);text-align:center;font-weight:700;font-size:14px;text-decoration:none">
+        Open Shop Dashboard →
+      </a>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="if(confirm('Logout?')) logout()">Logout</button>
+  </div>`;
 }
 
 // ══════════════════════════════════════════════════════════
 // RIDER DASHBOARD
 // ══════════════════════════════════════════════════════════
-let riderOnline=false, riderJobsUnsub=null, riderActiveUnsub=null, riderJobs=[], riderActive=null, riderEarned=0, riderTab='jobs', riderHistory=[];
-const NEXT_ST={assigned:'heading',heading:'picked',picked:'transit',transit:'delivered'};
-const NEXT_LB={assigned:'🔍 Heading to Pickup',heading:'📦 Picked Up',picked:'🚴 Out for Delivery',transit:'✅ Mark Delivered'};
+let riderOnline=false,riderJobsUnsub=null,riderActiveUnsub=null,riderJobs=[],riderActive=null,riderEarned=0,riderTab='jobs',riderHistory=[];
+
 function startRider(){riderTab='jobs';showRiderDash();}
+
+function showRiderTab(tab){
+  riderTab=tab;
+  const nav=document.getElementById('bnav');
+  if(nav) nav.innerHTML=`
+    <div class="nb ${tab==='jobs'?'act-p':''}" onclick="showRiderTab('jobs')"><div class="nb-icon">🏍️</div><div class="nb-label">Jobs</div></div>
+    <div class="nb ${tab==='earnings'?'act-p':''}" onclick="showRiderTab('earnings')"><div class="nb-icon">💰</div><div class="nb-label">Earnings</div></div>`;
+  if(tab==='earnings') showRiderEarnings();
+  else showRiderDash();
+}
+
 function showRiderDash(){
   setNav('rider','jobs');
-  const letter=(USER.name||USER.phone||'?').charAt(0).toUpperCase();
   document.getElementById('main').innerHTML=`
     <div class="rh">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:18px;font-weight:700">Hey ${(USER.name||'Rider').split(' ')[0]}! 🏍️</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${USER.phone} · Tumana Rider</div></div>
+        <div>
+          <div style="font-size:18px;font-weight:700">Hey ${(USER.name||'Rider').split(' ')[0]}! 🏍️</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">${USER.phone} · Tumana Rider</div>
+        </div>
         <button class="out-btn" onclick="if(confirm('Logout?')) logout()">Out</button>
       </div>
       <div class="r-tog">
-        <div><div style="font-weight:700;color:${riderOnline?'var(--g)':'var(--t2)'}">${riderOnline?'🟢 Online — Receiving Jobs':'🔴 Offline'}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${riderOnline?'Shop deliveries and pickup requests below':'Toggle to start earning'}</div></div>
+        <div>
+          <div style="font-weight:700;color:${riderOnline?'var(--g)':'var(--t2)'}">${riderOnline?'🟢 Online — Receiving Jobs':'🔴 Offline'}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">${riderOnline?'Shop deliveries and pickup requests below':'Toggle to start earning'}</div>
+        </div>
         <div class="tog-track ${riderOnline?'on':''}" onclick="toggleRiderOnline()"><div class="tog-thumb"></div></div>
       </div>
     </div>
     <div class="page" style="padding:10px 18px 100px">
       <div style="display:flex;gap:8px;margin-bottom:12px">
-        <div class="scard" style="flex:1"><div class="sv" style="color:var(--g)">KSh ${riderEarned}</div><div class="slbl">Today</div></div>
-        <div class="scard" style="flex:1"><div class="sv" style="color:var(--p)" id="rider-jobs-count">${riderJobs.length}</div><div class="slbl">Available</div></div>
+        <div class="scard" style="flex:1;text-align:center"><div class="sv" style="color:var(--g)">KSh ${riderEarned}</div><div class="slbl">Today</div></div>
+        <div class="scard" style="flex:1;text-align:center"><div class="sv" style="color:var(--p)" id="rider-jobs-count">${riderJobs.length}</div><div class="slbl">Available</div></div>
       </div>
       <div id="rider-content"></div>
     </div>`;
@@ -1220,6 +1466,7 @@ function showRiderDash(){
   if(riderOnline) listenRiderJobs();
   listenRiderActive();
 }
+
 function toggleRiderOnline(){
   riderOnline=!riderOnline;
   db.collection('riders').doc(USER.phone).set({online:riderOnline,name:USER.name,phone:USER.phone},{merge:true}).catch(()=>{});
@@ -1227,6 +1474,7 @@ function toggleRiderOnline(){
   if(riderOnline) listenRiderJobs(); else {if(riderJobsUnsub) riderJobsUnsub();riderJobs=[];}
   showRiderDash();
 }
+
 function listenRiderJobs(){
   if(riderJobsUnsub) riderJobsUnsub();
   riderJobsUnsub=db.collection('delivery_orders').where('status','in',['confirmed','placed']).limit(20)
@@ -1235,164 +1483,40 @@ function listenRiderJobs(){
       const c=document.getElementById('rider-jobs-count');if(c) c.textContent=riderJobs.length;
       renderRiderContent();
     },()=>{
-      riderJobs=[{id:'dj1',type:'shop',shopName:"Mama Jane's",shopLocation:'Chemelil Center',customer_name:'John K.',delivery_address:'Near Hospital',distance:.8,delivery_fee:70,total:550,status:'confirmed'},{id:'dj2',type:'pickup',pickup_from:'Stage Area',delivery_address:'Market',item_description:'2 mandazi from Mama Safi',distance:.5,delivery_fee:60,total:60,status:'placed',customer_name:'Mary W.'}];
+      riderJobs=[
+        {id:'demo1',type:'shop',shopName:"Mama Jane's",shopLocation:'Chemelil Market',customer_name:'John K.',delivery_address:'Near Hospital',distance:.8,delivery_fee:70,total:550,status:'confirmed'},
+        {id:'demo2',type:'pickup',pickup_from:'Stage Area',delivery_address:'Sugar Factory',item_description:'Parcel from Mama Achieng',distance:1.2,delivery_fee:74,total:74,status:'placed',customer_name:'Mary W.'},
+      ];
       renderRiderContent();
     });
 }
+
 function listenRiderActive(){
   if(riderActiveUnsub) riderActiveUnsub();
   riderActiveUnsub=db.collection('delivery_orders').where('rider_phone','==',USER.phone).limit(10)
     .onSnapshot(s=>{
       riderActive=s.docs.map(d=>({id:d.id,...d.data()})).find(d=>['assigned','heading','picked','transit'].includes(d.status))||null;
       renderRiderContent();
-    },()=>{riderActive=null;});
-}
-function showRiderTab(tab){
-  riderTab=tab;
-  // Re-render nav with correct active state
-  const nav=document.getElementById('bnav');
-  if(nav) nav.innerHTML=`
-      <div class="nb ${tab==='jobs'?'act-p':''}" onclick="showRiderTab('jobs')"><div class="nb-icon">🏍️</div><div class="nb-label">Jobs</div></div>
-      <div class="nb ${tab==='earnings'?'act-p':''}" onclick="showRiderTab('earnings')"><div class="nb-icon">💰</div><div class="nb-label">Earnings</div></div>`;
-  if(tab==='earnings') showRiderEarnings();
-  else showRiderDash();
+    },()=>riderActive=null);
 }
 
-function showRiderEarnings(){
-  const main=document.getElementById('main');
-  // Get rider data from Firestore
-  db.collection('riders').doc(USER.phone).get().then(d=>{
-    const data=d.exists?d.data():{total_earnings:0,orders_completed:0,rating:5.0};
-    renderRiderEarnings(data);
-  }).catch(()=>renderRiderEarnings({total_earnings:0,orders_completed:0,rating:5.0}));
-  // Load delivery history
-  db.collection('delivery_orders')
-    .where('rider_phone','==',USER.phone)
-    .where('status','==','delivered')
-    .limit(50)
-    .get()
-    .then(s=>{
-      riderHistory=s.docs.map(d=>({id:d.id,...d.data()}))
-        .sort((a,b)=>(b.delivered_at?.seconds||b.created_at?.seconds||0)-(a.delivered_at?.seconds||a.created_at?.seconds||0));
-      // Re-render with history
-      db.collection('riders').doc(USER.phone).get().then(d=>{
-        renderRiderEarnings(d.exists?d.data():{total_earnings:0,orders_completed:0},riderHistory);
-      });
-    }).catch(()=>{});
-  // Show loading first
-  main.innerHTML=`
-    <div style="background:linear-gradient(180deg,#110a20,var(--bg));padding:20px 18px 16px">
-      <div style="font-size:22px;font-weight:800;margin-bottom:4px">My Earnings</div>
-      <div style="font-size:13px;color:var(--t2)">Track your income and payouts</div>
-    </div>
-    <div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div></div>`;
-}
-
-function renderRiderEarnings(data, history=[]){
-  const total=data.total_earnings||0;
-  const completed=data.orders_completed||0;
-  const rating=data.rating||5.0;
-  // Today's earnings from history
-  const today=new Date().toDateString();
-  const todayEarnings=history.filter(h=>{
-    const d=h.delivered_at?.toDate?.()||h.created_at?.toDate?.();
-    return d&&d.toDateString()===today;
-  }).reduce((s,h)=>s+Math.round((h.delivery_fee||70)*.9),0);
-  // This week
-  const weekStart=new Date(); weekStart.setDate(weekStart.getDate()-weekStart.getDay());
-  const weekEarnings=history.filter(h=>{
-    const d=h.delivered_at?.toDate?.()||h.created_at?.toDate?.();
-    return d&&d>=weekStart;
-  }).reduce((s,h)=>s+Math.round((h.delivery_fee||70)*.9),0);
-
-  document.getElementById('main').innerHTML=`
-    <div style="background:linear-gradient(180deg,#110a20,var(--bg));padding:20px 18px 0">
-      <div style="font-size:22px;font-weight:800;margin-bottom:4px">My Earnings</div>
-      <div style="font-size:13px;color:var(--t2);margin-bottom:16px">Track your income · Daily M-Pesa payouts</div>
-
-      <!-- EARNINGS CARDS -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-        <div style="background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px;text-align:center">
-          <div style="font-size:11px;color:var(--g);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Today</div>
-          <div style="font-size:26px;font-weight:800;color:var(--g)">KSh ${todayEarnings+riderEarned}</div>
-          <div style="font-size:10px;color:var(--t2);margin-top:2px">This session</div>
-        </div>
-        <div style="background:rgba(139,92,246,.08);border:1.5px solid rgba(139,92,246,.2);border-radius:14px;padding:14px;text-align:center">
-          <div style="font-size:11px;color:var(--p);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">This Week</div>
-          <div style="font-size:26px;font-weight:800;color:var(--p)">KSh ${weekEarnings}</div>
-          <div style="font-size:10px;color:var(--t2);margin-top:2px">${history.filter(h=>{const d=h.delivered_at?.toDate?.()||h.created_at?.toDate?.();return d&&d>=weekStart;}).length} deliveries</div>
-        </div>
-      </div>
-
-      <!-- TOTAL STATS -->
-      <div style="background:var(--c);border:1.5px solid var(--br);border-radius:14px;padding:14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
-        <div>
-          <div style="font-size:18px;font-weight:800;color:#fff">KSh ${total}</div>
-          <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">All Time</div>
-        </div>
-        <div style="border-left:1px solid var(--br);border-right:1px solid var(--br)">
-          <div style="font-size:18px;font-weight:800;color:#fff">${completed}</div>
-          <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Deliveries</div>
-        </div>
-        <div>
-          <div style="font-size:18px;font-weight:800;color:#fbbf24">⭐ ${typeof rating==='number'?rating.toFixed(1):rating}</div>
-          <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Rating</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- PAYOUT INFO -->
-    <div style="padding:14px 18px">
-      <div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px;margin-bottom:16px">
-        <div style="font-size:11px;font-weight:700;color:var(--g);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📱 Payout Info</div>
-        <div style="font-size:13px;line-height:1.7;color:var(--t2)">
-          Daily payouts sent to your M-Pesa:<br>
-          <strong style="color:#fff">${USER.phone}</strong><br>
-          Payout time: <strong style="color:#fff">Every evening by 8 PM</strong><br>
-          Minimum: <strong style="color:#fff">KSh 100</strong>
-        </div>
-      </div>
-
-      <!-- DELIVERY HISTORY -->
-      <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">
-        Delivery History
-      </div>
-      ${history.length===0
-        ?`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No deliveries yet</div><div class="empty-sub">Complete your first delivery to see history here</div></div>`
-        :history.map(h=>{
-          const earns=Math.round((h.delivery_fee||70)*.9);
-          const d=h.delivered_at?.toDate?.()||h.created_at?.toDate?.();
-          const dateStr=d?d.toLocaleDateString('en-KE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Recent';
-          const isPickup=h.type==='pickup';
-          return `<div style="background:var(--c);border:1.5px solid var(--br);border-radius:12px;padding:13px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-weight:700;font-size:13px">${isPickup?'🏍️ Pickup':'🛒 Delivery'} #${h.id.slice(-6).toUpperCase()}</div>
-              <div style="font-size:11px;color:var(--t2);margin-top:2px">${h.shopName||h.pickup_from||'Order'} → ${h.delivery_address||''}</div>
-              <div style="font-size:10px;color:var(--t3);margin-top:2px">${dateStr}</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:18px;font-weight:800;color:var(--g)">+KSh ${earns}</div>
-              <div style="font-size:10px;color:var(--t2)">of KSh ${h.delivery_fee} fee</div>
-            </div>
-          </div>`;
-        }).join('')}
-    </div>`;
-}
+const NEXT_ST={assigned:'heading',heading:'picked',picked:'transit',transit:'delivered'};
+const NEXT_LB={assigned:'🔍 Heading to Pickup',heading:'📦 Picked Up',picked:'🚴 Out for Delivery',transit:'✅ Mark Delivered'};
+const PROG_KEYS=['assigned','heading','picked','transit','delivered'];
 
 async function acceptJob(jobId){
   const job=riderJobs.find(j=>j.id===jobId);if(!job) return;
-  try{
-    await db.collection('delivery_orders').doc(jobId).update({rider_phone:USER.phone,rider_name:USER.name,status:'assigned',assigned_at:firebase.firestore.FieldValue.serverTimestamp()});
-  }catch(e){riderActive={...job,status:'assigned',rider_name:USER.name,rider_phone:USER.phone};riderJobs=riderJobs.filter(j=>j.id!==jobId);}
+  try{await db.collection('delivery_orders').doc(jobId).update({rider_phone:USER.phone,rider_name:USER.name,status:'assigned',assigned_at:firebase.firestore.FieldValue.serverTimestamp()});}
+  catch(e){riderActive={...job,status:'assigned',rider_name:USER.name,rider_phone:USER.phone};riderJobs=riderJobs.filter(j=>j.id!==jobId);}
   toast('✅ Accepted! Head to '+(job.type==='pickup'?job.pickup_from:job.shopName));
   renderRiderContent();
 }
+
 async function advanceRider(){
   if(!riderActive) return;
   const ns=NEXT_ST[riderActive.status];if(!ns) return;
-  try{
-    await db.collection('delivery_orders').doc(riderActive.id).update({status:ns,[ns+'_at']:firebase.firestore.FieldValue.serverTimestamp()});
-  }catch(e){riderActive={...riderActive,status:ns};}
+  try{await db.collection('delivery_orders').doc(riderActive.id).update({status:ns,[ns+'_at']:firebase.firestore.FieldValue.serverTimestamp()});}
+  catch(e){riderActive={...riderActive,status:ns};}
   if(ns==='delivered'){
     const e=Math.round((riderActive.delivery_fee||70)*.9);
     riderEarned+=e;
@@ -1402,24 +1526,21 @@ async function advanceRider(){
   }
   renderRiderContent();
 }
-const PROG_KEYS=['assigned','heading','picked','transit','delivered'];
+
 function renderRiderContent(){
   const content=document.getElementById('rider-content');if(!content) return;
   let html='';
   if(riderActive){
     const a=riderActive;
-    const curProg=PROG_KEYS.indexOf(a.status);
-    const progDots=PROG_KEYS.map((k,i)=>{
-      const done=i<curProg,act=i===curProg;
-      return `<div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;background:${done?'var(--g)':act?'var(--p)':'var(--c2)'};color:${done||act?'#000':'var(--t3)'};border:${act?'none':'1.5px solid var(--br2)'}">${done?'✓':i+1}</div>${i<PROG_KEYS.length-1?`<div style="flex:1;height:2px;background:${done?'var(--g)':'var(--br2)'}"></div>`:''}`;
-    }).join('');
-    html+=`<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#ef4444;text-transform:uppercase;margin-bottom:8px">🔴 Active Delivery</div>
+    const ci=PROG_KEYS.indexOf(a.status);
+    const dots=PROG_KEYS.map((k,i)=>`<div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;background:${i<ci?'var(--g)':i===ci?'var(--p)':'var(--c2)'};color:${i<=ci?'#000':'var(--t3)'};border:${i===ci?'none':'1.5px solid var(--br2)'};">${i<ci?'✓':i+1}</div>${i<PROG_KEYS.length-1?`<div style="flex:1;height:2px;background:${i<ci?'var(--g)':'var(--br2)'}"></div>`:''}`).join('');
+    html+=`<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#ef4444;text-transform:uppercase;margin-bottom:8px">🔴 Active</div>
     <div class="active-job">
       <div style="display:flex;justify-content:space-between;margin-bottom:10px">
         <div><div style="font-weight:700;font-size:14px">${a.type==='pickup'?'🏍️ Pickup':'🛒 Delivery'} #${a.id.slice(-6).toUpperCase()}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${a.shopName||a.item_description||''}</div></div>
         <div style="font-weight:800;color:var(--g);font-size:20px">KSh ${Math.round((a.delivery_fee||70)*.9)}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:4px;margin:8px 0 10px">${progDots}</div>
+      <div style="display:flex;align-items:center;gap:4px;margin:8px 0 10px">${dots}</div>
       <div class="rr"><div class="rd rd-g">🏪</div><div><div style="font-size:9px;color:var(--g);font-weight:700">PICKUP FROM</div><div style="font-weight:700">${a.shopName||a.pickup_from||''}</div><div style="font-size:11px;color:var(--t2)">${a.shopLocation||a.pickup_from||''}</div></div></div>
       <div class="rr"><div class="rd rd-p">📍</div><div><div style="font-size:9px;color:var(--p);font-weight:700">DELIVER TO</div><div style="font-weight:700">${a.customer_name||''}</div><div style="font-size:11px;color:var(--t2)">${a.delivery_address||''}</div></div></div>
       ${a.item_description?`<div class="rr"><div class="rd rd-a">📝</div><div><div style="font-size:9px;color:var(--a);font-weight:700">ITEM</div><div style="font-size:13px">${a.item_description}</div></div></div>`:''}
@@ -1427,14 +1548,13 @@ function renderRiderContent(){
     </div>`;
   }
   if(!riderOnline){
-    html+=empty('😴','You\'re Offline','Toggle Online above to receive shop deliveries and pickup requests').outerHTML;
+    html+=`<div class="empty"><div class="empty-icon">😴</div><div class="empty-title">You're Offline</div><div class="empty-sub">Toggle Online to receive shop deliveries and pickup requests</div></div>`;
   } else if(!riderJobs.length&&!riderActive){
-    html+=empty('⏳','No jobs yet','Shop deliveries and pickup requests appear here when confirmed').outerHTML;
-  } else if(riderJobs.length){
-    html+=`<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--p);text-transform:uppercase;margin-bottom:8px">🔔 ${riderJobs.length} Available Job${riderJobs.length!==1?'s':''}</div>`;
+    html+=`<div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">No jobs yet</div><div class="empty-sub">Jobs appear here the moment a shop confirms payment</div></div>`;
+  } else {
+    if(riderJobs.length) html+=`<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--p);text-transform:uppercase;margin-bottom:8px">🔔 ${riderJobs.length} Available Job${riderJobs.length!==1?'s':''}</div>`;
     html+=riderJobs.map(job=>{
       const rg=Math.round((job.delivery_fee||70)*.9);
-      const isPref=USER.phone===job.preferred_rider?.phone;
       return `<div class="job-card">
         ${job.type==='pickup'?'<div class="pu-tag">PICKUP REQUEST</div>':'<div class="new-badge">SHOP DELIVERY</div>'}
         <div style="display:flex;justify-content:space-between;margin-bottom:10px;padding-right:90px">
@@ -1444,7 +1564,7 @@ function renderRiderContent(){
         <div class="rr"><div class="rd ${job.type==='pickup'?'rd-a':'rd-g'}">${job.type==='pickup'?'📍':'🏪'}</div><div><div style="font-size:9px;color:${job.type==='pickup'?'var(--a)':'var(--g)'};font-weight:700">${job.type==='pickup'?'PICKUP FROM':'SHOP'}</div><div style="font-weight:700">${job.type==='pickup'?job.pickup_from:job.shopName}</div><div style="font-size:11px;color:var(--t2)">${job.type==='pickup'?job.item_description||'':job.shopLocation||''}</div></div></div>
         <div class="rr"><div class="rd rd-p">📍</div><div><div style="font-size:9px;color:var(--p);font-weight:700">DELIVER TO</div><div style="font-weight:700">${job.customer_name}</div><div style="font-size:11px;color:var(--t2)">${job.delivery_address}</div></div></div>
         <div class="earn-hl"><span style="font-size:12px;color:var(--t2)">${job.distance}km · KSh ${job.delivery_fee} fee</span><span style="font-weight:800;color:var(--g)">You: KSh ${rg}</span></div>
-        ${isPref?`<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:7px 9px;font-size:11px;color:var(--a);margin-bottom:7px">⭐ This customer chose you as their favourite rider!</div>`:''}
+        ${job.preferred_rider?.phone===USER.phone?`<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:7px 9px;font-size:11px;color:var(--a);margin-bottom:7px">⭐ This customer chose you as favourite rider!</div>`:''}
         <div class="jbtns"><button class="btn-dec">❌ Decline</button><button class="btn-acc" onclick="acceptJob('${job.id}')">✅ Accept</button></div>
       </div>`;
     }).join('');
@@ -1452,28 +1572,103 @@ function renderRiderContent(){
   content.innerHTML=html;
 }
 
+function showRiderEarnings(){
+  document.getElementById('main').innerHTML=`
+    <div style="background:linear-gradient(180deg,#110a20,var(--bg));padding:18px 18px 0">
+      <div style="font-size:20px;font-weight:800;margin-bottom:2px">My Earnings</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:14px">Track income · Daily M-Pesa payouts</div>
+    </div>
+    <div id="earnings-content" class="page" style="padding:10px 18px 100px">
+      <div style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></div>
+    </div>`;
+  db.collection('riders').doc(USER.phone).get().then(d=>{
+    const data=d.exists?d.data():{total_earnings:0,orders_completed:0,rating:5.0};
+    db.collection('delivery_orders').where('rider_phone','==',USER.phone).where('status','==','delivered').limit(50).get()
+      .then(s=>{
+        const hist=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+        const today=new Date().toDateString();
+        const todayE=hist.filter(h=>{const d=h.delivered_at?.toDate?.()||h.created_at?.toDate?.();return d&&d.toDateString()===today;}).reduce((s,h)=>s+Math.round((h.delivery_fee||70)*.9),0);
+        const weekStart=new Date();weekStart.setDate(weekStart.getDate()-7);
+        const weekE=hist.filter(h=>{const d=h.delivered_at?.toDate?.()||h.created_at?.toDate?.();return d&&d>=weekStart;}).reduce((s,h)=>s+Math.round((h.delivery_fee||70)*.9),0);
+        const ec=document.getElementById('earnings-content');if(!ec) return;
+        ec.innerHTML=`
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div style="background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px;text-align:center">
+              <div style="font-size:11px;color:var(--g);font-weight:700;margin-bottom:4px">TODAY</div>
+              <div style="font-size:24px;font-weight:800;color:var(--g)">KSh ${todayE+riderEarned}</div>
+            </div>
+            <div style="background:rgba(139,92,246,.08);border:1.5px solid rgba(139,92,246,.2);border-radius:14px;padding:14px;text-align:center">
+              <div style="font-size:11px;color:var(--p);font-weight:700;margin-bottom:4px">THIS WEEK</div>
+              <div style="font-size:24px;font-weight:800;color:var(--p)">KSh ${weekE}</div>
+            </div>
+          </div>
+          <div style="background:var(--c);border:1.5px solid var(--br);border-radius:14px;padding:14px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+            <div><div style="font-size:18px;font-weight:800">KSh ${data.total_earnings||0}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">ALL TIME</div></div>
+            <div style="border-left:1px solid var(--br);border-right:1px solid var(--br)"><div style="font-size:18px;font-weight:800">${data.orders_completed||0}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">DELIVERIES</div></div>
+            <div><div style="font-size:18px;font-weight:800;color:#fbbf24">⭐ ${(data.rating||5).toFixed(1)}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">RATING</div></div>
+          </div>
+          <div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:700;color:var(--g);margin-bottom:8px">📱 Payout Info</div>
+            <div style="font-size:13px;color:var(--t2);line-height:1.7">M-Pesa: <strong style="color:#fff">${USER.phone}</strong><br>Time: <strong style="color:#fff">Every evening by 8 PM</strong><br>Minimum: <strong style="color:#fff">KSh 100</strong></div>
+          </div>
+          <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Delivery History</div>
+          ${hist.length===0?`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No deliveries yet</div><div class="empty-sub">Complete your first delivery to see history</div></div>`:hist.map(h=>{
+            const e=Math.round((h.delivery_fee||70)*.9);
+            const d=h.delivered_at?.toDate?.()||h.created_at?.toDate?.();
+            return `<div style="background:var(--c);border:1.5px solid var(--br);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${h.type==='pickup'?'🏍️ Pickup':'🛒 Delivery'} #${h.id.slice(-6).toUpperCase()}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${h.shopName||h.pickup_from||''} → ${h.delivery_address||''}</div><div style="font-size:10px;color:var(--t3);margin-top:2px">${d?d.toLocaleDateString('en-KE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Recent'}</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:800;color:var(--g)">+KSh ${e}</div><div style="font-size:10px;color:var(--t2)">of KSh ${h.delivery_fee}</div></div></div>`;
+          }).join('')}`;
+      }).catch(()=>{});
+  }).catch(()=>{});
+}
+
 // ══════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════
+let ordersUnsub=null;
+
+function startApp(){
+  if(!USER) return showRoleScreen();
+  setSbLabel(USER.role);
+  if(USER.role==='customer') startCustomer();
+  else if(USER.role==='shop') startShop();
+  else if(USER.role==='rider') startRider();
+}
+
+function saveUser(){
+  localStorage.setItem('tumana_user',JSON.stringify(USER));
+  db.collection('tumana_users').doc(USER.phone).set(USER,{merge:true}).catch(()=>{});
+}
+
+function logout(){
+  USER=null;CART=[];SHOPS=[];CURRENTSHOP=null;
+  shopDelivOn=false;riderOnline=false;riderJobs=[];riderActive=null;riderEarned=0;
+  if(shopOrdersUnsub) shopOrdersUnsub();
+  if(riderJobsUnsub) riderJobsUnsub();
+  if(riderActiveUnsub) riderActiveUnsub();
+  if(ordersUnsub) ordersUnsub();
+  localStorage.removeItem('tumana_user');
+  showRoleScreen();
+}
+
+function hardReset(){localStorage.clear();location.reload();}
+
 window.addEventListener('load',()=>{
+  applyTheme();
   setTimeout(()=>{
-    // Load saved user
     try{
       const saved=localStorage.getItem('tumana_user');
       if(saved){
         const p=JSON.parse(saved);
         if(p&&p.role&&p.phone){
           if(!p.name) p.name=p.phone;
-          if(!['customer','shop','rider'].includes(p.role)) throw new Error('bad role');
-          USER=p;
+          if(['customer','shop','rider'].includes(p.role)) USER=p;
         }
       }
-    }catch(e){localStorage.removeItem('tumana_user');USER=null;}
-    // Show app
+    }catch(e){localStorage.removeItem('tumana_user');}
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='flex';
     if(USER) startApp(); else showRoleScreen();
-  },300);
+  },400);
 });
 </script>
 </body>
