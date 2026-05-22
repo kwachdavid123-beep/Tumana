@@ -1675,23 +1675,30 @@ function logout(){
 
 function hardReset(){localStorage.clear();location.reload();}
 
-window.addEventListener('load',()=>{
-  applyTheme();
-  // Init immediately - no timeout needed
+function bootApp(){
+  if(window._booted) return;
+  window._booted = true;
   try{
     const saved=localStorage.getItem('tumana_user');
-      if(saved){
-        const p=JSON.parse(saved);
-        if(p&&p.role&&p.phone){
-          if(!p.name) p.name=p.phone;
-          if(['customer','shop','rider'].includes(p.role)) USER=p;
-        }
+    if(saved){
+      const p=JSON.parse(saved);
+      if(p&&p.role&&p.phone){
+        if(!p.name) p.name=p.phone;
+        if(['customer','shop','rider'].includes(p.role)) USER=p;
       }
+    }
   }catch(e){localStorage.removeItem('tumana_user');}
-  document.getElementById('loading').style.display='none';
-  document.getElementById('app').style.display='flex';
+  try{applyTheme();}catch(e){}
+  const ld=document.getElementById('loading');
+  const app=document.getElementById('app');
+  if(ld) ld.style.display='none';
+  if(app) app.style.display='flex';
   if(USER) startApp(); else showRoleScreen();
-});
+}
+// Boot as soon as possible — don't wait for external scripts
+document.addEventListener('DOMContentLoaded', bootApp);
+// Hard fallback after 1.5 seconds no matter what
+setTimeout(bootApp, 1500);
 </script>
 </body>
 </html>
