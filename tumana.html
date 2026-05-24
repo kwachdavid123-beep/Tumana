@@ -275,15 +275,16 @@ function applyTheme(){
 function toggleTheme(){isDark=!isDark;applyTheme();}
 </script>
 <div id="loading">
-  <img src="https://kwachdavid123-beep.github.io/Chawkpro/tumana-logo.png" style="height:64px;object-fit:contain;margin-bottom:8px" alt="Tumana"/>
-  <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:16px">Chemelil · Fast Local Delivery</div>
+  <div style="font-size:52px;margin-bottom:8px">🚴</div>
+  <div style="font-size:26px;font-weight:800;color:#10b981;letter-spacing:-1px;margin-bottom:4px">TUMANA</div>
+  <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:20px">Chemelil · Fast Local Delivery</div>
   <div class="spinner"></div>
 </div>
 
 <div id="app" class="app" style="display:none">
   <div class="sb">
     <span>9:41</span>
-    <img id="sb-logo" src="https://kwachdavid123-beep.github.io/Chawkpro/tumana-logo.png" style="height:20px;object-fit:contain;vertical-align:middle" alt="Tumana"/>
+    <img id="sb-logo" src="https://kwachdavid123-beep.github.io/Chawkpro/tumana-logo.png" onerror="this.outerHTML='<span style=\"color:#10b981;font-weight:800\">TUMANA</span>'" style="height:20px;object-fit:contain;vertical-align:middle" alt="Tumana"/>
     <div style="display:flex;gap:6px;align-items:center">
     <button id="theme-btn" class="theme-btn" onclick="toggleTheme()">☀️</button>
     <span id="sb-reset" style="cursor:pointer;font-size:11px;color:var(--t3)" onclick="if(confirm('Reset app?')) hardReset()">↺</span>
@@ -301,15 +302,46 @@ function toggleTheme(){isDark=!isDark;applyTheme();}
 
 <script>
 // ── FIREBASE ─────────────────────────────────────────────
-firebase.initializeApp({
+// Firebase initialized lazily - only when first db call is made
+const FIREBASE_CONFIG = {
   apiKey:"AIzaSyB_C61rcssdlvqbyUK_QcHkl4HxbwcQBOI",
   authDomain:"chawkpro1.firebaseapp.com",
   projectId:"chawkpro1",
   storageBucket:"chawkpro1.firebasestorage.app",
   messagingSenderId:"897807998371",
   appId:"1:897807998371:web:33770a8ee5950c54860e16"
+};
+let _db = null;
+function getDb(){
+  if(_db) return _db;
+  try{
+    if(typeof firebase === 'undefined') return null;
+    if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    _db = firebase.firestore();
+    return _db;
+  }catch(e){ return null; }
+}
+// Proxy object so all existing db.collection() calls work unchanged
+const db = new Proxy({},{
+  get(target, prop){
+    const instance = getDb();
+    if(!instance) return ()=>({
+      onSnapshot:(_,err)=>err&&err(new Error('Firebase not ready')),
+      get:()=>Promise.reject(new Error('Firebase not ready')),
+      set:()=>Promise.reject(new Error('Firebase not ready')),
+      add:()=>Promise.reject(new Error('Firebase not ready')),
+      where:()=>({
+        onSnapshot:(_,err)=>err&&err(new Error('offline')),
+        get:()=>Promise.reject(new Error('offline')),
+        where:()=>({get:()=>Promise.reject(new Error('offline')),onSnapshot:()=>(()=>{})}),
+        limit:()=>({get:()=>Promise.reject(new Error('offline')),onSnapshot:()=>(()=>{}),where:()=>({get:()=>Promise.reject(new Error('offline'))})})
+      }),
+      limit:()=>({get:()=>Promise.reject(new Error('offline')),onSnapshot:()=>(()=>{})}),
+      orderBy:()=>({get:()=>Promise.reject(new Error('offline')),limit:()=>({get:()=>Promise.reject(new Error('offline'))})})
+    });
+    return instance[prop].bind(instance);
+  }
 });
-const db = firebase.firestore();
 const MPESA = "0799878872";
 const calcFee = km => Math.round(50 + (parseFloat(km)||0.5)*20);
 const calcBk = (sub,fee) => ({sub,fee,shopGets:sub,riderGets:Math.round(fee*.9),platGets:Math.round(fee*.1),total:sub+fee});
@@ -435,7 +467,7 @@ function renderRoleScreen(){
   document.getElementById('main').innerHTML=`
     <!-- TUMANA LOGO -->
     <div style="text-align:center;padding:32px 20px 16px">
-      <img src="https://kwachdavid123-beep.github.io/Chawkpro/tumana-logo.png" 
+      <img src="https://kwachdavid123-beep.github.io/Chawkpro/tumana-logo.png" onerror="this.style.display='none'" 
            style="height:56px;object-fit:contain;margin-bottom:10px" alt="Tumana"/>
       <div style="font-size:13px;color:var(--t2);line-height:1.5">
         ${activeRoleTab==='tumana'
@@ -489,7 +521,7 @@ async function submitAuth(){
   if(!authIsLogin&&!name.trim()){toast('Enter your name');return;}
   const safeName=(name||phone).trim();
   const userData={role:authRole.id,name:safeName,phone:phone.trim(),shopName:shopName.trim(),idNum:idNum.trim(),preferred_rider:null,favourite_shops:[],total_earnings:0,orders_completed:0};
-  try{if(!authIsLogin) await db.collection('tumana_users').doc(phone.trim()).set({...userData,created_at:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}catch(e){}
+  try{if(!authIsLogin) await db.collection('tumana_users').doc(phone.trim()).set({...userData,created_at:(getDb()&&firebase.firestore.FieldValue.serverTimestamp()||null)},{merge:true});}catch(e){}
   localStorage.setItem('tumana_user',JSON.stringify(userData));
   USER=userData;
   startApp();
@@ -665,7 +697,7 @@ function showCheckoutModal(bk){
 async function confirmOrder(total,sub,fee,riderGets,platGets){
   const shop=SHOPS.find(s=>s.id===CART[0]?.shopId)||{};
   try{
-    await db.collection('delivery_orders').add({type:'shop',customer_phone:USER.phone,customer_name:USER.name,shop_id:shop.id||CART[0]?.shopId||'',shopName:shop.name||CART[0]?.shopName||'',shop_location:shop.location||'',delivery_address:USER.name+' is waiting',items:CART.map(i=>({id:i.id,name:i.name,quantity:i.quantity,price:i.selling_price})),subtotal:sub,delivery_fee:fee,total:total,rider_earnings:riderGets,platform_earnings:platGets,distance:CART[0]?.shopDist||.5,status:'placed',rider_phone:null,rider_name:null,preferred_rider:null,created_at:firebase.firestore.FieldValue.serverTimestamp()});
+    await db.collection('delivery_orders').add({type:'shop',customer_phone:USER.phone,customer_name:USER.name,shop_id:shop.id||CART[0]?.shopId||'',shopName:shop.name||CART[0]?.shopName||'',shop_location:shop.location||'',delivery_address:USER.name+' is waiting',items:CART.map(i=>({id:i.id,name:i.name,quantity:i.quantity,price:i.selling_price})),subtotal:sub,delivery_fee:fee,total:total,rider_earnings:riderGets,platform_earnings:platGets,distance:CART[0]?.shopDist||.5,status:'placed',rider_phone:null,rider_name:null,preferred_rider:null,created_at:(getDb()&&firebase.firestore.FieldValue.serverTimestamp()||null)});
   }catch(e){}
   CART=[];hideModal();toast('✅ Order placed! Shop confirming payment');showOrders();
 }
@@ -1022,7 +1054,7 @@ async function placePickup(){
       rider_earnings:Math.round(fee*.9),platform_earnings:Math.round(fee*.1),
       status:'placed',rider_phone:null,rider_name:null,
       preferred_rider:USER.preferred_rider||null,
-      created_at:firebase.firestore.FieldValue.serverTimestamp()
+      created_at:(getDb()&&firebase.firestore.FieldValue.serverTimestamp()||null)
     });
   }catch(e){}
   toast('✅ Rider requested! Tracking in Orders');
@@ -1166,7 +1198,7 @@ async function saveShopProfile(){
       name,category:cat,location:loc,icon,
       owner_phone:USER.phone,owner_name:USER.name,
       delivery_enabled:false,distance_km:0.5,rating:5.0,
-      created_at:firebase.firestore.FieldValue.serverTimestamp()
+      created_at:(getDb()&&firebase.firestore.FieldValue.serverTimestamp()||null)
     });
     USER.shopName=name;
     saveUser();
@@ -1243,7 +1275,7 @@ async function toggleShopDelivery(){
       delivery_enabled:shopDelivOn,name:USER.shopName||USER.name,
       owner_phone:USER.phone,location:'Chemelil',category:'General',
       icon:'🏪',distance_km:0.5,rating:5.0,
-      updated_at:firebase.firestore.FieldValue.serverTimestamp()
+      updated_at:(getDb()&&firebase.firestore.FieldValue.serverTimestamp()||null)
     },{merge:true});
     toast(shopDelivOn?'✅ Delivery ON — customers can see your shop':'Delivery paused');
   }catch(e){shopDelivOn=!shopDelivOn;toast('Error — check connection');}
@@ -1308,7 +1340,7 @@ async function confirmShopPay(id){
   try{
     await db.collection('delivery_orders').doc(id).update({
       status:'confirmed',mpesa_code:code,
-      confirmed_at:firebase.firestore.FieldValue.serverTimestamp()
+      confirmed_at:(getDb()&&firebase.firestore.FieldValue.serverTimestamp()||null)
     });
     toast('✅ Confirmed! Notifying available riders…');
   }catch(e){toast('Error — check connection');}
@@ -1529,7 +1561,7 @@ const PROG_KEYS=['assigned','heading','picked','transit','delivered'];
 
 async function acceptJob(jobId){
   const job=riderJobs.find(j=>j.id===jobId);if(!job) return;
-  try{await db.collection('delivery_orders').doc(jobId).update({rider_phone:USER.phone,rider_name:USER.name,status:'assigned',assigned_at:firebase.firestore.FieldValue.serverTimestamp()});}
+  try{await db.collection('delivery_orders').doc(jobId).update({rider_phone:USER.phone,rider_name:USER.name,status:'assigned',assigned_at:(getDb()&&firebase.firestore.FieldValue.serverTimestamp()||null)});}
   catch(e){riderActive={...job,status:'assigned',rider_name:USER.name,rider_phone:USER.phone};riderJobs=riderJobs.filter(j=>j.id!==jobId);}
   toast('✅ Accepted! Head to '+(job.type==='pickup'?job.pickup_from:job.shopName));
   renderRiderContent();
@@ -1538,12 +1570,12 @@ async function acceptJob(jobId){
 async function advanceRider(){
   if(!riderActive) return;
   const ns=NEXT_ST[riderActive.status];if(!ns) return;
-  try{await db.collection('delivery_orders').doc(riderActive.id).update({status:ns,[ns+'_at']:firebase.firestore.FieldValue.serverTimestamp()});}
+  try{await db.collection('delivery_orders').doc(riderActive.id).update({status:ns,[ns+'_at']:(getDb()&&firebase.firestore.FieldValue.serverTimestamp()||null)});}
   catch(e){riderActive={...riderActive,status:ns};}
   if(ns==='delivered'){
     const e=Math.round((riderActive.delivery_fee||70)*.9);
     riderEarned+=e;
-    try{await db.collection('riders').doc(USER.phone).update({total_earnings:firebase.firestore.FieldValue.increment(e),orders_completed:firebase.firestore.FieldValue.increment(1)});}catch(er){}
+    try{await db.collection('riders').doc(USER.phone).update({total_earnings:(getDb()\&\&firebase.firestore.FieldValue.increment(e)),orders_completed:(getDb()\&\&firebase.firestore.FieldValue.increment(1))});}catch(er){}
     riderActive=null;
     toast('🎉 Delivered! KSh '+e+' earned');
   }
