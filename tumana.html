@@ -1113,16 +1113,16 @@ function boot(){
   if(USER)startApp();else showRoleScreen();
 }
 
-// Unregister any old service workers that cached broken version
+// Service Worker - always unregister old, register new
 if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
-    regs.forEach(r=>r.unregister());
-  });
-  // Re-register after clearing
-  window.addEventListener('load',()=>{
-    setTimeout(()=>{
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
-    }, 5000); // Wait 5s before registering to let app load first
+    // Unregister ALL old workers first
+    Promise.all(regs.map(r=>r.unregister())).then(()=>{
+      // Register fresh SW after app loads
+      setTimeout(()=>{
+        navigator.serviceWorker.register('sw.js').catch(()=>{});
+      },3000);
+    });
   });
 }
 
