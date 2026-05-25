@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#10b981">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tumana">
+<meta name="description" content="Tumana – Fast local delivery in Chemelil. Order from shops, request pickups, earn as a rider.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="tumana-logo.png">
 <title>Tumana – Chemelil Delivery</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -795,6 +803,10 @@ function renderStock(items){
   const c=document.getElementById('sh-content');if(!c)return;
   const low=items.filter(i=>(i.quantity||0)<5);
   c.innerHTML=`<div>
+    <a href="https://kwachdavid123-beep.github.io/Chawkpro/chawkpro.html" target="_blank"
+       style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:13px 15px;border-radius:12px;border:1.5px solid #f59e0b;color:#f59e0b;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:14px;background:rgba(245,158,11,.05)">
+      <span>📊 Open CHAWKPRO Dashboard</span><span>→</span>
+    </a>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="stat-box"><div class="stat-v" style="color:#f59e0b;font-size:18px">${items.length}</div><div class="stat-l">Products</div></div>
       <div class="stat-box"><div class="stat-v" style="color:#10b981;font-size:18px">${items.reduce((s,i)=>s+(i.quantity||0),0)}</div><div class="stat-l">In Stock</div></div>
@@ -813,7 +825,7 @@ function showShopSettings(){
   c.innerHTML=`<div>
     <div class="sbox"><div class="sbox-t">Delivery Status</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Status: <strong style="color:${shopDelivOn?'#10b981':'#ef4444'}">${shopDelivOn?'✅ ON':'🔴 OFF'}</strong><br>Commission: <strong style="color:#fff">0%</strong><br>Plan: <strong style="color:#10b981">FREE</strong></div></div>
     <div class="sbox"><div class="sbox-t">Shop Details</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Name: <strong style="color:#fff">${USER.shopName||USER.name}</strong><br>Phone: <strong style="color:#fff">${USER.phone}</strong></div></div>
-    <div class="sbox"><div class="sbox-t">📊 Full Management Dashboard</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:12px;line-height:1.6">Sales recording, stock tracking, staff management, debt tracking — all inside CHAWKPRO.</div><a href="https://kwachdavid123-beep.github.io/Chawkpro/" target="_blank" style="display:block;width:100%;padding:13px;border-radius:10px;border:1.5px solid #f59e0b;color:#f59e0b;text-align:center;font-weight:700;font-size:14px;text-decoration:none">Open CHAWKPRO Dashboard →</a></div>
+    <div class="sbox"><div class="sbox-t">📊 CHAWKPRO Dashboard</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:8px;line-height:1.6">Full shop management — sales, stock, staff, debts. Access from the Stock tab.</div></div>
     <button class="btn btn-o" style="margin-top:8px" onclick="if(confirm('Logout?'))logout()">Logout</button>
   </div>`;
 }
@@ -989,6 +1001,37 @@ function boot(){
   document.getElementById('loading').style.display='none';
   document.getElementById('wrap').style.display='flex';
   if(USER)startApp();else showRoleScreen();
+}
+
+// Register Service Worker for offline/install support
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js')
+      .then(()=>console.log('Tumana SW registered'))
+      .catch(()=>console.log('SW registration failed'));
+  });
+}
+
+// PWA Install prompt
+let _installPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  _installPrompt=e;
+  // Show install banner after 3 seconds
+  setTimeout(showInstallBanner,3000);
+});
+
+function showInstallBanner(){
+  if(!_installPrompt)return;
+  const banner=document.createElement('div');
+  banner.id='install-banner';
+  banner.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#10b981;color:#000;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;z-index:9998;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(16,185,129,.4);white-space:nowrap;cursor:pointer;max-width:90vw';
+  banner.innerHTML='🚴 Install Tumana App <span style="background:rgba(0,0,0,.15);border-radius:8px;padding:4px 10px">Install</span> <span onclick="document.getElementById('install-banner').remove()" style="opacity:.6;margin-left:4px">✕</span>';
+  banner.onclick=function(e){
+    if(e.target.textContent==='✕')return;
+    if(_installPrompt){_installPrompt.prompt();_installPrompt.userChoice.then(()=>{_installPrompt=null;banner.remove();});}
+  };
+  document.body.appendChild(banner);
 }
 
 // Boot immediately on DOMContentLoaded + hard 1s fallback
