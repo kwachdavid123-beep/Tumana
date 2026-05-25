@@ -23,13 +23,13 @@ body{font-family:system-ui,-apple-system,sans-serif;overflow:hidden;
   --bg:#08080c;--c1:#111116;--c2:#1a1a22;--txt:#ffffff;
   --txt2:rgba(255,255,255,.45);--txt3:rgba(255,255,255,.2);
   --br:rgba(255,255,255,.07);--br2:rgba(255,255,255,.13);
-  --nav-bg:#000;--sb-bg:#000;--sheet-bg:#111116;
+  --nav-bg:#0a0a0d;--sb-bg:#0a0a0d;--sheet-bg:#111116;
   background:var(--bg);color:var(--txt)}
 body.light{
   --bg:#f2f4f3;--c1:#ffffff;--c2:#eef0ef;--txt:#0d1a14;
   --txt2:rgba(0,0,0,.55);--txt3:rgba(0,0,0,.3);
   --br:rgba(0,0,0,.09);--br2:rgba(0,0,0,.16);
-  --nav-bg:#ffffff;--sb-bg:#10b981;--sheet-bg:#ffffff}
+  --nav-bg:#ffffff;--sb-bg:#10b981;--sheet-bg:#ffffff;--overlay-bg:rgba(0,0,0,.5)}
 body.light #sb-title{color:#fff!important}
 body.light #theme-btn{color:#fff!important}
 body.light #sb span:first-child{color:rgba(255,255,255,.7)!important}
@@ -43,6 +43,11 @@ body.light .chip{color:rgba(0,0,0,.5)}
 body.light .btn-o{color:rgba(0,0,0,.5);border-color:rgba(0,0,0,.2)}
 body.light .fld label{color:rgba(0,0,0,.5)}
 body.light .fld input,.body.light .fld select,.body.light .fld textarea{color:#0d1a14}
+body.light .sheet{box-shadow:0 -4px 30px rgba(0,0,0,.15);border-color:rgba(16,185,129,.3)}
+body.light .handle{background:rgba(0,0,0,.15)}
+body.light .toast-el{background:#0d1a14;color:#fff}
+body.light #loading{background:#f2f4f3}
+body.light #wrap{background:#f2f4f3}
 body.green{
   --bg:#041209;--c1:#082016;--c2:#0b2c1e;--txt:#e8fdf2;
   --txt2:rgba(200,255,220,.6);--txt3:rgba(200,255,220,.3);
@@ -50,6 +55,9 @@ body.green{
   --nav-bg:#030f08;--sb-bg:#030f08;--sheet-bg:#082016}
 body.green .sh-hdr{background:linear-gradient(180deg,#0d2d00,#041209)}
 body.green .rd-hdr{background:linear-gradient(180deg,#06180d,#041209)}
+body.green .sheet{border-color:rgba(16,185,129,.4)}
+body.green #loading{background:#041209}
+body.green #wrap{background:#041209}
 #wrap{max-width:430px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg)}
 /* STATUS BAR */
 #sb{height:36px;background:var(--sb-bg);display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:12px;font-weight:700;color:var(--txt2);flex-shrink:0}
@@ -59,12 +67,13 @@ body.green .rd-hdr{background:linear-gradient(180deg,#06180d,#041209)}
 /* NAV */
 #nav{display:none;background:var(--nav-bg);border-top:1px solid var(--br);flex-shrink:0}
 .nav-row{display:flex}
-.ni{flex:1;text-align:center;padding:8px 2px 5px;cursor:pointer}
+.ni{flex:1;text-align:center;padding:8px 2px 5px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .ni-ic{font-size:20px}
-.ni-lb{font-size:9px;font-weight:700;color:var(--txt2);letter-spacing:.5px;text-transform:uppercase}
-.ni.on .ni-lb{color:#10b981}
-.ni.on-a .ni-lb{color:#f59e0b}
-.ni.on-p .ni-lb{color:#8b5cf6}
+.ni-lb{font-size:9px;font-weight:700;color:var(--txt2);letter-spacing:.5px;text-transform:uppercase;display:block}
+.ni.on .ni-lb{color:#10b981!important}
+.ni.on-a .ni-lb{color:#f59e0b!important}
+.ni.on-p .ni-lb{color:#8b5cf6!important}
+.ni-lb{color:rgba(255,255,255,.45)}
 /* BADGE */
 .ni{position:relative}
 .nbadge{position:absolute;top:4px;right:calc(50% - 14px);background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
@@ -98,7 +107,7 @@ body.green .rd-hdr{background:linear-gradient(180deg,#06180d,#041209)}
 .chip{background:var(--c2);border:1px solid var(--br2);padding:3px 9px;border-radius:20px;font-size:11px;color:var(--txt2);font-weight:600;display:inline-block}
 .chip-g{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.2);color:#10b981}
 .toast-el{position:fixed;top:44px;left:50%;transform:translateX(-50%);background:#fff;color:#000;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;z-index:9999;white-space:nowrap;display:none;box-shadow:0 4px 20px rgba(0,0,0,.5)}
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:flex-end;z-index:999}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-end;z-index:999}
 .overlay.show{display:flex}
 .sheet{background:var(--sheet-bg);border:1.5px solid rgba(16,185,129,.2);border-radius:20px 20px 0 0;padding:20px 20px 40px;width:100%;max-height:88vh;overflow-y:auto}
 .handle{width:36px;height:4px;background:var(--br2);border-radius:2px;margin:0 auto 16px}
@@ -125,7 +134,7 @@ body.green .rd-hdr{background:linear-gradient(180deg,#06180d,#041209)}
 .stabs{display:flex;background:var(--c1);border-radius:10px;padding:3px;margin:10px 18px 0;gap:3px;flex-shrink:0}
 .stab{flex:1;padding:8px 4px;text-align:center;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;color:var(--txt2)}
 .stab.on{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000}
-.stab.on-p{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff}
+.stab.on-p{background:linear-gradient(135deg,#8b5cf6,#7c3aed)!important;color:#fff!important}
 .scontent{overflow-y:auto;flex:1;padding:10px 18px 80px;background:var(--bg)}
 .scontent::-webkit-scrollbar{display:none}
 /* FARE CARD */
@@ -293,16 +302,8 @@ function dbListen(path,field,op,val,cb){loadFB(db=>{if(!db){cb([]);return;}db.co
 
 // ── CHAWKPRO LAUNCHER ─────────────────────────────────────
 function openChawkpro(){
-  // Try multiple possible URLs for CHAWKPRO
-  var urls=['https://kwachdavid123-beep.github.io/Chawkpro/index.html'];
-  // Show choice sheet
-  showSheet('<div class="handle"></div>'+
-    '<div style="font-size:32px;text-align:center;margin-bottom:10px">📊</div>'+
-    '<div style="font-size:18px;font-weight:700;text-align:center;margin-bottom:6px">Open CHAWKPRO</div>'+
-    '<div style="font-size:13px;color:var(--txt2);text-align:center;margin-bottom:20px;line-height:1.6">CHAWKPRO is your full shop management tool for sales, stock, staff & debts.</div>'+
-    '<a href="https://kwachdavid123-beep.github.io/Chawkpro/index.html" target="_blank" style="display:block;padding:14px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:10px;color:#000;text-align:center;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:10px">Open CHAWKPRO App →</a>'+
-    '<div style="font-size:11px;color:var(--txt2);text-align:center;line-height:1.7">If link shows Tumana instead:<br>Go to GitHub → find your original CHAWKPRO file → open it directly.</div>'+
-    '<button class="btn btn-o" style="margin-top:12px" onclick="hideSheet()">Close</button>');
+  // Open CHAWKPRO directly in new tab - no intermediate sheet
+  window.open('https://kwachdavid123-beep.github.io/Chawkpro/chawkpro.html','_blank');
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────
@@ -912,7 +913,7 @@ function renderStock(items){
   const c=document.getElementById('sh-content');if(!c)return;
   const low=items.filter(i=>(i.quantity||0)<5);
   c.innerHTML=`<div>
-    <a href="javascript:openChawkpro()" target="_blank"
+    <a href="https://kwachdavid123-beep.github.io/Chawkpro/chawkpro.html" target="_blank" onclick="return true" target="_blank"
        style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:13px 15px;border-radius:12px;border:1.5px solid #f59e0b;color:#f59e0b;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:14px;background:rgba(245,158,11,.05)">
       <span>📊 Open CHAWKPRO Dashboard</span><span>→</span>
     </a>
