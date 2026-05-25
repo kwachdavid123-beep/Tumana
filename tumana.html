@@ -1,8 +1,12 @@
 <!DOCTYPE html>
+<!-- TUMANA v5.0 BUILD 20260525 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#10b981">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -137,7 +141,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#08080c;color:#ff
 <div id="loading">
   <div style="font-size:52px">🚴</div>
   <div style="font-size:28px;font-weight:800;color:#10b981;letter-spacing:-1px">TUMANA</div>
-  <div style="font-size:13px;color:rgba(255,255,255,.4)">Chemelil · Fast Local Delivery</div>
+  <div style="font-size:13px;color:rgba(255,255,255,.4)">Chemelil · Fast Local Delivery · v5</div>
   <div class="spin" style="margin-top:10px"></div>
 </div>
 <div id="wrap" style="display:none">
@@ -906,7 +910,7 @@ async function advanceJob(){
   await dbUpdate('delivery_orders',riderActive.id,{status:ns});
   if(ns==='delivered'){
     const e=Math.round((riderActive.delivery_fee||70)*.9);riderEarned+=e;
-    loadFB(db=>{if(db)db.collection('riders').doc(USER.phone).update({total_earnings:firebase.firestore.FieldValue.increment(e),orders_completed:firebase.firestore.FieldValue.increment(1)}).catch(()=>{});});
+    loadFB(db=>{if(db&&typeof firebase!=='undefined')db.collection('riders').doc(USER.phone).update({total_earnings:firebase.firestore.FieldValue.increment(e),orders_completed:firebase.firestore.FieldValue.increment(1)}).catch(()=>{});});
     riderActive=null;toast('🎉 Delivered! KSh '+e+' earned');
   } else riderActive={...riderActive,status:ns};
   renderRiderBody();
@@ -1003,40 +1007,43 @@ function boot(){
   if(USER)startApp();else showRoleScreen();
 }
 
-// Register Service Worker for offline/install support
+// Unregister any old service workers that cached broken version
 if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(regs=>{
+    regs.forEach(r=>r.unregister());
+  });
+  // Re-register after clearing
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('sw.js')
-      .then(()=>console.log('Tumana SW registered'))
-      .catch(()=>console.log('SW registration failed'));
+    setTimeout(()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }, 5000); // Wait 5s before registering to let app load first
   });
 }
 
-// PWA Install prompt
+// PWA Install prompt - simple version
 let _installPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{
+window.addEventListener('beforeinstallprompt',function(e){
   e.preventDefault();
   _installPrompt=e;
-  // Show install banner after 3 seconds
   setTimeout(showInstallBanner,3000);
 });
-
 function showInstallBanner(){
   if(!_installPrompt)return;
-  const banner=document.createElement('div');
-  banner.id='install-banner';
-  banner.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#10b981;color:#000;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;z-index:9998;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(16,185,129,.4);white-space:nowrap;cursor:pointer;max-width:90vw';
-  banner.innerHTML='🚴 Install Tumana App <span style="background:rgba(0,0,0,.15);border-radius:8px;padding:4px 10px">Install</span> <span onclick="document.getElementById('install-banner').remove()" style="opacity:.6;margin-left:4px">✕</span>';
-  banner.onclick=function(e){
-    if(e.target.textContent==='✕')return;
-    if(_installPrompt){_installPrompt.prompt();_installPrompt.userChoice.then(()=>{_installPrompt=null;banner.remove();});}
+  var b=document.createElement('div');
+  b.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#10b981;color:#000;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;z-index:9998;box-shadow:0 4px 20px rgba(16,185,129,.4);cursor:pointer';
+  b.textContent='🚴 Install Tumana App — Tap here';
+  b.onclick=function(){
+    if(_installPrompt){
+      _installPrompt.prompt();
+      _installPrompt.userChoice.then(function(){_installPrompt=null;b.remove();});
+    }
   };
-  document.body.appendChild(banner);
+  document.body.appendChild(b);
 }
 
-// Boot immediately on DOMContentLoaded + hard 1s fallback
-document.addEventListener('DOMContentLoaded',boot);
-setTimeout(boot,1000);
+// Script is at bottom of body so DOM is already ready
+// Call boot directly - no need to wait
+boot();
 </script>
 </body>
 </html>
