@@ -304,7 +304,7 @@ function dbListen(path,field,op,val,cb){loadFB(db=>{if(!db){cb([]);return;}db.co
 function openChawkpro(){
   // Use anchor click - works on mobile without popup blocker
   var a=document.createElement('a');
-  a.href='https://kwachdavid123-beep.github.io/Chawkpro/chawkpro.html';
+  a.href='https://kwachdavid123-beep.github.io/Chawkpro/Chawkpro.html';
   a.target='_blank';
   a.rel='noopener noreferrer';
   document.body.appendChild(a);
@@ -919,7 +919,7 @@ function renderStock(items){
   const c=document.getElementById('sh-content');if(!c)return;
   const low=items.filter(i=>(i.quantity||0)<5);
   c.innerHTML=`<div>
-    <a href="https://kwachdavid123-beep.github.io/Chawkpro/chawkpro.html" target="_blank" rel="noopener noreferrer" target="_blank"
+    <a href="https://kwachdavid123-beep.github.io/Chawkpro/Chawkpro.html" target="_blank" rel="noopener noreferrer" target="_blank"
        style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:13px 15px;border-radius:12px;border:1.5px solid #f59e0b;color:#f59e0b;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:14px;background:rgba(245,158,11,.05)">
       <span>📊 Open Shop Dashboard</span><span>→</span>
     </a>
