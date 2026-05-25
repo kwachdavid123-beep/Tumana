@@ -26,15 +26,30 @@ body{font-family:system-ui,-apple-system,sans-serif;overflow:hidden;
   --nav-bg:#000;--sb-bg:#000;--sheet-bg:#111116;
   background:var(--bg);color:var(--txt)}
 body.light{
-  --bg:#f5f5f5;--c1:#ffffff;--c2:#f0f0f0;--txt:#111111;
-  --txt2:rgba(0,0,0,.5);--txt3:rgba(0,0,0,.25);
-  --br:rgba(0,0,0,.08);--br2:rgba(0,0,0,.15);
-  --nav-bg:#ffffff;--sb-bg:#ffffff;--sheet-bg:#ffffff}
+  --bg:#f2f4f3;--c1:#ffffff;--c2:#eef0ef;--txt:#0d1a14;
+  --txt2:rgba(0,0,0,.55);--txt3:rgba(0,0,0,.3);
+  --br:rgba(0,0,0,.09);--br2:rgba(0,0,0,.16);
+  --nav-bg:#ffffff;--sb-bg:#10b981;--sheet-bg:#ffffff}
+body.light #sb-title{color:#fff!important}
+body.light #theme-btn{color:#fff!important}
+body.light #sb span:first-child{color:rgba(255,255,255,.7)!important}
+body.light .ni-lb{color:rgba(0,0,0,.4)}
+body.light .ni.on .ni-lb{color:#059669}
+body.light .ni.on-a .ni-lb{color:#d97706}
+body.light .ni.on-p .ni-lb{color:#7c3aed}
+body.light .sh-hdr{background:linear-gradient(180deg,#fffbeb,#f2f4f3)}
+body.light .rd-hdr{background:linear-gradient(180deg,#f5f3ff,#f2f4f3)}
+body.light .chip{color:rgba(0,0,0,.5)}
+body.light .btn-o{color:rgba(0,0,0,.5);border-color:rgba(0,0,0,.2)}
+body.light .fld label{color:rgba(0,0,0,.5)}
+body.light .fld input,.body.light .fld select,.body.light .fld textarea{color:#0d1a14}
 body.green{
-  --bg:#051a0f;--c1:#0a2a18;--c2:#0d3320;--txt:#ffffff;
-  --txt2:rgba(255,255,255,.5);--txt3:rgba(255,255,255,.25);
-  --br:rgba(16,185,129,.15);--br2:rgba(16,185,129,.25);
-  --nav-bg:#030f08;--sb-bg:#030f08;--sheet-bg:#0a2a18}
+  --bg:#041209;--c1:#082016;--c2:#0b2c1e;--txt:#e8fdf2;
+  --txt2:rgba(200,255,220,.6);--txt3:rgba(200,255,220,.3);
+  --br:rgba(16,185,129,.18);--br2:rgba(16,185,129,.3);
+  --nav-bg:#030f08;--sb-bg:#030f08;--sheet-bg:#082016}
+body.green .sh-hdr{background:linear-gradient(180deg,#0d2d00,#041209)}
+body.green .rd-hdr{background:linear-gradient(180deg,#06180d,#041209)}
 #wrap{max-width:430px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg)}
 /* STATUS BAR */
 #sb{height:36px;background:var(--sb-bg);display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:12px;font-weight:700;color:var(--txt2);flex-shrink:0}
@@ -46,7 +61,7 @@ body.green{
 .nav-row{display:flex}
 .ni{flex:1;text-align:center;padding:8px 2px 5px;cursor:pointer}
 .ni-ic{font-size:20px}
-.ni-lb{font-size:9px;font-weight:700;color:var(--txt3);letter-spacing:.5px;text-transform:uppercase}
+.ni-lb{font-size:9px;font-weight:700;color:var(--txt2);letter-spacing:.5px;text-transform:uppercase}
 .ni.on .ni-lb{color:#10b981}
 .ni.on-a .ni-lb{color:#f59e0b}
 .ni.on-p .ni-lb{color:#8b5cf6}
@@ -192,6 +207,37 @@ function applyTheme(){
   var b=document.getElementById('theme-btn');
   if(b) b.textContent=THEME_ICONS[curTheme];
 }
+function setTheme(t){
+  curTheme=t;
+  localStorage.setItem('tumana_theme',t);
+  applyTheme();
+  toast('Theme: '+THEME_LABELS[t]);
+  // Refresh current page to update colors
+  if(USER&&USER.role==='customer') showProfile();
+}
+function triggerInstall(){
+  if(_installPrompt){
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(function(r){
+      if(r.outcome==='accepted') toast('✅ Tumana installed!');
+      _installPrompt=null;
+    });
+  } else {
+    // Show manual instructions
+    showSheet('<div class="handle"></div>'+
+      '<div style="font-size:32px;text-align:center;margin-bottom:12px">📱</div>'+
+      '<div style="font-size:18px;font-weight:700;text-align:center;margin-bottom:16px">Install Tumana</div>'+
+      '<div style="background:var(--c2);border-radius:12px;padding:14px;margin-bottom:10px">'+
+        '<div style="font-weight:700;margin-bottom:6px">Android (Chrome)</div>'+
+        '<div style="font-size:13px;color:var(--txt2);line-height:1.7">1. Tap ⋮ (3 dots top right)<br>2. Tap "Add to Home screen"<br>3. Tap "Add"</div>'+
+      '</div>'+
+      '<div style="background:var(--c2);border-radius:12px;padding:14px;margin-bottom:16px">'+
+        '<div style="font-weight:700;margin-bottom:6px">iPhone (Safari)</div>'+
+        '<div style="font-size:13px;color:var(--txt2);line-height:1.7">1. Tap Share button (box+arrow)<br>2. Scroll down → "Add to Home Screen"<br>3. Tap "Add"</div>'+
+      '</div>'+
+      '<button class="btn btn-g" onclick="hideSheet()">Got it</button>');
+  }
+}
 function toggleTheme(){
   var idx=(THEMES.indexOf(curTheme)+1)%THEMES.length;
   curTheme=THEMES[idx];
@@ -244,6 +290,20 @@ function dbUpdate(path,id,data){return new Promise(r=>loadFB(db=>{if(!db)return 
 function dbQuery(path,field,op,val,cb,errCb){loadFB(db=>{if(!db){if(errCb)errCb();return ()=>{};}const unsub=db.collection(path).where(field,op,val).limit(50).onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))),errCb||cb);return unsub;});}
 function dbQueryIn(path,field,vals,cb,errCb){loadFB(db=>{if(!db){if(errCb)errCb();return ()=>{};}const unsub=db.collection(path).where(field,'in',vals).limit(30).onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))),errCb||cb);return unsub;});}
 function dbListen(path,field,op,val,cb){loadFB(db=>{if(!db){cb([]);return;}db.collection(path).where(field,op,val).onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))),()=>cb([]));});}
+
+// ── CHAWKPRO LAUNCHER ─────────────────────────────────────
+function openChawkpro(){
+  // Try multiple possible URLs for CHAWKPRO
+  var urls=['https://kwachdavid123-beep.github.io/Chawkpro/index.html'];
+  // Show choice sheet
+  showSheet('<div class="handle"></div>'+
+    '<div style="font-size:32px;text-align:center;margin-bottom:10px">📊</div>'+
+    '<div style="font-size:18px;font-weight:700;text-align:center;margin-bottom:6px">Open CHAWKPRO</div>'+
+    '<div style="font-size:13px;color:var(--txt2);text-align:center;margin-bottom:20px;line-height:1.6">CHAWKPRO is your full shop management tool for sales, stock, staff & debts.</div>'+
+    '<a href="https://kwachdavid123-beep.github.io/Chawkpro/index.html" target="_blank" style="display:block;padding:14px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:10px;color:#000;text-align:center;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:10px">Open CHAWKPRO App →</a>'+
+    '<div style="font-size:11px;color:var(--txt2);text-align:center;line-height:1.7">If link shows Tumana instead:<br>Go to GitHub → find your original CHAWKPRO file → open it directly.</div>'+
+    '<button class="btn btn-o" style="margin-top:12px" onclick="hideSheet()">Close</button>');
+}
 
 // ── CONSTANTS ─────────────────────────────────────────────
 const calcFee=km=>Math.round(50+(parseFloat(km)||.5)*20);
@@ -667,6 +727,20 @@ function showProfile(){
         <div style="font-size:13px;color:var(--txt2);margin-bottom:12px">Role: Customer · Phone: ${USER.phone}</div>
         <button class="btn btn-o" onclick="if(confirm('Log out?'))logout()">Logout</button>
       </div>
+      <div class="sbox">
+        <div class="sbox-t">📱 Install App</div>
+        <div style="font-size:13px;color:var(--txt2);margin-bottom:12px;line-height:1.7">Install Tumana on your home screen for quick access — works like a real app.</div>
+        <button class="btn btn-g" onclick="triggerInstall()" style="margin-bottom:8px">Install Tumana App</button>
+        <div style="font-size:11px;color:var(--txt2);line-height:1.7;text-align:center">Or: Chrome ⋮ → Add to Home screen<br>iPhone: Safari Share → Add to Home Screen</div>
+      </div>
+      <div class="sbox">
+        <div class="sbox-t">🌙 Appearance</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="setTheme('dark')" style="flex:1;padding:10px;border-radius:8px;border:2px solid ${curTheme==='dark'?'#10b981':'var(--br2)'};background:${curTheme==='dark'?'rgba(16,185,129,.1)':'var(--c2)'};color:var(--txt);font-family:inherit;font-weight:700;font-size:13px;cursor:pointer">🌙 Dark</button>
+          <button onclick="setTheme('light')" style="flex:1;padding:10px;border-radius:8px;border:2px solid ${curTheme==='light'?'#10b981':'var(--br2)'};background:${curTheme==='light'?'rgba(16,185,129,.1)':'var(--c2)'};color:var(--txt);font-family:inherit;font-weight:700;font-size:13px;cursor:pointer">☀️ Light</button>
+          <button onclick="setTheme('green')" style="flex:1;padding:10px;border-radius:8px;border:2px solid ${curTheme==='green'?'#10b981':'var(--br2)'};background:${curTheme==='green'?'rgba(16,185,129,.1)':'var(--c2)'};color:var(--txt);font-family:inherit;font-weight:700;font-size:13px;cursor:pointer">🌿 Green</button>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -838,7 +912,7 @@ function renderStock(items){
   const c=document.getElementById('sh-content');if(!c)return;
   const low=items.filter(i=>(i.quantity||0)<5);
   c.innerHTML=`<div>
-    <a href="https://kwachdavid123-beep.github.io/Chawkpro/index.html" target="_blank"
+    <a href="javascript:openChawkpro()" target="_blank"
        style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:13px 15px;border-radius:12px;border:1.5px solid #f59e0b;color:#f59e0b;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:14px;background:rgba(245,158,11,.05)">
       <span>📊 Open CHAWKPRO Dashboard</span><span>→</span>
     </a>
