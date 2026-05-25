@@ -180,7 +180,7 @@ body.green #wrap{background:#041209}
 <div id="loading" style="background:var(--bg)">
   <div style="font-size:52px">🚴</div>
   <div style="font-size:28px;font-weight:800;color:#10b981;letter-spacing:-1px">TUMANA</div>
-  <div style="font-size:13px;color:var(--txt2)">Chemelil · Fast Local Delivery · v5</div>
+  <div style="font-size:13px;color:var(--txt2)">Chemelil · Fast Local Delivery</div>
   <div class="spin" style="margin-top:10px"></div>
 </div>
 <div id="wrap" style="display:none">
@@ -300,10 +300,12 @@ function dbQuery(path,field,op,val,cb,errCb){loadFB(db=>{if(!db){if(errCb)errCb(
 function dbQueryIn(path,field,vals,cb,errCb){loadFB(db=>{if(!db){if(errCb)errCb();return ()=>{};}const unsub=db.collection(path).where(field,'in',vals).limit(30).onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))),errCb||cb);return unsub;});}
 function dbListen(path,field,op,val,cb){loadFB(db=>{if(!db){cb([]);return;}db.collection(path).where(field,op,val).onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))),()=>cb([]));});}
 
-// ── CHAWKPRO LAUNCHER ─────────────────────────────────────
+// ── SHOP DASHBOARD LAUNCHER ─────────────────────────────────
 function openChawkpro(){
-  // Open CHAWKPRO directly in new tab - no intermediate sheet
-  window.open('https://kwachdavid123-beep.github.io/Chawkpro/chawkpro.html','_blank');
+  // Open with cache-bust param to bypass service worker cache
+  var url='https://kwachdavid123-beep.github.io/Chawkpro/chawkpro.html?v='+Date.now();
+  var w=window.open(url,'_blank','noopener,noreferrer');
+  if(!w) toast('Allow popups to open Shop Dashboard');
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────
@@ -425,7 +427,7 @@ function renderAuth(){
       <button class="btn ${btnCls}" style="margin-top:8px" onclick="doAuth()">${isLogin?'Login →':'Create Account →'}</button>
       <div class="divider">or</div>
       <button class="btn btn-o" onclick="authMode=authMode==='login'?'register':'login';renderAuth()">${isLogin?'New account':'Already registered? Login'}</button>
-      ${isShop?`<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:var(--txt2);line-height:1.7">💡 Already on CHAWKPRO? Use same phone number to link your shop automatically.</div>`:''}
+      ${isShop?`<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:var(--txt2);line-height:1.7">💡 Already registered? Use the same phone number to log in.</div>`:''}
     </div>`;
 }
 async function doAuth(){
@@ -800,7 +802,7 @@ function renderShopDash(){
   pg().innerHTML=`
     <div class="sh-hdr">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div><div style="font-size:17px;font-weight:700">${USER.shopName||USER.name}</div><div style="font-size:11px;color:var(--txt2);margin-top:2px">Tumana Shop · ${USER.phone} · <span style="color:#10b981">FREE</span></div></div>
+        <div><div style="font-size:17px;font-weight:700">${USER.shopName||USER.name}</div><div style="font-size:11px;color:var(--txt2);margin-top:2px">${USER.shopName||USER.name} · ${USER.phone}</div></div>
         <button style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:var(--txt2);font-size:11px;cursor:pointer;font-family:inherit" onclick="if(confirm('Logout?'))logout()">Out</button>
       </div>
       <div class="stat-grid" style="margin-bottom:0">
@@ -879,7 +881,7 @@ function showShopSales(){
   const c=document.getElementById('sh-content');if(!c)return;
   c.innerHTML='<div class="spin"></div>';
   loadFB(db=>{
-    if(!db){c.innerHTML=empty('💰','Sales data loading','Connect to see your sales from CHAWKPRO');return;}
+    if(!db){c.innerHTML=empty('💰','Sales data loading','Connect to see your sales data');return;}
     Promise.all([
       db.collection('shops').doc(USER.phone).collection('sales').limit(50).get().catch(()=>({docs:[]})),
       db.collection('delivery_orders').where('shop_id','==',USER.phone).where('status','==','delivered').limit(50).get().catch(()=>({docs:[]}))
@@ -894,7 +896,7 @@ function showShopSales(){
         <div class="stat-grid"><div class="stat-box"><div class="stat-v" style="color:#f59e0b">KSh ${todayT.toLocaleString()}</div><div class="stat-l">Today</div></div><div class="stat-box"><div class="stat-v" style="color:#10b981">KSh ${delivT.toLocaleString()}</div><div class="stat-l">Via Tumana</div></div></div>
         <div class="stat-box" style="text-align:center;margin-bottom:12px"><div class="stat-v" style="color:#f59e0b;font-size:24px">KSh ${(allT+delivT).toLocaleString()}</div><div class="stat-l">All Time Total</div></div>
         ${deliveries.length?`<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Tumana Delivery Orders</div>${deliveries.slice(0,20).map(d=>`<div class="card" style="border-left:3px solid #10b981;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${d.customer_name||'Customer'}</div><div style="font-size:11px;color:var(--txt2)">${(d.items||[]).map(i=>i.name).join(', ')||'Order'}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:800;color:#10b981">KSh ${d.subtotal||0}</div><div style="font-size:10px;color:var(--txt2)">100% yours</div></div></div>`).join('')}`:''}
-        ${sales.length?`<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">Walk-in Sales (CHAWKPRO)</div>${sales.slice(0,15).map(s=>`<div class="card" style="border-left:3px solid #f59e0b;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${s.customer_name||'Customer'}</div><div style="font-size:11px;color:var(--txt2)">${s.product_name||'Sale'}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:800;color:#f59e0b">KSh ${s.total||s.amount||0}</div><div style="font-size:10px;color:${s.is_debt?'#ef4444':'rgba(255,255,255,.4)'}">${s.is_debt?'⚠️ Debt':'Paid'}</div></div></div>`).join('')}`:''}
+        ${sales.length?`<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">Walk-in Sales</div>${sales.slice(0,15).map(s=>`<div class="card" style="border-left:3px solid #f59e0b;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${s.customer_name||'Customer'}</div><div style="font-size:11px;color:var(--txt2)">${s.product_name||'Sale'}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:800;color:#f59e0b">KSh ${s.total||s.amount||0}</div><div style="font-size:10px;color:${s.is_debt?'#ef4444':'rgba(255,255,255,.4)'}">${s.is_debt?'⚠️ Debt':'Paid'}</div></div></div>`).join('')}`:''}
       </div>`;
     });
   });
@@ -903,7 +905,7 @@ function showShopStock(){
   const c=document.getElementById('sh-content');if(!c)return;
   c.innerHTML='<div class="spin"></div>';
   loadFB(db=>{
-    if(!db){c.innerHTML=empty('📦','Stock loading','Connect to see your CHAWKPRO stock');return;}
+    if(!db){c.innerHTML=empty('📦','Stock loading','Connect to see your stock');return;}
     db.collection('shops').doc(USER.phone).collection('stock').get()
       .then(s=>renderStock(s.docs.map(d=>({id:d.id,...d.data()}))))
       .catch(()=>renderStock([]));
@@ -913,9 +915,9 @@ function renderStock(items){
   const c=document.getElementById('sh-content');if(!c)return;
   const low=items.filter(i=>(i.quantity||0)<5);
   c.innerHTML=`<div>
-    <a href="https://kwachdavid123-beep.github.io/Chawkpro/chawkpro.html" target="_blank" onclick="return true" target="_blank"
+    <a href="javascript:void(0)" onclick="openChawkpro()" target="_blank"
        style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:13px 15px;border-radius:12px;border:1.5px solid #f59e0b;color:#f59e0b;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:14px;background:rgba(245,158,11,.05)">
-      <span>📊 Open CHAWKPRO Dashboard</span><span>→</span>
+      <span>📊 Open Shop Dashboard</span><span>→</span>
     </a>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="stat-box"><div class="stat-v" style="color:#f59e0b;font-size:18px">${items.length}</div><div class="stat-l">Products</div></div>
@@ -924,7 +926,7 @@ function renderStock(items){
     </div>
     ${low.length?`<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:6px">⚠️ Restock Needed</div>${low.map(i=>`<div style="font-size:12px;color:var(--txt2);margin:3px 0">• ${i.name||i.product_name} — ${i.quantity||0} left</div>`).join('')}</div>`:''}
     <div style="background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.12);border-radius:12px;padding:12px;margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#10b981;margin-bottom:6px">🔄 Auto-Sync to Tumana</div><div style="font-size:12px;color:var(--txt2)">Your ${items.filter(i=>(i.quantity||0)>0).length} in-stock items are automatically visible to customers when delivery is ON.</div></div>
-    ${items.length===0?`<div class="card" style="text-align:center;color:var(--txt2);font-size:13px">No stock found.<br>Add products in the CHAWKPRO dashboard.</div>`:items.map(item=>{
+    ${items.length===0?`<div class="card" style="text-align:center;color:var(--txt2);font-size:13px">No stock yet.<br>Add products in the Shop Dashboard.</div>`:items.map(item=>{
       const qty=item.quantity||0,sell=item.selling_price||0,cost=item.cost_price||item.buying_price||0;
       return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="font-size:26px">${item.emoji||item.icon||'🛒'}</div><div><div style="font-weight:700;font-size:14px">${item.name||item.product_name}</div><div style="font-size:11px;color:var(--txt2)">${item.category||''}</div></div></div><div style="text-align:right"><div style="font-weight:800;font-size:16px;color:${qty<5?'#ef4444':qty>20?'#10b981':'#f59e0b'}">${qty}</div><div style="font-size:10px;color:var(--txt2)">${qty<5?'⚠️ Low':'in stock'}</div></div></div><div style="display:flex;gap:6px">${cost?`<div style="flex:1;background:var(--c2);border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:var(--txt2);margin-bottom:1px">Cost</div><div style="font-weight:700;font-size:13px">KSh ${cost}</div></div>`:''}<div style="flex:1;background:var(--c2);border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:var(--txt2);margin-bottom:1px">Selling</div><div style="font-weight:700;font-size:13px;color:#10b981">KSh ${sell}</div></div>${cost&&sell?`<div style="flex:1;background:rgba(16,185,129,.06);border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:var(--txt2);margin-bottom:1px">Profit</div><div style="font-weight:700;font-size:13px;color:#10b981">KSh ${sell-cost}</div></div>`:''}</div></div>`;
     }).join('')}
@@ -935,7 +937,7 @@ function showShopSettings(){
   c.innerHTML=`<div>
     <div class="sbox"><div class="sbox-t">Delivery Status</div><div style="font-size:13px;color:var(--txt2);line-height:1.8">Status: <strong style="color:${shopDelivOn?'#10b981':'#ef4444'}">${shopDelivOn?'✅ ON':'🔴 OFF'}</strong><br>Commission: <strong style="color:#fff">0%</strong><br>Plan: <strong style="color:#10b981">FREE</strong></div></div>
     <div class="sbox"><div class="sbox-t">Shop Details</div><div style="font-size:13px;color:var(--txt2);line-height:1.8">Name: <strong style="color:#fff">${USER.shopName||USER.name}</strong><br>Phone: <strong style="color:#fff">${USER.phone}</strong></div></div>
-    <div class="sbox"><div class="sbox-t">📊 CHAWKPRO Dashboard</div><div style="font-size:13px;color:var(--txt2);margin-bottom:8px;line-height:1.6">Full shop management — sales, stock, staff, debts. Access from the Stock tab.</div></div>
+    <div class="sbox"><div class="sbox-t">📊 Shop Dashboard</div><div style="font-size:13px;color:var(--txt2);margin-bottom:8px;line-height:1.6">Full shop management: sales, stock, staff & debts. Access from the Stock tab.</div></div>
     <button class="btn btn-o" style="margin-top:8px" onclick="if(confirm('Logout?'))logout()">Logout</button>
   </div>`;
 }
