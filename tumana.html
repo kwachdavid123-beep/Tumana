@@ -314,8 +314,33 @@ function dbListen(path,field,op,val,cb){loadFB(db=>{if(!db){cb([]);return;}db.co
 
 // ── SHOP DASHBOARD LAUNCHER ─────────────────────────────────
 function openChawkpro(){
-  var base=window.location.href.replace(/[^/]*$/,'');
-  window.location.href=base+'Chawkpro.html';
+  // Show instructions sheet with direct link
+  // Try to open - use location.href so SW cant intercept
+  // Auto-detect base URL from current page location
+  var base = window.location.href.replace(/tumana[^/]*$/, '');
+  var chawkUrl = base + 'Chawkpro.html';
+  showSheet(
+    '<div class="handle"></div>'+
+    '<div style="font-size:32px;text-align:center;margin-bottom:8px">📊</div>'+
+    '<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:6px;color:var(--txt)">Shop Dashboard</div>'+
+    '<div style="font-size:13px;color:var(--txt2);text-align:center;margin-bottom:16px;line-height:1.6">Your full shop management app</div>'+
+    '<a href="'+chawkUrl+'" target="_blank" rel="noopener" '+
+       'style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);'+
+       'border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;'+
+       'text-decoration:none;margin-bottom:12px">'+
+       '📊 Open Shop Dashboard →'+
+    '</a>'+
+    '<div style="background:var(--c2);border-radius:10px;padding:12px;font-size:12px;color:var(--txt2);line-height:1.8;margin-bottom:8px">'+
+      '<strong style="color:var(--txt)">Getting a 404?</strong><br>'+
+      'Your CHAWKPRO file might have a different URL.<br><br>'+
+      '<strong style="color:var(--txt)">To find the right link:</strong><br>'+
+      '1. Go to github.com/kwachdavid123-beep/Chawkpro<br>'+
+      '2. Tap your CHAWKPRO file<br>'+
+      '3. Tap ••• → Copy permalink<br>'+
+      '4. Change github.com to kwachdavid123-beep.github.io'+
+    '</div>'+
+    '<button class="btn btn-o" onclick="hideSheet()">Close</button>'
+  );
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────
@@ -342,24 +367,9 @@ function setNav(role,tab){
     shop:[{id:'orders',ic:'📋',lb:'Orders'},{id:'sales',ic:'💰',lb:'Sales'},{id:'stock',ic:'📦',lb:'Stock'},{id:'settings',ic:'⚙️',lb:'Settings'}],
     rider:[{id:'jobs',ic:'🏍️',lb:'Jobs'},{id:'earnings',ic:'💰',lb:'Earnings'}]
   };
-  // Active color per role
-  const actColor=role==='shop'?'#f59e0b':role==='rider'?'#8b5cf6':'#10b981';
-  // Inactive color based on theme
-  const inactColor=curTheme==='light'?'#888':curTheme==='green'?'rgba(180,255,200,.5)':'rgba(255,255,255,.4)';
-  const navBg=curTheme==='light'?'#fff':curTheme==='green'?'#030f08':'#0a0a0d';
-  const borderColor=curTheme==='light'?'#e5e7eb':curTheme==='green'?'rgba(16,185,129,.2)':'rgba(255,255,255,.07)';
-  nav.style.background=navBg;
-  nav.style.borderTopColor=borderColor;
+  const cls=role==='shop'?'on-a':role==='rider'?'on-p':'on';
   const cartBadge=CART.reduce((s,i)=>s+i.qty,0);
-  nav.innerHTML='<div class="nav-row" style="background:'+navBg+'">'+tabs[role].map(t=>{
-    const isAct=tab===t.id;
-    const color=isAct?actColor:inactColor;
-    return '<div class="ni" onclick="navTap(''+role+'',''+t.id+'')" style="cursor:pointer">'+
-      (t.id==='cart'&&cartBadge>0?'<div class="nbadge">'+cartBadge+'</div>':'')+
-      '<div style="font-size:20px">'+t.ic+'</div>'+
-      '<div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:'+color+'">'+t.lb+'</div>'+
-    '</div>';
-  }).join('')+'</div>';
+  nav.innerHTML='<div class="nav-row">'+tabs[role].map(t=>`<div class="ni ${tab===t.id?cls:''}" onclick="navTap('${role}','${t.id}')">${t.id==='cart'&&cartBadge>0?`<div class="nbadge">${cartBadge}</div>`:''}<div class="ni-ic">${t.ic}</div><div class="ni-lb">${t.lb}</div></div>`).join('')+'</div>';
 }
 function navTap(role,tab){
   if(role==='customer'){
