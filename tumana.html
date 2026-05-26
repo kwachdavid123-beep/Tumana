@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tumana">
 <meta name="description" content="Tumana – Fast local delivery in Chemelil. Order from shops, request pickups, earn as a rider.">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="tumana-logo.png">
 <title>Tumana – Chemelil Delivery</title>
 <style>
@@ -34,9 +34,20 @@ body.light #sb-title{color:#fff!important}
 body.light #theme-btn{color:#fff!important}
 body.light #sb span:first-child{color:rgba(255,255,255,.7)!important}
 body.light .ni-lb{color:rgba(0,0,0,.4)}
-body.light .ni.on .ni-lb{color:#059669}
-body.light .ni.on-a .ni-lb{color:#d97706}
-body.light .ni.on-p .ni-lb{color:#7c3aed}
+body.light .ni.on .ni-lb{color:#059669!important}
+body.light .ni.on-a .ni-lb{color:#d97706!important}
+body.light .ni.on-p .ni-lb{color:#7c3aed!important}
+body.light .ni-lb{color:rgba(0,0,0,.5)!important}
+body.light .ni-ic{color:#000}
+body.light .stab{color:rgba(0,0,0,.45)!important}
+body.light .stab.on{color:#000!important}
+body.light .stab.on-p{color:#fff!important}
+body.light #sb span{color:rgba(255,255,255,.9)!important}
+body.light .ni{background:transparent}
+body.light .nav-row{background:#fff}
+body.light #nav{background:#fff;border-top:1px solid rgba(0,0,0,.1)}
+body.light .ni-ic{color:#333}
+body.light .nbadge{color:#fff!important}
 body.light .sh-hdr{background:linear-gradient(180deg,#fffbeb,#f2f4f3)}
 body.light .rd-hdr{background:linear-gradient(180deg,#f5f3ff,#f2f4f3)}
 body.light .chip{color:rgba(0,0,0,.5)}
@@ -58,6 +69,11 @@ body.green .rd-hdr{background:linear-gradient(180deg,#06180d,#041209)}
 body.green .sheet{border-color:rgba(16,185,129,.4)}
 body.green #loading{background:#041209}
 body.green #wrap{background:#041209}
+body.green #nav{background:#030f08}
+body.green .ni-lb{color:rgba(200,255,220,.5)!important}
+body.green .ni.on .ni-lb{color:#10b981!important}
+body.green .ni.on-a .ni-lb{color:#f59e0b!important}
+body.green .ni.on-p .ni-lb{color:#8b5cf6!important}
 #wrap{max-width:430px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg)}
 /* STATUS BAR */
 #sb{height:36px;background:var(--sb-bg);display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:12px;font-weight:700;color:var(--txt2);flex-shrink:0}
@@ -302,14 +318,25 @@ function dbListen(path,field,op,val,cb){loadFB(db=>{if(!db){cb([]);return;}db.co
 
 // ── SHOP DASHBOARD LAUNCHER ─────────────────────────────────
 function openChawkpro(){
-  // Use anchor click - works on mobile without popup blocker
-  var a=document.createElement('a');
-  a.href='https://kwachdavid123-beep.github.io/Chawkpro/Chawkpro.html';
-  a.target='_blank';
-  a.rel='noopener noreferrer';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // Show instructions sheet with direct link
+  showSheet(
+    '<div class="handle"></div>'+
+    '<div style="font-size:32px;text-align:center;margin-bottom:8px">📊</div>'+
+    '<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:6px;color:var(--txt)">Shop Dashboard</div>'+
+    '<div style="font-size:13px;color:var(--txt2);text-align:center;margin-bottom:20px;line-height:1.6">Tap the button below to open your full shop management app.</div>'+
+    '<a href="https://kwachdavid123-beep.github.io/Chawkpro/Chawkpro.html" '+
+       'style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);'+
+       'border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;'+
+       'text-decoration:none;margin-bottom:14px">'+
+       '📊 Open Shop Dashboard →'+
+    '</a>'+
+    '<div style="background:var(--c2);border-radius:10px;padding:12px;font-size:12px;color:var(--txt2);line-height:1.8;margin-bottom:12px">'+
+      '⚠️ If you get a 404 error:<br>'+
+      'The file on GitHub may have a different name.<br>'+
+      'Go to GitHub → your repo → find your shop file → check exact filename (case matters)'+
+    '</div>'+
+    '<button class="btn btn-o" onclick="hideSheet()" style="margin-top:4px">Close</button>'
+  );
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────
@@ -919,7 +946,7 @@ function renderStock(items){
   const c=document.getElementById('sh-content');if(!c)return;
   const low=items.filter(i=>(i.quantity||0)<5);
   c.innerHTML=`<div>
-    <a href="https://kwachdavid123-beep.github.io/Chawkpro/Chawkpro.html" target="_blank" rel="noopener noreferrer" target="_blank"
+    <a href="https://kwachdavid123-beep.github.io/Chawkpro/Chawkpro.html" target="_blank" rel="noopener noreferrer"
        style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:13px 15px;border-radius:12px;border:1.5px solid #f59e0b;color:#f59e0b;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:14px;background:rgba(245,158,11,.05)">
       <span>📊 Open Shop Dashboard</span><span>→</span>
     </a>
@@ -1109,6 +1136,11 @@ function startApp(){
 function boot(){
   if(window._booted)return;
   window._booted=true;
+  // Fix: if page is blank/404, redirect to correct URL
+  if(document.title===''||document.body.children.length===0){
+    window.location.href='https://kwachdavid123-beep.github.io/Chawkpro/tumana.html';
+    return;
+  }
   applyTheme();
   try{
     const s=localStorage.getItem('tumana_user');
@@ -1119,17 +1151,17 @@ function boot(){
   if(USER)startApp();else showRoleScreen();
 }
 
-// Service Worker - always unregister old, register new
+// Unregister ALL service workers - they cause redirect issues
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(regs=>{
-    // Unregister ALL old workers first
-    Promise.all(regs.map(r=>r.unregister())).then(()=>{
-      // Register fresh SW after app loads
-      setTimeout(()=>{
-        navigator.serviceWorker.register('sw.js').catch(()=>{});
-      },3000);
-    });
+  navigator.serviceWorker.getRegistrations().then(function(regs){
+    regs.forEach(function(r){r.unregister();});
   });
+  // Clear all caches too
+  if(window.caches){
+    caches.keys().then(function(keys){
+      keys.forEach(function(k){caches.delete(k);});
+    });
+  }
 }
 
 // PWA Install prompt - simple version
