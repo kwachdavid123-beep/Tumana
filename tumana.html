@@ -169,6 +169,7 @@ body.green .ni.on-p .ni-lb{color:#8b5cf6!important}
 .rtab{flex:1;padding:10px;text-align:center;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--txt2)}
 .rtab.sel-g{background:linear-gradient(135deg,#10b981,#059669);color:#000}
 .rtab.sel-a{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000}
+.rtab.sel-p{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff}
 .role-card{background:var(--c1);border:1.5px solid var(--br);border-radius:14px;padding:16px;cursor:pointer;margin-bottom:10px;position:relative}
 .role-card:active{transform:scale(.98)}
 .rc-ico{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
@@ -335,7 +336,7 @@ const SP_LBL={placed:'Placed',confirmed:'Paid ✅',assigned:'Rider 🏍️',head
 // ── RENDER HELPERS ────────────────────────────────────────
 function pg(){return document.getElementById('pg');}
 function setTitle(t,c){const el=document.getElementById('sb-title');if(el){el.textContent=t;el.style.color=c||'#10b981';}}
-function setNav(role,tab){
+function _setNavOriginal(role,tab){
   const nav=document.getElementById('nav');nav.style.display='block';
   const tabs={
     customer:[{id:'home',ic:'🏠',lb:'Shops'},{id:'pickup',ic:'🏍️',lb:'Pickup'},{id:'cart',ic:'🛒',lb:'Cart'},{id:'orders',ic:'📦',lb:'Orders'},{id:'me',ic:'👤',lb:'Me'}],
@@ -350,6 +351,7 @@ function setNav(role,tab){
   const borderColor=curTheme==='light'?'#e5e7eb':curTheme==='green'?'rgba(16,185,129,.2)':'rgba(255,255,255,.07)';
   nav.style.background=navBg;
   nav.style.borderTopColor=borderColor;
+  nav.style.borderTop='1px solid '+borderColor;
   const cartBadge=CART.reduce((s,i)=>s+i.qty,0);
   nav.innerHTML='<div class="nav-row" style="background:'+navBg+'">'+tabs[role].map(t=>{
     const isAct=tab===t.id;
@@ -400,12 +402,14 @@ function showRoleScreen(){
   renderRole();
 }
 function renderRole(){
-  const isTumana=roleTab==='tumana';
-  const roles=isTumana?[
+  // roleTab can be: tumana, shop, admin
+  const roles=roleTab==='tumana'?[
     {id:'customer',lbl:'Customer',ic:'🛍️',cls:'ic-g',col:'#10b981',sub:'Order from shops or request pickup anywhere',perks:['Browse shops near you','Live order tracking','Save favourite rider','100% Free']},
     {id:'rider',lbl:'Rider / Bodaboda',ic:'🏍️',cls:'ic-p',col:'#8b5cf6',sub:'Earn money on deliveries & pickups',perks:['Accept shop deliveries','Accept pickup requests','Earn 90% of every fee','Daily M-Pesa payouts']}
-  ]:[
+  ]:roleTab==='shop'?[
     {id:'shop',lbl:'Shop Owner',ic:'🏪',cls:'ic-a',col:'#f59e0b',sub:'Manage shop + receive Tumana delivery orders',perks:['Full sales & stock management','Orders pop up automatically','Stock syncs as customer menu','100% Free — always']}
+  ]:[
+    {id:'admin',lbl:'Admin Access',ic:'⚙️',cls:'ic-p',col:'#8b5cf6',sub:'Platform management — restricted access only',perks:['View all orders platform-wide','Manage riders & shops','Full revenue dashboard','Restricted to authorised number only']}
   ];
   pg().innerHTML=`
     <div style="padding:24px 20px 16px;text-align:center">
@@ -413,9 +417,10 @@ function renderRole(){
       <div style="font-size:26px;font-weight:800;color:#10b981;letter-spacing:-1px;margin-bottom:4px">TUMANA</div>
       <div style="font-size:13px;color:var(--txt2)">Chemelil · Fast Local Delivery · Free</div>
     </div>
-    <div class="rtabs">
-      <div class="rtab ${isTumana?'sel-g':''}" onclick="roleTab='tumana';renderRole()">🚴 ORDER / RIDE</div>
-      <div class="rtab ${!isTumana?'sel-a':''}" onclick="roleTab='shop';renderRole()">🏪 SHOP OWNER</div>
+    <div class="rtabs" style="grid-template-columns:1fr 1fr 1fr;display:grid">
+      <div class="rtab ${roleTab==='tumana'?'sel-g':''}" onclick="roleTab='tumana';renderRole()">🚴 RIDE</div>
+      <div class="rtab ${roleTab==='shop'?'sel-a':''}" onclick="roleTab='shop';renderRole()">🏪 SHOP</div>
+      <div class="rtab ${roleTab==='admin'?'sel-p':''}" onclick="roleTab='admin';renderRole()">⚙️ ADMIN</div>
     </div>
     <div style="padding:0 20px 80px">
       ${roles.map(r=>`
@@ -461,11 +466,22 @@ async function doAuth(){
   const shopName=(document.getElementById('f-shop')||{}).value||'';
   if(!phone||phone.trim().length<9){toast('Enter valid M-Pesa phone number');return;}
   if(authMode==='register'&&!name.trim()){toast('Enter your name');return;}
+  // Admin restricted to authorised number only
+  const cleanPhone=phone.trim().replace(/\s/g,'');
+  if(authRole.id==='admin'){
+    const allowed=['0799878872','254799878872','+254799878872'];
+    if(!allowed.includes(cleanPhone)){
+      toast('❌ Admin access restricted');
+      document.getElementById('f-phone').value='';
+      document.getElementById('f-phone').style.borderColor='#ef4444';
+      setTimeout(()=>{if(document.getElementById('f-phone'))document.getElementById('f-phone').style.borderColor='';},2000);
+      return;
+    }
+  }
   const safeName=(name||phone).trim();
-  USER={role:authRole.id,name:safeName,phone:phone.trim(),shopName:shopName.trim(),preferred_rider:null,favourite_shops:[]};
+  USER={role:authRole.id,name:safeName,phone:cleanPhone,shopName:(shopName||'').trim(),preferred_rider:null,favourite_shops:[]};
   saveUser();
-  // Save to Firebase in background (don't block)
-  dbSet('tumana_users',phone.trim(),{...USER,updated_at:Date.now()});
+  dbSet('tumana_users',cleanPhone,{...USER,updated_at:Date.now()});
   startApp();
 }
 
@@ -1125,8 +1141,219 @@ function startApp(){
   if(USER.role==='customer')startCustomer();
   else if(USER.role==='shop')startShop();
   else if(USER.role==='rider')startRider();
+  else if(USER.role==='admin')startAdmin();
 }
 
+// ══════════════════════════════════════════════════════════
+// ADMIN DASHBOARD
+// ══════════════════════════════════════════════════════════
+function startAdmin(){
+  setTitle('ADMIN','#8b5cf6');
+  setNav('admin','overview');
+  showAdminOverview();
+}
+
+function setNav(role,tab){
+  // Override for admin
+  if(role==='admin'){
+    const nav=document.getElementById('nav');nav.style.display='block';
+    const navBg=curTheme==='light'?'#fff':curTheme==='green'?'#030f08':'#0a0a0d';
+    nav.style.background=navBg;
+    const actColor='#8b5cf6';
+    const inactColor=curTheme==='light'?'#888':'rgba(255,255,255,.4)';
+    const adminTabs=[
+      {id:'overview',ic:'📊',lb:'Overview'},
+      {id:'orders',ic:'📋',lb:'Orders'},
+      {id:'riders',ic:'🏍️',lb:'Riders'},
+      {id:'shops',ic:'🏪',lb:'Shops'},
+      {id:'revenue',ic:'💰',lb:'Revenue'}
+    ];
+    nav.innerHTML='<div class="nav-row" style="background:'+navBg+'">'+
+      adminTabs.map(t=>{
+        const isAct=tab===t.id;
+        return '<div class="ni" onclick="adminNav(''+t.id+'')" style="cursor:pointer">'+
+          '<div style="font-size:18px">'+t.ic+'</div>'+
+          '<div style="font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:'+(isAct?actColor:inactColor)+'">'+t.lb+'</div>'+
+        '</div>';
+      }).join('')+
+    '</div>';
+    return;
+  }
+  _setNavOriginal(role,tab);
+}
+
+function adminNav(tab){
+  setNav('admin',tab);
+  if(tab==='overview') showAdminOverview();
+  else if(tab==='orders') showAdminOrders();
+  else if(tab==='riders') showAdminRiders();
+  else if(tab==='shops') showAdminShops();
+  else if(tab==='revenue') showAdminRevenue();
+}
+
+function showAdminOverview(){
+  const pg_el=document.getElementById('pg');
+  pg_el.innerHTML='<div style="padding:16px 18px 100px"><div style="font-size:19px;font-weight:800;margin-bottom:4px">Platform Overview</div><div style="font-size:12px;color:var(--txt2);margin-bottom:16px">Tumana · Chemelil</div><div id="admin-stats"><div class="spin"></div></div></div>';
+  loadFB(db=>{
+    if(!db){document.getElementById('admin-stats').innerHTML='<div style="color:var(--txt2);text-align:center;padding:20px">Connect to Firebase to see live stats</div>';return;}
+    Promise.all([
+      db.collection('delivery_orders').get(),
+      db.collection('tumana_users').get(),
+      db.collection('riders').get(),
+      db.collection('shops').get()
+    ]).then(([orders,users,riders,shops])=>{
+      const allOrders=orders.docs.map(d=>d.data());
+      const delivered=allOrders.filter(o=>o.status==='delivered');
+      const pending=allOrders.filter(o=>!['delivered','rejected'].includes(o.status));
+      const totalRev=delivered.reduce((s,o)=>s+(o.platform_earnings||0),0);
+      const totalDeliv=delivered.reduce((s,o)=>s+(o.delivery_fee||0),0);
+      const onlineRiders=riders.docs.filter(d=>d.data().online).length;
+      const activeShops=shops.docs.filter(d=>d.data().delivery_enabled).length;
+      document.getElementById('admin-stats').innerHTML=`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="stat-box"><div class="stat-v" style="color:#8b5cf6">${allOrders.length}</div><div class="stat-l">Total Orders</div></div>
+          <div class="stat-box"><div class="stat-v" style="color:#10b981">${delivered.length}</div><div class="stat-l">Delivered</div></div>
+          <div class="stat-box"><div class="stat-v" style="color:#f59e0b">${pending.length}</div><div class="stat-l">Pending</div></div>
+          <div class="stat-box"><div class="stat-v" style="color:#10b981">${users.size}</div><div class="stat-l">Users</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+          <div class="stat-box" style="text-align:center"><div class="stat-v" style="color:#8b5cf6;font-size:18px">${onlineRiders}</div><div class="stat-l">Online Riders</div></div>
+          <div class="stat-box" style="text-align:center"><div class="stat-v" style="color:#f59e0b;font-size:18px">${activeShops}</div><div class="stat-l">Active Shops</div></div>
+          <div class="stat-box" style="text-align:center"><div class="stat-v" style="color:#10b981;font-size:18px">${riders.size}</div><div class="stat-l">All Riders</div></div>
+        </div>
+        <div class="sbox">
+          <div class="sbox-t">💰 Platform Revenue</div>
+          <div style="display:flex;justify-content:space-between;margin:8px 0">
+            <span style="color:var(--txt2);font-size:13px">Total delivery fees</span>
+            <span style="font-weight:700">KSh ${totalDeliv.toLocaleString()}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin:8px 0">
+            <span style="color:var(--txt2);font-size:13px">Platform cut (10%)</span>
+            <span style="font-weight:700;color:#10b981">KSh ${totalRev.toLocaleString()}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin:8px 0">
+            <span style="color:var(--txt2);font-size:13px">Rider payouts (90%)</span>
+            <span style="font-weight:700;color:#8b5cf6">KSh ${(totalDeliv-totalRev).toLocaleString()}</span>
+          </div>
+        </div>
+        <button class="btn btn-o" onclick="if(confirm('Logout?'))logout()" style="margin-top:8px">Logout</button>`;
+    }).catch(()=>{});
+  });
+}
+
+function showAdminOrders(){
+  const pg_el=document.getElementById('pg');
+  pg_el.innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">All Orders</div></div><div id="admin-orders-list" style="padding:0 18px 100px"><div class="spin"></div></div>';
+  loadFB(db=>{
+    if(!db)return;
+    db.collection('delivery_orders').limit(50).get().then(s=>{
+      const orders=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+      const list=document.getElementById('admin-orders-list');
+      if(!list)return;
+      if(!orders.length){list.innerHTML=empty('📋','No orders yet','Orders will appear here');return;}
+      list.innerHTML=orders.map(o=>`
+        <div class="card" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <div><div style="font-weight:700">#${o.id.slice(-6).toUpperCase()}</div><div style="font-size:11px;color:var(--txt2)">${o.type==='pickup'?'Pickup':'Shop order'} · ${o.customer_name||''}</div></div>
+            <span class="spill ${SP[o.status]||'s1'}">${SP_LBL[o.status]||o.status}</span>
+          </div>
+          <div style="display:flex;gap:8px;font-size:12px;color:var(--txt2)">
+            <span>KSh ${o.total||0}</span><span>·</span>
+            <span>${o.rider_name||'No rider'}</span><span>·</span>
+            <span>${o.shopName||o.pickup_from||''}</span>
+          </div>
+        </div>`).join('');
+    });
+  });
+}
+
+function showAdminRiders(){
+  const pg_el=document.getElementById('pg');
+  pg_el.innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">All Riders</div></div><div id="admin-riders-list" style="padding:0 18px 100px"><div class="spin"></div></div>';
+  loadFB(db=>{
+    if(!db)return;
+    db.collection('riders').get().then(s=>{
+      const list=document.getElementById('admin-riders-list');if(!list)return;
+      const riders=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(!riders.length){list.innerHTML=empty('🏍️','No riders yet','Riders appear when they register');return;}
+      list.innerHTML=riders.map(r=>`
+        <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <div style="font-weight:700">${r.name||r.id}</div>
+            <div style="font-size:11px;color:var(--txt2)">${r.phone||r.id}</div>
+            <div style="font-size:11px;color:var(--txt2)">${r.orders_completed||0} deliveries · KSh ${r.total_earnings||0}</div>
+          </div>
+          <div style="text-align:right">
+            <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${r.online?'rgba(16,185,129,.1)':'rgba(255,255,255,.07)'};color:${r.online?'#10b981':'rgba(255,255,255,.4)'}">${r.online?'🟢 Online':'⚫ Offline'}</span>
+            <div style="font-size:10px;color:var(--txt2);margin-top:4px">⭐ ${(r.rating||5).toFixed(1)}</div>
+          </div>
+        </div>`).join('');
+    });
+  });
+}
+
+function showAdminShops(){
+  const pg_el=document.getElementById('pg');
+  pg_el.innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">All Shops</div></div><div id="admin-shops-list" style="padding:0 18px 100px"><div class="spin"></div></div>';
+  loadFB(db=>{
+    if(!db)return;
+    db.collection('shops').get().then(s=>{
+      const list=document.getElementById('admin-shops-list');if(!list)return;
+      const shops=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(!shops.length){list.innerHTML=empty('🏪','No shops yet','Shops appear when owners register');return;}
+      list.innerHTML=shops.map(sh=>`
+        <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="font-size:28px">${sh.icon||'🏪'}</div>
+            <div>
+              <div style="font-weight:700">${sh.name||sh.id}</div>
+              <div style="font-size:11px;color:var(--txt2)">${sh.category||''} · ${sh.location||'Chemelil'}</div>
+              <div style="font-size:11px;color:var(--txt2)">${sh.owner_phone||sh.id}</div>
+            </div>
+          </div>
+          <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${sh.delivery_enabled?'rgba(16,185,129,.1)':'rgba(255,255,255,.07)'};color:${sh.delivery_enabled?'#10b981':'rgba(255,255,255,.4)'}">${sh.delivery_enabled?'🟢 Live':'⚫ Off'}</span>
+        </div>`).join('');
+    });
+  });
+}
+
+function showAdminRevenue(){
+  const pg_el=document.getElementById('pg');
+  pg_el.innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">Revenue</div></div><div id="admin-rev" style="padding:0 18px 100px"><div class="spin"></div></div>';
+  loadFB(db=>{
+    if(!db)return;
+    db.collection('delivery_orders').where('status','==','delivered').get().then(s=>{
+      const orders=s.docs.map(d=>d.data());
+      const rev=document.getElementById('admin-rev');if(!rev)return;
+      const today=new Date().toDateString();
+      const todayO=orders.filter(o=>{const d=o.created_at?.toDate?.();return d&&d.toDateString()===today;});
+      const weekStart=new Date();weekStart.setDate(weekStart.getDate()-7);
+      const weekO=orders.filter(o=>{const d=o.created_at?.toDate?.();return d&&d>=weekStart;});
+      const sum=(arr,key)=>arr.reduce((s,o)=>s+(o[key]||0),0);
+      rev.innerHTML=`
+        <div class="stat-box" style="text-align:center;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--txt2);margin-bottom:4px">TODAY REVENUE</div>
+          <div style="font-size:28px;font-weight:800;color:#10b981">KSh ${sum(todayO,'platform_earnings').toLocaleString()}</div>
+          <div style="font-size:12px;color:var(--txt2);margin-top:4px">${todayO.length} deliveries</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="stat-box"><div class="stat-v" style="color:#8b5cf6;font-size:18px">KSh ${sum(weekO,'platform_earnings').toLocaleString()}</div><div class="stat-l">This Week</div></div>
+          <div class="stat-box"><div class="stat-v" style="color:#f59e0b;font-size:18px">KSh ${sum(orders,'platform_earnings').toLocaleString()}</div><div class="stat-l">All Time</div></div>
+        </div>
+        <div class="sbox">
+          <div class="sbox-t">M-Pesa Payout Number</div>
+          <div style="font-size:18px;font-weight:800;color:#10b981;margin-bottom:4px">📱 0799878872</div>
+          <div style="font-size:12px;color:var(--txt2)">All platform revenue collects here</div>
+        </div>
+        <div class="sbox">
+          <div class="sbox-t">Recent Deliveries</div>
+          ${orders.slice(0,10).map(o=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--br)"><div style="font-size:12px">#${(o.customer_phone||'').slice(-4)} · ${o.type||'shop'}</div><div style="font-size:12px;color:#10b981;font-weight:700">+KSh ${o.platform_earnings||0}</div></div>`).join('')}
+        </div>`;
+    });
+  });
+}
+
+function boot(){
 function boot(){
   if(window._booted)return;
   window._booted=true;
