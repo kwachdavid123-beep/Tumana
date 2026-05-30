@@ -152,25 +152,64 @@ function empty(icon,title,sub){return '<div class="empty"><div class="ei">'+icon
 function saveUser(){localStorage.setItem('tumana_user',JSON.stringify(USER));}
 
 var THEMES=['dark','light','green'];
-var TCOLORS={dark:'#08080c',light:'#f5f5f5',green:'#041209'};
+var TCOLORS={dark:'#08080c',light:'#f0faf5',green:'#041209'};
 var TCARD={dark:'#111116',light:'#ffffff',green:'#082016'};
-var TTXT={dark:'#ffffff',light:'#111111',green:'#e8fdf2'};
-var TTXT2={dark:'rgba(255,255,255,.45)',light:'rgba(0,0,0,.55)',green:'rgba(200,255,220,.6)'};
+var TTXT={dark:'#ffffff',light:'#0d2818',green:'#e8fdf2'};
+var TTXT2={dark:'rgba(255,255,255,.45)',light:'rgba(13,40,24,.6)',green:'rgba(200,255,220,.6)'};
 var TNAV={dark:'#000000',light:'#ffffff',green:'#030f08'};
-var TSB={dark:'#000000',light:'#10b981',green:'#030f08'};
+var TSB={dark:'#000000',light:'#059669',green:'#030f08'};
 
 function applyTheme(){
   var bg=TCOLORS[curTheme];
   var nav=TNAV[curTheme];
   var sb=TSB[curTheme];
+  var txt=TTXT[curTheme];
   document.body.style.background=bg;
+  document.body.style.color=txt;
   var wrap=document.getElementById('wrap');
   if(wrap)wrap.style.background=bg;
   var sbEl=document.getElementById('sb');
-  if(sbEl){sbEl.style.background=sb;sbEl.style.color=curTheme==='light'?'rgba(255,255,255,.8)':TTXT2[curTheme];}
+  if(sbEl){sbEl.style.background=sb;sbEl.style.color='rgba(255,255,255,.9)';}
   var navEl=document.getElementById('nav');
-  if(navEl)navEl.style.background=nav;
+  if(navEl){navEl.style.background=nav;navEl.style.borderTop=curTheme==='light'?'1px solid #d1fae5':'1px solid rgba(255,255,255,.08)';}
+  var pgEl=document.getElementById('pg');
+  if(pgEl){pgEl.style.background=bg;pgEl.style.color=txt;}
   document.getElementById('theme-btn').textContent=curTheme==='dark'?'☀️':curTheme==='light'?'🌿':'🌙';
+  // Inject light mode CSS if needed
+  var existingStyle=document.getElementById('theme-style');
+  if(existingStyle)existingStyle.remove();
+  if(curTheme==='light'){
+    var s=document.createElement('style');s.id='theme-style';
+    s.textContent='.card{background:#ffffff!important;border-color:#d1fae5!important;color:#0d2818!important;box-shadow:0 2px 8px rgba(16,185,129,.08)!important}'
+      +'.stat-box{background:#ecfdf5!important;border-color:#a7f3d0!important;color:#0d2818!important}'
+      +'.stat-l{color:rgba(13,40,24,.55)!important}'
+      +'.chip-d{background:#ecfdf5!important;border-color:#a7f3d0!important;color:#065f46!important}'
+      +'.sbox{background:#ffffff!important;border-color:#d1fae5!important}'
+      +'.sbox-t{color:rgba(13,40,24,.55)!important}'
+      +'.spin{border-color:rgba(16,185,129,.2)!important;border-top-color:#10b981!important}'
+      +'.empty .et{color:#0d2818!important}'
+      +'.empty .es{color:rgba(13,40,24,.5)!important}'
+      +'.fld input,.fld select,.fld textarea{background:#ecfdf5!important;border-color:#a7f3d0!important;color:#0d2818!important}'
+      +'.fld label{color:rgba(13,40,24,.6)!important}'
+      +'.btn-o{background:transparent!important;border-color:#10b981!important;color:#059669!important}'
+      +'.divider{color:rgba(13,40,24,.3)!important}'
+      +'.overlay .sheet{background:#ffffff!important;border-color:#10b981!important}'
+      +'.handle{background:rgba(16,185,129,.3)!important}'
+      +'.fare-card{background:#ecfdf5!important;border-color:#a7f3d0!important;color:#0d2818!important}'
+      +'.fare-card.sel{background:#d1fae5!important;border-color:#10b981!important}'
+      +'.pc{background:#ffffff!important;border-color:#d1fae5!important}'
+      +'.pn{color:#0d2818!important}'
+      +'.tog{background:#aaa!important}'
+      +'.tog.on{background:#10b981!important}';
+    document.head.appendChild(s);
+  } else if(curTheme==='green'){
+    var s2=document.createElement('style');s2.id='theme-style';
+    s2.textContent='.card{background:#082016!important;border-color:rgba(16,185,129,.2)!important}'
+      +'.stat-box{background:#0b2c1e!important;border-color:rgba(16,185,129,.2)!important}'
+      +'.sbox{background:#082016!important;border-color:rgba(16,185,129,.2)!important}'
+      +'.fld input,.fld select,.fld textarea{background:#0b2c1e!important;border-color:rgba(16,185,129,.3)!important;color:#e8fdf2!important}';
+    document.head.appendChild(s2);
+  }
 }
 function toggleTheme(){
   var idx=(THEMES.indexOf(curTheme)+1)%THEMES.length;
@@ -563,7 +602,7 @@ function showShopSales(){
 }
 function showShopStock(){
   var c=document.getElementById('sh-content');if(!c)return;
-  var chawkUrl=window.location.href.replace(/[^/]*$/,'')+('Chawkpro.html');
+  var chawkUrl=window.location.href.replace(/[^/]*$/,'')+'Chawkpro.html';
   c.innerHTML='<div class="spin"></div>';
   loadFB(function(db){
     if(!db){c.innerHTML='<a href="'+chawkUrl+'" target="_blank" rel="noopener" style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;text-decoration:none">'+String.fromCharCode(128202)+' Open Shop Dashboard '+String.fromCharCode(8594)+'</a>';return;}
@@ -572,15 +611,15 @@ function showShopStock(){
       var low=items.filter(function(i){return(i.quantity||0)<5;});
       var lowH=low.length?('<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:6px">Low Stock Alert</div>'+low.map(function(i){return '<div style="font-size:12px;color:rgba(255,255,255,.4);margin:3px 0">'+String.fromCharCode(8226)+' '+(i.name||i.product_name)+' - '+(i.quantity||0)+' left</div>';}).join('')+'</div>'):'';
       var itemsH=items.length?items.map(function(it){var qty=it.quantity||0,sell=it.selling_price||0,cost=it.cost_price||0;return '<div class="card" style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="font-size:24px">'+(it.emoji||it.icon||'X')+'</div><div><div style="font-weight:700;font-size:14px">'+(it.name||it.product_name)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(it.category||'')+'</div></div></div><div style="text-align:right"><div style="font-weight:800;font-size:16px;color:'+(qty<5?'#ef4444':qty>20?'#10b981':'#f59e0b')+'">'+qty+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">'+(qty<5?'Low':'in stock')+'</div></div></div><div style="display:flex;gap:6px">'+(cost?'<div style="flex:1;background:#1a1a22;border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4)">Cost</div><div style="font-weight:700;font-size:13px">KSh '+cost+'</div></div>':'')+'<div style="flex:1;background:#1a1a22;border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4)">Selling</div><div style="font-weight:700;font-size:13px;color:#10b981">KSh '+sell+'</div></div>'+(cost&&sell?'<div style="flex:1;background:rgba(16,185,129,.06);border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4)">Profit</div><div style="font-weight:700;font-size:13px;color:#10b981">KSh '+(sell-cost)+'</div></div>':'')+'</div></div>';}).join(''):'<div style="background:#1a1a22;border-radius:12px;padding:20px;text-align:center;color:rgba(255,255,255,.4);font-size:13px">No stock yet. Add products in Shop Dashboard.</div>';
-      c.innerHTML='<a href="'+chawkUrl+'" target="_blank" rel="noopener" style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;text-decoration:none;margin-bottom:14px">'+String.fromCharCode(128202)+' Open Shop Dashboard '+String.fromCharCode(8594)+'</a><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px"><div class="stat-box"><div class="stat-v" style="color:#f59e0b;font-size:18px">'+items.length+'</div><div class="stat-l">Products</div></div><div class="stat-box"><div class="stat-v" style="color:#10b981;font-size:18px">'+items.reduce(function(s,i){return s+(i.quantity||0);},0)+'</div><div class="stat-l">In Stock</div></div><div class="stat-box" style="background:'+(low.length?'rgba(239,68,68,.08)':'#1a1a22')+';border-color:'+(low.length?'rgba(239,68,68,.25)':'rgba(255,255,255,.07)')+'"><div class="stat-v" style="color:'+(low.length?'#ef4444':'rgba(255,255,255,.4)')+';font-size:18px">'+low.length+'</div><div class="stat-l" style="color:'+(low.length?'#ef4444':'rgba(255,255,255,.4)')+'">Low Stock</div></div></div>'+lowH+itemsH;
+      c.innerHTML='<a href="'+chawkUrl+'" style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;text-decoration:none;margin-bottom:14px">'+String.fromCharCode(128202)+' Open Shop Dashboard '+String.fromCharCode(8594)+'</a><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px"><div class="stat-box"><div class="stat-v" style="color:#f59e0b;font-size:18px">'+items.length+'</div><div class="stat-l">Products</div></div><div class="stat-box"><div class="stat-v" style="color:#10b981;font-size:18px">'+items.reduce(function(s,i){return s+(i.quantity||0);},0)+'</div><div class="stat-l">In Stock</div></div><div class="stat-box" style="background:'+(low.length?'rgba(239,68,68,.08)':'#1a1a22')+';border-color:'+(low.length?'rgba(239,68,68,.25)':'rgba(255,255,255,.07)')+'"><div class="stat-v" style="color:'+(low.length?'#ef4444':'rgba(255,255,255,.4)')+';font-size:18px">'+low.length+'</div><div class="stat-l" style="color:'+(low.length?'#ef4444':'rgba(255,255,255,.4)')+'">Low Stock</div></div></div>'+lowH+itemsH;
     }).catch(function(){c.innerHTML='<a href="'+chawkUrl+'" target="_blank" rel="noopener" style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;text-decoration:none">Open Shop Dashboard</a>';});
   });
 }
 
 function showShopSettings(){
   var c=document.getElementById('sh-content');if(!c)return;
-  var chawkUrl=window.location.href.replace(/[^/]*$/,'')+('Chawkpro.html');
-  c.innerHTML='<div class="sbox"><div class="sbox-t">Delivery Status</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Status: <strong style="color:'+(shopDelivOn?'#10b981':'#ef4444')+'">'+(shopDelivOn?'ON':'OFF')+'</strong><br>Commission: <strong style="color:#fff">0%</strong><br>Plan: <strong style="color:#10b981">FREE</strong></div></div><div class="sbox"><div class="sbox-t">Shop Details</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Name: <strong style="color:#fff">'+(USER.shopName||USER.name)+'</strong><br>Phone: <strong style="color:#fff">'+USER.phone+'</strong></div></div><div class="sbox"><div class="sbox-t">Shop Dashboard</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:12px">Full management - sales, stock, staff, debts.</div><a href="'+chawkUrl+'" target="_blank" rel="noopener" style="display:block;padding:13px;border-radius:10px;border:1.5px solid #f59e0b;color:#f59e0b;text-align:center;font-weight:700;font-size:14px;text-decoration:none">Open Shop Dashboard</a></div><button class="btn btn-o" style="margin-top:8px" onclick="if(confirm(\'Logout?\'))logout()">Logout</button>';
+  var chawkUrl=window.location.href.replace(/[^/]*$/,'')+'Chawkpro.html';
+  c.innerHTML='<div class="sbox"><div class="sbox-t">Delivery Status</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Status: <strong style="color:'+(shopDelivOn?'#10b981':'#ef4444')+'">'+(shopDelivOn?'ON':'OFF')+'</strong><br>Commission: <strong style="color:#fff">0%</strong><br>Plan: <strong style="color:#10b981">FREE</strong></div></div><div class="sbox"><div class="sbox-t">Shop Details</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Name: <strong style="color:#fff">'+(USER.shopName||USER.name)+'</strong><br>Phone: <strong style="color:#fff">'+USER.phone+'</strong></div></div><div class="sbox"><div class="sbox-t">Shop Dashboard</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:12px">Full management - sales, stock, staff, debts.</div><a href="'+chawkUrl+'" style="display:block;padding:13px;border-radius:10px;border:1.5px solid #f59e0b;color:#f59e0b;text-align:center;font-weight:700;font-size:14px;text-decoration:none">Open Shop Dashboard</a></div><button class="btn btn-o" style="margin-top:8px" onclick="if(confirm(\'Logout?\'))logout()">Logout</button>';
 }
 
 /* RIDER */
@@ -644,8 +683,8 @@ function renderRiderBody(){
     PROG.forEach(function(k,i){dots+='<div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;background:'+(i<ci?'#10b981':i===ci?'#8b5cf6':'#1a1a22')+';color:'+(i<=ci?'#000':'rgba(255,255,255,.2)')+'">'+(i<ci?'v':i+1)+'</div>'+(i<PROG.length-1?'<div style="flex:1;height:2px;background:'+(i<ci?'#10b981':'rgba(255,255,255,.1)')+'"></div>':'');});
     html+='<div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;margin-bottom:8px">Active Delivery</div><div class="card" style="border:2px solid #10b981"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><div><div style="font-weight:700;font-size:14px">'+a.id.slice(-6).toUpperCase()+'</div></div><div style="font-weight:800;color:#10b981;font-size:20px">KSh '+Math.round((a.delivery_fee||70)*.9)+'</div></div><div style="display:flex;align-items:center;gap:4px;margin:8px 0 12px">'+dots+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">From: '+(a.shopName||a.pickup_from||'')+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">To: '+(a.customer_name||'')+' - '+(a.delivery_address||'')+'</div>'+(NEXT_ST[a.status]?'<button class="btn btn-g" style="margin-top:10px" onclick="advanceJob()">'+NEXT_LB[a.status]+'</button>':'')+'</div>';
   }
-  if(!riderOnline){html+='<div class="empty"><div class="ei">ZZ</div><div class="et">Offline</div><div class="es">Toggle Online to receive jobs</div></div>';}
-  else if(!riderJobs.length&&!riderActive){html+='<div class="empty"><div class="ei">...</div><div class="et">No jobs yet</div><div class="es">Jobs appear when shops confirm payment</div></div>';}
+  if(!riderOnline){html+='<div class="empty"><div class="ei">😴</div><div class="et">You\'re Offline</div><div class="es">Toggle Online to receive deliveries and pickups</div></div>';}
+  else if(!riderJobs.length&&!riderActive){html+='<div class="empty"><div class="ei">⏳</div><div class="et">No jobs yet</div><div class="es">Jobs appear when shops confirm payment</div></div>';}
   else{
     if(riderJobs.length)html+='<div style="font-size:10px;font-weight:700;color:#8b5cf6;text-transform:uppercase;margin-bottom:8px">'+riderJobs.length+' Available</div>';
     riderJobs.forEach(function(job){
@@ -659,7 +698,7 @@ function showRiderEarnings(){
   setTitle('RIDER','#8b5cf6');setNav('rider','earnings');
   pg().innerHTML='<div style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="font-size:20px;font-weight:800;margin-bottom:2px">My Earnings</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Track income - Daily M-Pesa payouts</div></div><div id="earn-body" style="padding:10px 18px 100px"><div class="spin"></div></div>';
   loadFB(function(db){
-    if(!db){document.getElementById('earn-body').innerHTML='<div class="empty"><div class="ei">$</div><div class="et">Earnings</div><div class="es">Connect to see history</div></div>';return;}
+    if(!db){document.getElementById('earn-body').innerHTML='<div class="empty"><div class="ei">💰</div><div class="et">Earnings</div><div class="es">Connect to see history</div></div>';return;}
     db.collection('riders').doc(USER.phone).get().then(function(r){
       var data=r.exists?r.data():{total_earnings:0,orders_completed:0,rating:5.0};
       var eb=document.getElementById('earn-body');if(!eb)return;
@@ -674,7 +713,7 @@ function showAdminOverview(){
   setNav('admin','overview');
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">Platform Overview</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Tumana - Chemelil</div></div><div id="admin-body" style="padding:0 18px 100px"><div class="spin"></div></div>';
   loadFB(function(db){
-    if(!db){document.getElementById('admin-body').innerHTML='<div class="empty"><div class="ei">!</div><div class="et">Connect Firebase</div><div class="es">Loading stats requires connection</div></div>';return;}
+    if(!db){document.getElementById('admin-body').innerHTML='<div class="empty"><div class="ei">📡</div><div class="et">Connecting…</div><div class="es">Loading stats requires connection</div></div>';return;}
     Promise.all([db.collection('delivery_orders').get().catch(function(){return {docs:[]};}),db.collection('tumana_users').get().catch(function(){return {size:0,docs:[]};}),db.collection('riders').get().catch(function(){return {docs:[]};}),db.collection('shops').get().catch(function(){return {docs:[]};})]).then(function(r){
       var allO=r[0].docs.map(function(d){return d.data();});
       var deliv=allO.filter(function(o){return o.status==='delivered';});
@@ -694,7 +733,7 @@ function showAdminOrders(){
   dbAll('delivery_orders',function(orders){
     var ab=document.getElementById('admin-body');if(!ab)return;
     orders.sort(function(a,b){return(b.created_at&&b.created_at.seconds||0)-(a.created_at&&a.created_at.seconds||0);});
-    if(!orders.length){ab.innerHTML='<div class="empty"><div class="ei">?</div><div class="et">No orders</div><div class="es">Orders appear here</div></div>';return;}
+    if(!orders.length){ab.innerHTML='<div class="empty"><div class="ei">📋</div><div class="et">No orders</div><div class="es">Orders appear here</div></div>';return;}
     ab.innerHTML=orders.map(function(o){return '<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div><div style="font-weight:700">#'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(o.type==='pickup'?'Pickup':'Shop')+' - '+(o.customer_name||'')+'</div></div><span class="spill '+(SPC[o.status]||'s-placed')+'">'+(SPL[o.status]||o.status)+'</span></div><div style="font-size:12px;color:rgba(255,255,255,.4)">KSh '+(o.total||0)+' - '+(o.rider_name||'No rider')+'</div></div>';}).join('');
   });
 }
@@ -703,7 +742,7 @@ function showAdminRiders(){
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">All Riders</div></div><div id="admin-body" style="padding:0 18px 100px"><div class="spin"></div></div>';
   dbAll('riders',function(riders){
     var ab=document.getElementById('admin-body');if(!ab)return;
-    if(!riders.length){ab.innerHTML='<div class="empty"><div class="ei">!</div><div class="et">No riders</div><div class="es">Riders appear when they register</div></div>';return;}
+    if(!riders.length){ab.innerHTML='<div class="empty"><div class="ei">🏍️</div><div class="et">No riders</div><div class="es">Riders appear when they register</div></div>';return;}
     ab.innerHTML=riders.map(function(r){return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><div style="font-weight:700">'+(r.name||r.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(r.phone||r.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(r.orders_completed||0)+' deliveries - KSh '+(r.total_earnings||0)+'</div></div><span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:'+(r.online?'rgba(16,185,129,.1)':'rgba(255,255,255,.07)')+';color:'+(r.online?'#10b981':'rgba(255,255,255,.4)')+'">'+( r.online?'Online':'Offline')+'</span></div>';}).join('');
   });
 }
@@ -712,7 +751,7 @@ function showAdminShops(){
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">All Shops</div></div><div id="admin-body" style="padding:0 18px 100px"><div class="spin"></div></div>';
   dbAll('shops',function(shops){
     var ab=document.getElementById('admin-body');if(!ab)return;
-    if(!shops.length){ab.innerHTML='<div class="empty"><div class="ei">!</div><div class="et">No shops</div><div class="es">Shops appear when owners register</div></div>';return;}
+    if(!shops.length){ab.innerHTML='<div class="empty"><div class="ei">🏪</div><div class="et">No shops</div><div class="es">Shops appear when owners register</div></div>';return;}
     ab.innerHTML=shops.map(function(s){return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="font-size:28px">'+(s.icon||'X')+'</div><div><div style="font-weight:700">'+(s.name||s.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(s.category||'')+' - '+(s.location||'Chemelil')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(s.owner_phone||s.id)+'</div></div></div><span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:'+(s.delivery_enabled?'rgba(16,185,129,.1)':'rgba(255,255,255,.07)')+';color:'+(s.delivery_enabled?'#10b981':'rgba(255,255,255,.4)')+'">'+( s.delivery_enabled?'Live':'Off')+'</span></div>';}).join('');
   });
 }
@@ -720,7 +759,7 @@ function showAdminRevenue(){
   setNav('admin','revenue');
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">Revenue</div></div><div id="admin-body" style="padding:0 18px 100px"><div class="spin"></div></div>';
   loadFB(function(db){
-    if(!db){document.getElementById('admin-body').innerHTML='<div class="empty"><div class="ei">$</div><div class="et">Revenue</div><div class="es">Connect to Firebase to see data</div></div>';return;}
+    if(!db){document.getElementById('admin-body').innerHTML='<div class="empty"><div class="ei">💰</div><div class="et">Revenue</div><div class="es">Connect to Firebase to see data</div></div>';return;}
     db.collection('delivery_orders').where('status','==','delivered').get().then(function(s){
       var orders=s.docs.map(function(d){return d.data();});
       var ab=document.getElementById('admin-body');if(!ab)return;
@@ -750,6 +789,21 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){r.unregister();});});
 }
 
+// Back button → go to home screen instead of exiting app
+window.history.pushState(null,'',window.location.href);
+window.addEventListener('popstate',function(){
+  window.history.pushState(null,'',window.location.href);
+  if(USER){
+    if(USER.role==='customer')showHome();
+    else if(USER.role==='rider')showRiderJobs();
+    else if(USER.role==='shop')renderShopDash();
+    else if(USER.role==='admin')showAdminOverview();
+  } else {
+    showRoleScreen();
+  }
+});
+
+// Fix rider ZZ - replace with proper emoji
 boot();
 </script>
 </body>
