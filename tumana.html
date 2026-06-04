@@ -379,7 +379,7 @@ var SPC={placed:'s-placed',confirmed:'s-confirmed',assigned:'s-assigned',heading
 var SPL={placed:'Placed',confirmed:'Paid ✅',assigned:'Rider Coming',heading:'En Route',picked:'Picked Up',transit:'In Transit',delivered:'Delivered ✅',rejected:'Rejected'};
 
 function startCustomer(){
-  loadFB(function(db){if(!db){SHOPS=MOCK_SHOPS;return;}db.collection('shops').where('delivery_enabled','==',true).get().then(function(s){SHOPS=s.docs.length?s.docs.map(function(d){return Object.assign({id:d.id},d.data());}):MOCK_SHOPS;}).catch(function(){SHOPS=MOCK_SHOPS;});});
+  loadFB(function(db){if(!db){SHOPS=MOCK_SHOPS;return;}db.collection('shops').where('delivery_enabled','==',true).get().then(function(s){var all=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});SHOPS=all.filter(function(sh){return sh.verified!==false;})||MOCK_SHOPS;if(!SHOPS.length)SHOPS=MOCK_SHOPS;}).catch(function(){SHOPS=MOCK_SHOPS;});});
   SHOPS=MOCK_SHOPS;
   showHome();
 }
@@ -603,40 +603,239 @@ function toggleShopDelivery(){
   toast(shopDelivOn?'✅ Delivery ON — customers can see you':'Delivery paused');renderShopDash();
 }
 function showShopSales(){
-  var c=document.getElementById('sh-content');if(!c)return;
-  c.innerHTML='<div class="spin"></div>';
+  var el=document.getElementById('sh-content');if(!el)return;
+  renderSalesView('sales',el);
+}
+function renderSalesView(view,el){
+  if(!el)el=document.getElementById('sh-content');if(!el)return;
+  var tabHtml='<div style="display:flex;gap:6px;margin-bottom:12px">'
+    +'<button onclick="renderSalesView('sales',null)" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid '+(view==='sales'?'#10b981':'rgba(255,255,255,.13)')+';background:'+(view==='sales'?'rgba(16,185,129,.1)':bgc2())+';color:'+(view==='sales'?'#10b981':tc2())+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">Sales</button>'
+    +'<button onclick="renderSalesView('debts',null)" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid '+(view==='debts'?'#ef4444':'rgba(255,255,255,.13)')+';background:'+(view==='debts'?'rgba(239,68,68,.08)':bgc2())+';color:'+(view==='debts'?'#ef4444':tc2())+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">Debts</button>'
+    +'</div>';
+  var recBtn='<button onclick="showRecordSale()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:10px;color:#000;font-weight:800;font-size:14px;font-family:inherit;cursor:pointer;margin-bottom:12px">+ Record Sale</button>';
+  el.innerHTML=tabHtml+recBtn+'<div class="spin"></div>';
   loadFB(function(db){
-    if(!db){c.innerHTML=empty('💰','Sales data','Connect to Firebase to see sales');return;}
-    Promise.all([db.collection('shops').doc(USER.phone).collection('sales').limit(50).get().catch(function(){return {docs:[]};}),db.collection('delivery_orders').where('shop_id','==',USER.phone).where('status','==','delivered').limit(50).get().catch(function(){return {docs:[]};})]).then(function(r){
-      var sales=r[0].docs.map(function(d){return d.data();});
-      var delivs=r[1].docs.map(function(d){return d.data();});
-      var allT=sales.reduce(function(s,x){return s+(x.total||x.amount||0);},0);
-      var dT=delivs.reduce(function(s,x){return s+(x.subtotal||0);},0);
-      var dH=delivs.length?delivs.slice(0,20).map(function(d){return '<div class="card" style="border-left:3px solid #10b981;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">'+(d.customer_name||'Customer')+'</div><div style="font-size:11px;color:'+tc2()+'">'+(d.items||[]).map(function(i){return i.name;}).join(', ')||'Delivery'+'</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:800;color:#10b981">KSh '+(d.subtotal||0)+'</div><div style="font-size:10px;color:'+tc2()+'">100% yours</div></div></div>';}).join(''):'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;padding:16px">No delivery orders yet</div>';
-      c.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><div class="stat-box"><div class="stat-v" style="color:#f59e0b">KSh '+allT.toLocaleString()+'</div><div class="stat-l">Walk-in Sales</div></div><div class="stat-box"><div class="stat-v" style="color:#10b981">KSh '+dT.toLocaleString()+'</div><div class="stat-l">Via Tumana</div></div></div><div class="sbox" style="text-align:center"><div class="stat-v" style="color:#f59e0b;font-size:24px">KSh '+(allT+dT).toLocaleString()+'</div><div class="stat-l">All Time Total</div></div><div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">Tumana Delivery Orders</div>'+dH;
-    });
+    if(!db){el.innerHTML=tabHtml+recBtn+'<div style="text-align:center;padding:20px;color:'+tc2()+'">Connect to load data</div>';return;}
+    db.collection('shops').doc(USER.phone).collection('sales').limit(50).get()
+    .then(function(s){
+      var allSales=s.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+        .sort(function(a,b){return(b.created_at||0)-(a.created_at||0);});
+      if(view==='debts'){
+        var debts=allSales.filter(function(s){return s.is_debt&&!s.debt_paid;});
+        var debtTotal=debts.reduce(function(s,d){return s+(d.total||0);},0);
+        var debtH=debts.length?debts.map(function(d){
+          return '<div class="card" style="border-left:3px solid #ef4444;margin-bottom:9px">'
+            +'<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">'
+            +'<div><div style="font-weight:700;color:'+tc()+'">'+( d.customer_name||'Customer')+'</div>'
+            +'<div style="font-size:11px;color:'+tc2()+'">'+(d.product_name||'')+'</div>'
+            +'<div style="font-size:11px;color:'+tc2()+'">'+new Date(d.created_at||0).toLocaleDateString('en-KE')+'</div></div>'
+            +'<div style="text-align:right"><div style="font-size:16px;font-weight:800;color:#ef4444">KSh '+(d.total||0)+'</div>'
+            +'<button onclick="markDebtPaid(''+d.id+'')" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:#10b981;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px">Mark Paid</button></div>'
+            +'</div></div>';
+        }).join(''):'<div style="background:'+bgc2()+';border-radius:12px;padding:24px;text-align:center;color:'+tc2()+'"><div style="font-size:32px;margin-bottom:8px">✅</div><div style="font-weight:700;color:'+tc()+'">No outstanding debts</div></div>';
+        el.innerHTML=tabHtml+recBtn
+          +'<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">'
+          +'<div style="font-size:11px;font-weight:700;color:#ef4444">TOTAL OWED</div>'
+          +'<div style="font-size:20px;font-weight:800;color:#ef4444">KSh '+debtTotal.toLocaleString()+'</div></div>'
+          +debtH;
+      } else {
+        var today=new Date().toDateString();
+        var todayS=allSales.filter(function(s){return new Date(s.created_at||0).toDateString()===today;});
+        var todayT=todayS.reduce(function(s,x){return s+(x.is_debt?0:(x.total||0));},0);
+        var allT=allSales.reduce(function(s,x){return s+(x.is_debt?0:(x.total||0));},0);
+        var statsH='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+          +'<div class="stat-box"><div class="stat-v" style="color:#f59e0b">KSh '+todayT.toLocaleString()+'</div><div class="stat-l">Today</div></div>'
+          +'<div class="stat-box"><div class="stat-v" style="color:#10b981">KSh '+allT.toLocaleString()+'</div><div class="stat-l">All Time</div></div>'
+          +'</div>';
+        var listH=allSales.length?allSales.slice(0,30).map(function(s){
+          return '<div class="card" style="border-left:3px solid '+(s.is_debt?'#ef4444':'#10b981')+';margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
+            +'<div><div style="font-weight:700;color:'+tc()+'">'+(s.customer_name||'Walk-in')+'</div>'
+            +'<div style="font-size:11px;color:'+tc2()+'">'+(s.product_name||'Sale')+'</div>'
+            +'<div style="font-size:10px;color:'+tc3()+'">'+new Date(s.created_at||0).toLocaleDateString('en-KE')+'</div></div>'
+            +'<div style="text-align:right"><div style="font-size:16px;font-weight:800;color:'+(s.is_debt?'#ef4444':'#10b981')+'">KSh '+(s.total||0)+'</div>'
+            +'<div style="font-size:10px;color:'+tc2()+'">'+(s.is_debt?'Debt':'Paid')+'</div></div></div>';
+        }).join(''):'<div style="background:'+bgc2()+';border-radius:12px;padding:24px;text-align:center;color:'+tc2()+'"><div style="font-size:36px;margin-bottom:8px">💰</div><div style="font-weight:700;color:'+tc()+'">No sales yet</div><div style="font-size:12px;margin-top:4px">Record your first sale above</div></div>';
+        el.innerHTML=tabHtml+recBtn+statsH+listH;
+      }
+    }).catch(function(){el.innerHTML=tabHtml+recBtn+'<div style="text-align:center;padding:20px;color:'+tc2()+'">Error loading sales</div>';});
+  });
+}
+function showRecordSale(){
+  showSheet('<div class="handle"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:16px;color:'+tc()+'">Record Sale</div>'
+    +'<div class="fld"><label>Customer Name (optional)</label><input id="rs-cust" type="text" placeholder="e.g. Mama Jane" autocomplete="off"/></div>'
+    +'<div class="fld"><label>Product / Item Sold</label><input id="rs-prod" type="text" placeholder="e.g. Maziwa 500ml x2" autocomplete="off"/></div>'
+    +'<div class="fld"><label>Amount (KSh)</label><input id="rs-amt" type="number" placeholder="e.g. 120"/></div>'
+    +'<div style="margin-bottom:12px"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:600;color:'+tc()+'"><input type="checkbox" id="rs-debt" style="width:18px;height:18px;accent-color:#ef4444"/> Record as Debt (credit)</label></div>'
+    +'<div class="fld" id="rs-debt-info" style="display:none"><label>Phone (for debt reminder)</label><input id="rs-phone" type="tel" placeholder="07XX XXX XXX"/></div>'
+    +'<script>document.getElementById('rs-debt').onchange=function(){document.getElementById('rs-debt-info').style.display=this.checked?'block':'none';};<\/script>'
+    +'<button class="btn btn-a" onclick="saveSale()">Save Sale</button>'
+    +'<button class="btn btn-o" style="margin-top:6px" onclick="hideSheet()">Cancel</button>');
+}
+function saveSale(){
+  var cust=(document.getElementById('rs-cust').value||'Walk-in').trim();
+  var prod=(document.getElementById('rs-prod').value||'').trim();
+  var amt=parseFloat(document.getElementById('rs-amt').value)||0;
+  var isDebt=document.getElementById('rs-debt').checked;
+  var phone=(document.getElementById('rs-phone')&&document.getElementById('rs-phone').value||'').trim();
+  if(!prod){toast('Enter product/item name');return;}
+  if(!amt){toast('Enter amount');return;}
+  loadFB(function(db){
+    if(!db){toast('No connection');return;}
+    db.collection('shops').doc(USER.phone).collection('sales').add({
+      customer_name:cust,product_name:prod,total:amt,
+      is_debt:isDebt,debt_paid:false,customer_phone:phone,
+      created_at:Date.now(),shop_phone:USER.phone
+    }).then(function(){
+      toast(isDebt?'Debt recorded: '+cust+' owes KSh '+amt:'Sale saved: KSh '+amt);
+      hideSheet();renderSalesView('sales',null);
+    }).catch(function(){toast('Error saving');});
+  });
+}
+function markDebtPaid(id){
+  if(!confirm('Mark this debt as paid?'))return;
+  loadFB(function(db){
+    if(!db){toast('No connection');return;}
+    db.collection('shops').doc(USER.phone).collection('sales').doc(id)
+    .update({debt_paid:true,paid_at:Date.now()})
+    .then(function(){toast('Marked as paid!');renderSalesView('debts',null);})
+    .catch(function(){toast('Error');});
   });
 }
 function showShopStock(){
-  var c=document.getElementById('sh-content');if(!c)return;
-  var chawkUrl=window.location.href.replace(/[^/]*$/,'')+'Chawkpro.html';if(!window._chawkFn){window._chawkFn=function(){window.location.href=chawkUrl;};}
-  c.innerHTML='<div class="spin"></div>';
+  var el=document.getElementById('sh-content');if(!el)return;
+  el.innerHTML='<div class="spin"></div>';
   loadFB(function(db){
-    if(!db){c.innerHTML='<a href="'+chawkUrl+'" target="_blank" rel="noopener" style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;text-decoration:none">'+String.fromCharCode(128202)+' Open Shop Dashboard '+String.fromCharCode(8594)+'</a>';return;}
-    db.collection('shops').doc(USER.phone).collection('stock').get().then(function(s){
-      var items=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
-      var low=items.filter(function(i){return(i.quantity||0)<5;});
-      var lowH=low.length?('<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:6px">Low Stock Alert</div>'+low.map(function(i){return '<div style="font-size:12px;color:rgba(255,255,255,.4);margin:3px 0">'+String.fromCharCode(8226)+' '+(i.name||i.product_name)+' - '+(i.quantity||0)+' left</div>';}).join('')+'</div>'):'';
-      var itemsH=items.length?items.map(function(it){var qty=it.quantity||0,sell=it.selling_price||0,cost=it.cost_price||0;return '<div class="card" style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="font-size:24px">'+(it.emoji||it.icon||'X')+'</div><div><div style="font-weight:700;font-size:14px">'+(it.name||it.product_name)+'</div><div style="font-size:11px;color:'+tc2()+'">'+(it.category||'')+'</div></div></div><div style="text-align:right"><div style="font-weight:800;font-size:16px;color:'+(qty<5?'#ef4444':qty>20?'#10b981':'#f59e0b')+'">'+qty+'</div><div style="font-size:10px;color:'+tc2()+'">'+(qty<5?'Low':'in stock')+'</div></div></div><div style="display:flex;gap:6px">'+(cost?'<div style="flex:1;background:'+bgc2()+';border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:'+tc2()+'">Cost</div><div style="font-weight:700;font-size:13px">KSh '+cost+'</div></div>':'')+'<div style="flex:1;background:'+bgc2()+';border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:'+tc2()+'">Selling</div><div style="font-weight:700;font-size:13px;color:#10b981">KSh '+sell+'</div></div>'+(cost&&sell?'<div style="flex:1;background:rgba(16,185,129,.06);border-radius:8px;padding:7px;text-align:center"><div style="font-size:9px;color:'+tc2()+'">Profit</div><div style="font-weight:700;font-size:13px;color:#10b981">KSh '+(sell-cost)+'</div></div>':'')+'</div></div>';}).join(''):'<div style="background:'+bgc2()+';border-radius:12px;padding:20px;text-align:center;color:rgba(255,255,255,.4);font-size:13px">No stock yet. Add products in Shop Dashboard.</div>';
-      c.innerHTML='<a href="'+chawkUrl+'" style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;text-decoration:none;margin-bottom:14px">📊 Open Shop Dashboard →</a><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px"><div class="stat-box"><div class="stat-v" style="color:#f59e0b;font-size:18px">'+items.length+'</div><div class="stat-l">Products</div></div><div class="stat-box"><div class="stat-v" style="color:#10b981;font-size:18px">'+items.reduce(function(s,i){return s+(i.quantity||0);},0)+'</div><div class="stat-l">In Stock</div></div><div class="stat-box" style="background:'+(low.length?'rgba(239,68,68,.08)':'#1a1a22')+';border-color:'+(low.length?'rgba(239,68,68,.25)':'rgba(255,255,255,.07)')+'"><div class="stat-v" style="color:'+(low.length?'#ef4444':'rgba(255,255,255,.4)')+';font-size:18px">'+low.length+'</div><div class="stat-l" style="color:'+(low.length?'#ef4444':'rgba(255,255,255,.4)')+'">Low Stock</div></div></div>'+lowH+itemsH;
-    }).catch(function(){c.innerHTML='<a href="'+chawkUrl+'" target="_blank" rel="noopener" style="display:block;padding:15px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;color:#000;text-align:center;font-weight:800;font-size:16px;text-decoration:none">Open Shop Dashboard</a>';});
+    if(!db){el.innerHTML='<div style="text-align:center;padding:30px;color:'+tc2()+'">Connect to internet to manage stock</div>';return;}
+    db.collection('shops').doc(USER.phone).collection('stock').get()
+    .then(function(s){
+      renderStockList(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}),el);
+    }).catch(function(){el.innerHTML='<div style="text-align:center;padding:20px;color:'+tc2()+'">Error loading stock</div>';});
   });
 }
-
+function renderStockList(items,el){
+  var low=items.filter(function(i){return(i.quantity||0)<5;});
+  var statsH='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
+    +'<div class="stat-box"><div class="stat-v" style="color:#f59e0b;font-size:18px">'+items.length+'</div><div class="stat-l">Products</div></div>'
+    +'<div class="stat-box"><div class="stat-v" style="color:#10b981;font-size:18px">'+items.reduce(function(s,i){return s+(i.quantity||0);},0)+'</div><div class="stat-l">In Stock</div></div>'
+    +'<div class="stat-box" style="background:'+(low.length?'rgba(239,68,68,.08)':bgc2())+';border-color:'+(low.length?'rgba(239,68,68,.25)':bdr())+'"><div class="stat-v" style="color:'+(low.length?'#ef4444':tc3())+';font-size:18px">'+low.length+'</div><div class="stat-l" style="color:'+(low.length?'#ef4444':tc3())+'">Low</div></div>'
+    +'</div>';
+  var addBtn='<button onclick="showAddProduct()" style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:10px;color:#000;font-weight:800;font-size:14px;font-family:inherit;cursor:pointer;margin-bottom:12px">+ Add New Product</button>';
+  var lowH=low.length?'<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:10px 12px;margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:4px">Low Stock</div>'+low.map(function(i){return '<div style="font-size:12px;color:'+tc2()+'">• '+(i.name||'')+(': '+(i.quantity||0)+' left')+'</div>';}).join('')+'</div>':'';
+  var itemsH=items.length?items.map(function(it){
+    var qty=it.quantity||0,sell=it.selling_price||0,cost=it.cost_price||0;
+    return '<div class="card" style="margin-bottom:9px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<div style="display:flex;gap:10px;align-items:center">'
+      +'<div style="font-size:26px;width:36px;text-align:center">'+(it.emoji||'X')+'</div>'
+      +'<div><div style="font-weight:700;font-size:14px;color:'+tc()+'">'+(it.name||'')+'</div>'
+      +'<div style="font-size:11px;color:'+tc2()+'">KSh '+sell+' sell'+(cost?' · KSh '+cost+' cost':'')+'</div>'
+      +'<div style="font-size:11px;color:'+(qty<5?'#ef4444':'#10b981')+'">'+qty+' in stock</div></div></div>'
+      +'<div style="display:flex;flex-direction:column;gap:5px">'
+      +'<button onclick="showEditProduct(''+it.id+'',''+encodeURIComponent(it.name||'')+'','+sell+','+cost+','+qty+',''+encodeURIComponent(it.emoji||'X')+'')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);color:#f59e0b;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">Edit</button>'
+      +'<button onclick="quickRestock(''+it.id+'','+qty+')" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:#10b981;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">+Stock</button>'
+      +'</div></div></div>';
+  }).join(''):'<div style="background:'+bgc2()+';border-radius:12px;padding:24px;text-align:center;color:'+tc2()+'"><div style="font-size:36px;margin-bottom:8px">📦</div><div style="font-size:14px;font-weight:700;color:'+tc()+'">No products yet</div><div style="font-size:12px;margin-top:4px">Tap + Add New Product to start</div></div>';
+  el.innerHTML=statsH+addBtn+lowH+itemsH;
+}
+function showAddProduct(){
+  showSheet('<div class="handle"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px;color:'+tc()+'">Add Product</div>'
+    +'<div style="font-size:12px;color:'+tc2()+';margin-bottom:16px">Add to your stock - customers will see it</div>'
+    +'<div class="fld"><label>Product Name</label><input id="ap-name" type="text" placeholder="e.g. Maziwa 500ml" autocomplete="off"/></div>'
+    +'<div class="fld"><label>Selling Price (KSh)</label><input id="ap-sell" type="number" placeholder="60"/></div>'
+    +'<div class="fld"><label>Cost Price (KSh)</label><input id="ap-cost" type="number" placeholder="45"/></div>'
+    +'<div class="fld"><label>Quantity in Stock</label><input id="ap-qty" type="number" placeholder="20"/></div>'
+    +'<div class="fld"><label>Emoji</label><input id="ap-emoji" type="text" placeholder="🛒" maxlength="4" value="🛒"/></div>'
+    +'<button class="btn btn-g" onclick="saveNewProduct()">Save Product</button>'
+    +'<button class="btn btn-o" style="margin-top:6px" onclick="hideSheet()">Cancel</button>');
+}
+function saveNewProduct(){
+  var name=(document.getElementById('ap-name').value||'').trim();
+  var sell=parseFloat(document.getElementById('ap-sell').value)||0;
+  var cost=parseFloat(document.getElementById('ap-cost').value)||0;
+  var qty=parseInt(document.getElementById('ap-qty').value)||0;
+  var emoji=document.getElementById('ap-emoji').value||'X';
+  if(!name){toast('Enter product name');return;}
+  if(!sell){toast('Enter selling price');return;}
+  loadFB(function(db){
+    if(!db){toast('No connection');return;}
+    db.collection('shops').doc(USER.phone).collection('stock').add({name:name,selling_price:sell,cost_price:cost,quantity:qty,emoji:emoji,created_at:Date.now()})
+    .then(function(){toast('Added: '+name);hideSheet();showShopStock();})
+    .catch(function(){toast('Error saving');});
+  });
+}
+function showEditProduct(id,nameEnc,sell,cost,qty,emojiEnc){
+  var name=decodeURIComponent(nameEnc);var emoji=decodeURIComponent(emojiEnc);
+  showSheet('<div class="handle"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:16px;color:'+tc()+'">Edit: '+name+'</div>'
+    +'<div class="fld"><label>Selling Price (KSh)</label><input id="ep-sell" type="number" value="'+sell+'"/></div>'
+    +'<div class="fld"><label>Cost Price (KSh)</label><input id="ep-cost" type="number" value="'+cost+'"/></div>'
+    +'<div class="fld"><label>Quantity</label><input id="ep-qty" type="number" value="'+qty+'"/></div>'
+    +'<div class="fld"><label>Emoji</label><input id="ep-emoji" type="text" value="'+emoji+'" maxlength="4"/></div>'
+    +'<button class="btn btn-a" onclick="saveEditProduct(''+id+'')" style="margin-top:4px">Save Changes</button>'
+    +'<button class="btn btn-o" style="margin-top:6px;color:#ef4444;border-color:#ef4444" onclick="deleteProduct(''+id+'',''+nameEnc+'')">Delete Product</button>'
+    +'<button class="btn btn-o" style="margin-top:6px" onclick="hideSheet()">Cancel</button>');
+}
+function saveEditProduct(id){
+  var sell=parseFloat(document.getElementById('ep-sell').value)||0;
+  var cost=parseFloat(document.getElementById('ep-cost').value)||0;
+  var qty=parseInt(document.getElementById('ep-qty').value)||0;
+  var emoji=document.getElementById('ep-emoji').value||'X';
+  loadFB(function(db){
+    if(!db){toast('No connection');return;}
+    db.collection('shops').doc(USER.phone).collection('stock').doc(id)
+    .update({selling_price:sell,cost_price:cost,quantity:qty,emoji:emoji})
+    .then(function(){toast('Updated!');hideSheet();showShopStock();})
+    .catch(function(){toast('Error');});
+  });
+}
+function quickRestock(id,current){
+  showSheet('<div class="handle"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:6px;color:'+tc()+'">Add Stock</div>'
+    +'<div style="font-size:13px;color:'+tc2()+';margin-bottom:16px">Current stock: '+current+'</div>'
+    +'<div class="fld"><label>Add Quantity</label><input id="rs-qty" type="number" placeholder="10" autocomplete="off"/></div>'
+    +'<button class="btn btn-g" onclick="saveRestock(''+id+'','+current+')">Add Stock</button>'
+    +'<button class="btn btn-o" style="margin-top:6px" onclick="hideSheet()">Cancel</button>');
+}
+function saveRestock(id,current){
+  var add=parseInt(document.getElementById('rs-qty').value)||0;
+  if(!add){toast('Enter quantity');return;}
+  loadFB(function(db){
+    if(!db){toast('No connection');return;}
+    db.collection('shops').doc(USER.phone).collection('stock').doc(id)
+    .update({quantity:current+add})
+    .then(function(){toast('Stock updated: '+(current+add));hideSheet();showShopStock();})
+    .catch(function(){toast('Error');});
+  });
+}
+function deleteProduct(id,nameEnc){
+  var name=decodeURIComponent(nameEnc);
+  if(!confirm('Delete '+name+'?'))return;
+  loadFB(function(db){
+    if(!db){toast('No connection');return;}
+    db.collection('shops').doc(USER.phone).collection('stock').doc(id)
+    .delete().then(function(){toast('Deleted: '+name);hideSheet();showShopStock();})
+    .catch(function(){toast('Error');});
+  });
+}
 function showShopSettings(){
-  var c=document.getElementById('sh-content');if(!c)return;
-  var chawkUrl=window.location.href.replace(/[^/]*$/,'')+'Chawkpro.html';if(!window._chawkFn){window._chawkFn=function(){window.location.href=chawkUrl;};}
-  c.innerHTML='<div class="sbox"><div class="sbox-t">Delivery Status</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Status: <strong style="color:'+(shopDelivOn?'#10b981':'#ef4444')+'">'+(shopDelivOn?'ON':'OFF')+'</strong><br>Commission: <strong style="color:'+tc()+'">0%</strong><br>Plan: <strong style="color:#10b981">FREE</strong></div></div><div class="sbox"><div class="sbox-t">Shop Details</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Name: <strong style="color:'+tc()+'">'+(USER.shopName||USER.name)+'</strong><br>Phone: <strong style="color:'+tc()+'">'+USER.phone+'</strong></div></div><div class="sbox"><div class="sbox-t">Shop Dashboard</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:12px">Full management - sales, stock, staff, debts.</div><a href="'+chawkUrl+'" style="display:block;padding:13px;border-radius:10px;border:1.5px solid #f59e0b;color:#f59e0b;text-align:center;font-weight:700;font-size:14px;text-decoration:none">Open Shop Dashboard →</a></div><button class="btn btn-o" style="margin-top:8px" onclick="if(confirm(\'Logout?\'))logout()">Logout</button>';
+  var el=document.getElementById('sh-content');if(!el)return;
+  el.innerHTML='<div class="sbox"><div class="sbox-t">Delivery Status</div>'
+    +'<div style="font-size:13px;color:'+tc2()+';line-height:1.8">Status: <strong style="color:'+(shopDelivOn?'#10b981':'#ef4444')+'">'+(shopDelivOn?'ON - Accepting orders':'OFF - Hidden from customers')+'</strong><br>Commission: <strong style="color:'+tc()+'">0%</strong><br>Plan: <strong style="color:#10b981">FREE always</strong></div></div>'
+    +'<div class="sbox"><div class="sbox-t">Shop Details</div>'
+    +'<div style="font-size:13px;color:'+tc2()+';line-height:1.8">Name: <strong style="color:'+tc()+'">'+(USER.shopName||USER.name)+'</strong><br>Phone: <strong style="color:'+tc()+'">'+USER.phone+'</strong><br>M-Pesa: <strong style="color:#10b981">'+MPESA+'</strong></div></div>'
+    +'<div class="sbox"><div class="sbox-t">How Tumana Works</div>'
+    +'<div style="font-size:12px;color:'+tc2()+';line-height:1.9">'
+    +'📦 Add products in Stock tab<br>'
+    +'💰 Record sales in Sales tab<br>'
+    +'📋 Delivery orders pop up in Orders tab<br>'
+    +'✅ You keep 100% of product sales<br>'
+    +'🚴 Delivery fee goes to rider (90%) + platform (10%)</div></div>'
+    +'<div class="sbox"><div class="sbox-t">Verification Status</div>'
+    +'<div style="font-size:13px;color:'+tc2()+';margin-bottom:8px">Your shop needs admin approval to appear to customers. Contact admin if pending too long.</div>'
+    +'<div style="font-size:11px;color:'+tc3()+'">Admin: '+MPESA+'</div></div>'
+    +'<button class="btn btn-o" style="margin-top:8px" onclick="if(confirm('Logout?'))logout()">Logout</button>';
 }
 
 /* RIDER */
@@ -662,7 +861,8 @@ function toggleRider(){
 function startJobListen(){
   if(riderUnsub)riderUnsub();
   riderUnsub=dbListenIn('delivery_orders','status',['confirmed','placed'],function(jobs){
-    riderJobs=jobs.filter(function(j){return !j.rider_phone;});
+    riderJobs=jobs.filter(function(j){return !j.rider_phone;});// Rejected riders see no jobs
+if(USER&&USER.rider_verified===false){riderJobs=[];}
     var c=document.getElementById('jobs-count');if(c)c.textContent=riderJobs.length;
     renderRiderBody();
   });
@@ -756,21 +956,110 @@ function showAdminOrders(){
 }
 function showAdminRiders(){
   setNav('admin','riders');
-  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">All Riders</div></div><div id="admin-body" style="padding:0 18px 100px"><div class="spin"></div></div>';
+  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">All Riders</div><div style="font-size:12px;color:'+tc2()+';margin-bottom:12px">Verify real riders · Remove fakes</div></div><div id="admin-body" style="padding:0 18px 100px"><div class="spin"></div></div>';
   dbAll('riders',function(riders){
     var ab=document.getElementById('admin-body');if(!ab)return;
     if(!riders.length){ab.innerHTML='<div class="empty"><div class="ei">🏍️</div><div class="et">No riders</div><div class="es">Riders appear when they register</div></div>';return;}
-    ab.innerHTML=riders.map(function(r){return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><div style="font-weight:700">'+(r.name||r.id)+'</div><div style="font-size:11px;color:'+tc2()+'">'+(r.phone||r.id)+'</div><div style="font-size:11px;color:'+tc2()+'">'+(r.orders_completed||0)+' deliveries - KSh '+(r.total_earnings||0)+'</div></div><span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:'+(r.online?'rgba(16,185,129,.1)':'rgba(255,255,255,.07)')+';color:'+(r.online?'#10b981':'rgba(255,255,255,.4)')+'">'+( r.online?'Online':'Offline')+'</span></div>';}).join('');
+    var pending=riders.filter(function(r){return r.verified===undefined||r.verified===null;});
+    var verified=riders.filter(function(r){return r.verified===true;});
+    var rejected=riders.filter(function(r){return r.verified===false;});
+    var html='';
+    if(pending.length){
+      html+='<div style="font-size:10px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⏳ Pending ('+pending.length+')</div>';
+      html+=pending.map(function(r){return buildRiderCard(r,'pending');}).join('');
+    }
+    if(verified.length){
+      html+='<div style="font-size:10px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">✅ Verified ('+verified.length+')</div>';
+      html+=verified.map(function(r){return buildRiderCard(r,'verified');}).join('');
+    }
+    if(rejected.length){
+      html+='<div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">❌ Rejected ('+rejected.length+')</div>';
+      html+=rejected.map(function(r){return buildRiderCard(r,'rejected');}).join('');
+    }
+    ab.innerHTML=html;
   });
+}
+function buildRiderCard(r,status){
+  var clr=status==='verified'?'#10b981':status==='rejected'?'#ef4444':'#f59e0b';
+  var badge=status==='verified'?'✅ Verified':status==='rejected'?'❌ Rejected':'⏳ Pending';
+  var verifyBtn=status!=='verified'?'<button onclick="verifyRider(''+r.id+'')" style="flex:1;padding:8px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:#10b981;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✅ Verify</button>':'';
+  var rejectBtn=status!=='rejected'?'<button onclick="rejectRider(''+r.id+'')" style="flex:1;padding:8px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#ef4444;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">❌ Reject</button>':'';
+  var deleteBtn='<button onclick="deleteRider(''+r.id+'',''+encodeURIComponent(r.name||r.id)+'')" style="flex:1;padding:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);color:#ef4444;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Delete</button>';
+  return '<div class="card" style="border-left:3px solid '+clr+';margin-bottom:10px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">'
+    +'<div><div style="font-weight:700;color:'+tc()+'">'+(r.name||r.id)+'</div>'
+    +'<div style="font-size:11px;color:'+tc2()+'">'+(r.phone||r.id)+'</div>'
+    +'<div style="font-size:11px;color:'+tc2()+'">'+(r.orders_completed||0)+' deliveries · KSh '+(r.total_earnings||0)+' earned</div>'
+    +'<div style="font-size:11px;color:'+(r.online?'#10b981':tc3())+'">'+(r.online?'🟢 Online':'⚫ Offline')+'</div></div>'
+    +'<span style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(0,0,0,.1);color:'+clr+'">'+badge+'</span></div>'
+    +'<div style="display:flex;gap:6px">'+verifyBtn+rejectBtn+deleteBtn+'</div></div>';
+}
+function verifyRider(id){
+  loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:true}).then(function(){toast('✅ Rider verified');showAdminRiders();}).catch(function(){toast('Error');});});
+}
+function rejectRider(id){
+  if(!confirm('Reject this rider? They will not receive jobs.'))return;
+  loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:false,online:false}).then(function(){toast('Rider rejected');showAdminRiders();}).catch(function(){toast('Error');});});
+}
+function deleteRider(id,nameEnc){
+  var name=decodeURIComponent(nameEnc);
+  if(!confirm('Delete rider "'+name+'"? Cannot be undone.'))return;
+  loadFB(function(db){if(!db)return;db.collection('riders').doc(id).delete().then(function(){toast('Deleted: '+name);showAdminRiders();}).catch(function(){toast('Error');});});
 }
 function showAdminShops(){
   setNav('admin','shops');
-  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">All Shops</div></div><div id="admin-body" style="padding:0 18px 100px"><div class="spin"></div></div>';
+  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">All Shops</div><div style="font-size:12px;color:'+tc2()+';margin-bottom:12px">Verify real shops · Remove fakes</div></div><div id="admin-body" style="padding:0 18px 100px"><div class="spin"></div></div>';
   dbAll('shops',function(shops){
     var ab=document.getElementById('admin-body');if(!ab)return;
     if(!shops.length){ab.innerHTML='<div class="empty"><div class="ei">🏪</div><div class="et">No shops</div><div class="es">Shops appear when owners register</div></div>';return;}
-    ab.innerHTML=shops.map(function(s){return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="font-size:28px">'+(s.icon||'X')+'</div><div><div style="font-weight:700">'+(s.name||s.id)+'</div><div style="font-size:11px;color:'+tc2()+'">'+(s.category||'')+' - '+(s.location||'Chemelil')+'</div><div style="font-size:11px;color:'+tc2()+'">'+(s.owner_phone||s.id)+'</div></div></div><span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:'+(s.delivery_enabled?'rgba(16,185,129,.1)':'rgba(255,255,255,.07)')+';color:'+(s.delivery_enabled?'#10b981':'rgba(255,255,255,.4)')+'">'+( s.delivery_enabled?'Live':'Off')+'</span></div>';}).join('');
+    var pending=shops.filter(function(s){return !s.verified&&s.verified!==false;});
+    var verified=shops.filter(function(s){return s.verified===true;});
+    var rejected=shops.filter(function(s){return s.verified===false;});
+    var html='';
+    if(pending.length){
+      html+='<div style="font-size:10px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⏳ Pending Verification ('+pending.length+')</div>';
+      html+=pending.map(function(s){return buildShopCard(s,'pending');}).join('');
+    }
+    if(verified.length){
+      html+='<div style="font-size:10px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">✅ Verified ('+verified.length+')</div>';
+      html+=verified.map(function(s){return buildShopCard(s,'verified');}).join('');
+    }
+    if(rejected.length){
+      html+='<div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">❌ Rejected ('+rejected.length+')</div>';
+      html+=rejected.map(function(s){return buildShopCard(s,'rejected');}).join('');
+    }
+    ab.innerHTML=html;
   });
+}
+function buildShopCard(s,status){
+  var clr=status==='verified'?'#10b981':status==='rejected'?'#ef4444':'#f59e0b';
+  var borderClr=status==='verified'?'rgba(16,185,129,.25)':status==='rejected'?'rgba(239,68,68,.25)':'rgba(245,158,11,.25)';
+  var badge=status==='verified'?'✅ Verified':status==='rejected'?'❌ Rejected':'⏳ Pending';
+  var verifyBtns=status!=='verified'?'<button onclick="verifyShop(''+s.id+'')" style="flex:1;padding:8px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:#10b981;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✅ Verify</button>':'';
+  var rejectBtn=status!=='rejected'?'<button onclick="rejectShop(''+s.id+'')" style="flex:1;padding:8px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#ef4444;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">❌ Reject</button>':'';
+  var deleteBtn='<button onclick="deleteShop(''+s.id+'',''+encodeURIComponent(s.name||s.id)+'')" style="flex:1;padding:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);color:#ef4444;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Delete</button>';
+  return '<div class="card" style="border-left:3px solid '+clr+';margin-bottom:10px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">'
+    +'<div style="display:flex;gap:10px;align-items:center">'
+    +'<div style="font-size:28px">'+(s.icon||'🏪')+'</div>'
+    +'<div><div style="font-weight:700;color:'+tc()+'">'+(s.name||s.id)+'</div>'
+    +'<div style="font-size:11px;color:'+tc2()+'">'+(s.category||'General')+' · '+(s.location||'Chemelil')+'</div>'
+    +'<div style="font-size:11px;color:'+tc2()+'">'+(s.owner_phone||s.id)+'</div>'
+    +'<div style="font-size:11px;color:'+tc2()+'">Delivery: '+(s.delivery_enabled?'ON':'OFF')+'</div></div></div>'
+    +'<span style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(0,0,0,.1);color:'+clr+'">'+badge+'</span></div>'
+    +'<div style="display:flex;gap:6px">'+verifyBtns+rejectBtn+deleteBtn+'</div></div>';
+}
+function verifyShop(id){
+  loadFB(function(db){if(!db)return;db.collection('shops').doc(id).update({verified:true}).then(function(){toast('✅ Shop verified — now visible to customers');showAdminShops();}).catch(function(){toast('Error');});});
+}
+function rejectShop(id){
+  if(!confirm('Reject this shop? It will be hidden from customers.'))return;
+  loadFB(function(db){if(!db)return;db.collection('shops').doc(id).update({verified:false,delivery_enabled:false}).then(function(){toast('Shop rejected and hidden');showAdminShops();}).catch(function(){toast('Error');});});
+}
+function deleteShop(id,nameEnc){
+  var name=decodeURIComponent(nameEnc);
+  if(!confirm('Permanently delete "'+name+'"? Cannot be undone.'))return;
+  loadFB(function(db){if(!db)return;db.collection('shops').doc(id).delete().then(function(){toast('Deleted: '+name);showAdminShops();}).catch(function(){toast('Error');});});
 }
 function showAdminRevenue(){
   setNav('admin','revenue');
