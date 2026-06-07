@@ -260,7 +260,31 @@ function renderAuth(){
     var shop=((document.getElementById('fs')||{}).value||'').trim();
     if(!phone||phone.length<9){toast('Enter valid phone number');return;}
     if(!isL&&!name&&AR.id!=='admin'){toast('Enter your name');return;}
-    if(AR.id==='admin'&&phone!==SADMIN&&phone!=='254'+SADMIN.slice(1)){toast('Admin access restricted');return;}
+    if(AR.id==='admin'){
+      // Check against hardcoded master + Firebase approved admins list
+      var normPhone=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
+      var normSAdmin=SADMIN.replace(/^[+]?254/,'0');
+      if(normPhone===normSAdmin){
+        USER={role:'admin',name:name||phone,phone:phone,shopName:'',favourite_shops:[],is_master:true};
+        su();dbSet('tumana_users',phone,Object.assign({},USER,{updated_at:Date.now()}));startApp();
+      } else {
+        // Check Firebase approved admins
+        loadFB(function(db){
+          if(!db){toast('No connection — cannot verify admin');return;}
+          db.collection('admins').doc(normPhone).get().then(function(doc){
+            if(doc.exists&&doc.data().approved){
+              USER={role:'admin',name:name||doc.data().name||phone,phone:phone,shopName:'',favourite_shops:[],is_master:false};
+              su();dbSet('tumana_users',phone,Object.assign({},USER,{updated_at:Date.now()}));startApp();
+            } else {
+              toast('Admin access restricted — contact master admin');
+              var pi=document.getElementById('fp');if(pi){pi.style.borderColor='#ef4444';setTimeout(function(){pi.style.borderColor='';},2000);}
+            }
+          }).catch(function(){toast('Error verifying — check connection');});
+        });
+        return;
+      }
+      return;
+    }
     USER={role:AR.id,name:name||phone,phone:phone,shopName:shop||'',favourite_shops:[]};
     su();dbSet('tumana_users',phone,Object.assign({},USER,{updated_at:Date.now()}));startApp();
   });
@@ -681,6 +705,8 @@ function showAOv(){
       var ab=document.getElementById('ab');if(!ab)return;
       ab.innerHTML='<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6">'+allO.length+'</div><div class="sl">Total Orders</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+deliv.length+'</div><div class="sl">Delivered</div></div><div class="sb2"><div class="sv" style="color:#f59e0b">'+pend+'</div><div class="sl">Pending</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+r[1].docs.length+'</div><div class="sl">Users</div></div></div><div class="g3"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">'+onR+'</div><div class="sl">Online Riders</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">'+actS+'</div><div class="sl">Active Shops</div></div><div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+r[2].docs.length+'</div><div class="sl">All Riders</div></div></div><div class="sbox"><div class="sboxt">Revenue</div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform (10%)</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Riders (90%)</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div></div><button id="aout" class="btn bo">Logout</button>';
       document.getElementById('aout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
+      var mamBtn=document.getElementById('mam-btn');
+      if(mamBtn)mamBtn.addEventListener('click',showAdminUsers);
     }).catch(function(){});
   });
 }
@@ -752,8 +778,130 @@ function showARev(){
   });
 }
 
+function showAdminUsers(){
+  if(!USER||!USER.is_master){toast('Master admin only');return;}
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">Admin Users</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Only you can add or remove admins</div>'
+    +'<div class="fld"><label>Phone Number to Add</label><input id="adm-ph" type="tel" placeholder="07XX XXX XXX" autocomplete="off"></div>'
+    +'<div class="fld"><label>Name (optional)</label><input id="adm-nm" type="text" placeholder="e.g. John Supervisor" autocomplete="off"></div>'
+    +'<button id="add-adm" class="btn bp">Add Admin</button>'
+    +'<div style="margin-top:16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.45);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Current Admins</div>'
+    +'<div id="adm-list"><div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div></div>'
+    +'<button id="close-adm" class="btn bo" style="margin-top:12px">Close</button>'
+  );
+  document.getElementById('close-adm').addEventListener('click',hideSh);
+  document.getElementById('add-adm').addEventListener('click',function(){
+    var phone=(document.getElementById('adm-ph').value||'').trim().replace(/\s/g,'');
+    var name=(document.getElementById('adm-nm').value||'').trim();
+    if(!phone||phone.length<9){toast('Enter valid phone number');return;}
+    var norm=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
+    if(norm===SADMIN){toast('That is the master admin number');return;}
+    loadFB(function(db){
+      if(!db){toast('No connection');return;}
+      db.collection('admins').doc(norm).set({phone:norm,name:name||norm,approved:true,added_by:USER.phone,added_at:Date.now()}).then(function(){
+        toast('Admin added: '+( name||norm));
+        document.getElementById('adm-ph').value='';
+        document.getElementById('adm-nm').value='';
+        loadAdmList();
+      }).catch(function(){toast('Error adding');});
+    });
+  });
+  loadAdmList();
+}
+function loadAdmList(){
+  var list=document.getElementById('adm-list');if(!list)return;
+  loadFB(function(db){
+    if(!db){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px">Connect to load</div>';return;}
+    db.collection('admins').get().then(function(s){
+      if(!s.docs.length){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px;text-align:center;padding:12px">No extra admins added yet</div>';return;}
+      var h='';
+      s.docs.forEach(function(doc){
+        var d=doc.data();
+        h+='<div class="card" style="margin-bottom:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">'
+          +'<div><div style="font-weight:700;font-size:14px">'+(d.name||d.phone)+'</div>'
+          +'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+d.phone+'</div></div>'
+          +'<button class="rem-adm btn br" data-id="'+doc.id+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:5px 12px;width:auto">Remove</button>'
+          +'</div>';
+      });
+      list.innerHTML=h;
+      list.querySelectorAll('.rem-adm').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var id=this.getAttribute('data-id');var nm=this.getAttribute('data-name');
+          if(!confirm('Remove admin access for '+nm+'?'))return;
+          loadFB(function(db){
+            if(!db){toast('No connection');return;}
+            db.collection('admins').doc(id).delete().then(function(){toast('Removed: '+nm);loadAdmList();}).catch(function(){toast('Error');});
+          });
+        });
+      });
+    }).catch(function(){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px">Error loading</div>';});
+  });
+}
+
 window.history.pushState(null,'',window.location.href);
-window.addEventListener('popstate',function(){window.history.pushState(null,'',window.location.href);if(USER){if(USER.role==='customer')showHome();else if(USER.role==='rider')showJobs();else if(USER.role==='shop')renderShopDash();else if(USER.role==='admin')showAOv();}else{showRole();}});
+window.addEventListener('popstate',function(){function showAdminUsers(){
+  if(!USER||!USER.is_master){toast('Master admin only');return;}
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">Admin Users</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Only you can add or remove admins</div>'
+    +'<div class="fld"><label>Phone Number to Add</label><input id="adm-ph" type="tel" placeholder="07XX XXX XXX" autocomplete="off"></div>'
+    +'<div class="fld"><label>Name (optional)</label><input id="adm-nm" type="text" placeholder="e.g. John Supervisor" autocomplete="off"></div>'
+    +'<button id="add-adm" class="btn bp">Add Admin</button>'
+    +'<div style="margin-top:16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.45);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Current Admins</div>'
+    +'<div id="adm-list"><div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div></div>'
+    +'<button id="close-adm" class="btn bo" style="margin-top:12px">Close</button>'
+  );
+  document.getElementById('close-adm').addEventListener('click',hideSh);
+  document.getElementById('add-adm').addEventListener('click',function(){
+    var phone=(document.getElementById('adm-ph').value||'').trim().replace(/\s/g,'');
+    var name=(document.getElementById('adm-nm').value||'').trim();
+    if(!phone||phone.length<9){toast('Enter valid phone number');return;}
+    var norm=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
+    if(norm===SADMIN){toast('That is the master admin number');return;}
+    loadFB(function(db){
+      if(!db){toast('No connection');return;}
+      db.collection('admins').doc(norm).set({phone:norm,name:name||norm,approved:true,added_by:USER.phone,added_at:Date.now()}).then(function(){
+        toast('Admin added: '+( name||norm));
+        document.getElementById('adm-ph').value='';
+        document.getElementById('adm-nm').value='';
+        loadAdmList();
+      }).catch(function(){toast('Error adding');});
+    });
+  });
+  loadAdmList();
+}
+function loadAdmList(){
+  var list=document.getElementById('adm-list');if(!list)return;
+  loadFB(function(db){
+    if(!db){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px">Connect to load</div>';return;}
+    db.collection('admins').get().then(function(s){
+      if(!s.docs.length){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px;text-align:center;padding:12px">No extra admins added yet</div>';return;}
+      var h='';
+      s.docs.forEach(function(doc){
+        var d=doc.data();
+        h+='<div class="card" style="margin-bottom:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">'
+          +'<div><div style="font-weight:700;font-size:14px">'+(d.name||d.phone)+'</div>'
+          +'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+d.phone+'</div></div>'
+          +'<button class="rem-adm btn br" data-id="'+doc.id+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:5px 12px;width:auto">Remove</button>'
+          +'</div>';
+      });
+      list.innerHTML=h;
+      list.querySelectorAll('.rem-adm').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var id=this.getAttribute('data-id');var nm=this.getAttribute('data-name');
+          if(!confirm('Remove admin access for '+nm+'?'))return;
+          loadFB(function(db){
+            if(!db){toast('No connection');return;}
+            db.collection('admins').doc(id).delete().then(function(){toast('Removed: '+nm);loadAdmList();}).catch(function(){toast('Error');});
+          });
+        });
+      });
+    }).catch(function(){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px">Error loading</div>';});
+  });
+}
+
+window.history.pushState(null,'',window.location.href);if(USER){if(USER.role==='customer')showHome();else if(USER.role==='rider')showJobs();else if(USER.role==='shop')renderShopDash();else if(USER.role==='admin')showAOv();}else{showRole();}});
 if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}
 function boot(){
   try{var s=localStorage.getItem('tu');if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}}catch(e){try{localStorage.removeItem('tu');}catch(ex){}}
