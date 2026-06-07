@@ -278,18 +278,19 @@ function renderRole(){
     +'<div><div style="font-size:16px;font-weight:700;margin-bottom:2px">'+card.lbl+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+card.sub+'</div></div></div>'
     +perksH
     +'<div style="margin-top:10px;text-align:right;font-size:13px;font-weight:700;color:'+card.col+'">Get started &#x2192;</div>'
-    +'</div></div>';
+    +'</div><div id="adm-link" style="text-align:center;padding:14px 0 4px;cursor:pointer"><span style="font-size:11px;color:rgba(255,255,255,.08);letter-spacing:3px">&#x2022; &#x2022; &#x2022;</span></div></div>';
   pg().querySelectorAll('.rtab').forEach(function(el){el.addEventListener('click',function(){RTAB=this.getAttribute('data-tab');renderRole();});});
-  var logoEl=document.getElementById('logo-tap');
-  if(logoEl){
-    var _ltap=0,_ltimer;
-    logoEl.addEventListener('click',function(){
-      _ltap++;clearTimeout(_ltimer);
-      if(_ltap>=5){_ltap=0;RTAB='admin';AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};AM='login';renderAuth();}
-      else{_ltimer=setTimeout(function(){_ltap=0;},1500);}
+  // Logo tap removed - using 3-dot method instead
+  document.getElementById('role-card').addEventListener('click',function(){AR={id:RTAB,col:cards[RTAB].col,ic:cards[RTAB].ic,lbl:cards[RTAB].lbl};AM='login';renderAuth();});
+  // Hidden 3-dot admin access
+  var admLink=document.getElementById('adm-link');
+  if(admLink){
+    admLink.addEventListener('click',function(){
+      AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};
+      AM='login';
+      renderAuth();
     });
   }
-  document.getElementById('role-card').addEventListener('click',function(){AR={id:RTAB,col:cards[RTAB].col,ic:cards[RTAB].ic,lbl:cards[RTAB].lbl};AM='register';renderAuth();});
 }
 function renderAuth(){
   var isS=AR.id==='shop',isA=AR.id==='admin',isL=AM==='login';
@@ -313,6 +314,9 @@ function renderAuth(){
     var name=((document.getElementById('fn')||{}).value||'').trim();
     var shop=((document.getElementById('fs')||{}).value||'').trim();
     if(!phone||phone.length<9){toast('Enter valid phone number');return;}
+    // Auto-detect if master admin number typed under any role
+    var normP=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
+    if(normP===SADMIN&&AR.id!=='admin'){AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};toast('Admin access');}
     if(!isL&&!name&&AR.id!=='admin'){toast('Enter your name');return;}
     if(AR.id==='admin'){
       // Check against hardcoded master + Firebase approved admins list
