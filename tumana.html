@@ -68,7 +68,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#08080c;color:#ff
 .addb{width:100%;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:7px;padding:8px;font-size:11px;font-weight:700;color:#000;font-family:inherit;cursor:pointer}
 .qrow{display:flex;align-items:center;justify-content:space-between}
 .qb{width:28px;height:28px;border-radius:6px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;line-height:1}
-.rtabs{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px;background:#111116;border-radius:12px;padding:4px;margin:0 20px 16px}
+.rtabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;background:#111116;border-radius:12px;padding:4px;margin:0 20px 16px}
 .rtab{padding:9px 4px;text-align:center;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;color:rgba(255,255,255,.4)}
 .stabs{display:flex;background:#111116;border-radius:10px;padding:3px;gap:3px;margin:10px 18px 0}
 .stab{flex:1;padding:8px 4px;text-align:center;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;color:rgba(255,255,255,.4)}
@@ -79,6 +79,51 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#08080c;color:#ff
 .empty .ei{font-size:48px;margin-bottom:10px}
 .empty .et{font-size:15px;font-weight:700;margin-bottom:6px}
 .empty .es{font-size:12px;color:rgba(255,255,255,.4);line-height:1.6}
+
+/* ─── LIGHT MODE ─── */
+body.light{background:#f0f9f4;color:#0d2818}
+body.light #app{background:#f0f9f4}
+body.light #sb{background:#059669;color:#fff}
+body.light #sbt{color:#fff !important}
+body.light #tbtn{color:rgba(255,255,255,.8)}
+body.light #pg{background:#f0f9f4}
+body.light #nav{background:#fff;border-top:1px solid #d1fae5;box-shadow:0 -2px 10px rgba(16,185,129,.1)}
+body.light .card{background:#fff;border:1.5px solid #d1fae5;color:#0d2818;box-shadow:0 2px 8px rgba(16,185,129,.06)}
+body.light .sbox{background:#fff;border:1.5px solid #d1fae5}
+body.light .sboxt{color:rgba(13,40,24,.5)}
+body.light .sb2{background:#ecfdf5;border:1.5px solid #a7f3d0}
+body.light .sv{color:#0d2818}
+body.light .sl{color:rgba(13,40,24,.5)}
+body.light .fld label{color:rgba(13,40,24,.55)}
+body.light .fld input,body.light .fld select{background:#ecfdf5;border:1.5px solid #a7f3d0;color:#0d2818}
+body.light .fld input:focus,body.light .fld select:focus{border-color:#059669;background:#d1fae5}
+body.light .fld input::placeholder{color:rgba(13,40,24,.35)}
+body.light .fld select option{background:#ecfdf5;color:#0d2818}
+body.light .sh{background:#fff;border:1.5px solid #a7f3d0}
+body.light .hd{background:rgba(13,40,24,.15)}
+body.light .btn-o,.body.light .bo{border-color:#a7f3d0;color:#059669}
+body.light .rtabs{background:#d1fae5}
+body.light .rtab{color:rgba(13,40,24,.5)}
+body.light .stabs{background:#d1fae5}
+body.light .stab{color:rgba(13,40,24,.5)}
+body.light .stab.on{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000}
+body.light .pgrid .pc{background:#fff;border:1.5px solid #d1fae5}
+body.light .pname{color:#0d2818}
+body.light .fare{background:#fff;border:1.5px solid #d1fae5;color:#0d2818}
+body.light .fare.sel{background:#d1fae5;border-color:#10b981}
+body.light .dv{color:rgba(13,40,24,.25)}
+body.light .dv::before,.body.light .dv::after{background:rgba(13,40,24,.1)}
+body.light .empty .et{color:#0d2818}
+body.light .empty .es{color:rgba(13,40,24,.5)}
+body.light .bo{border-color:#a7f3d0 !important;color:#059669 !important}
+body.light #toast{background:#0d2818;color:#fff}
+body.light .ov{background:rgba(0,0,0,.5)}
+body.light .tog{background:#a7f3d0}
+body.light .tog.on{background:#10b981}
+/* Light mode nav active color */
+body.light [data-r]{color:rgba(13,40,24,.4)}
+/* Light mode card borders */
+body.light [style*="border-left"]{border-top:1.5px solid #d1fae5;border-right:1.5px solid #d1fae5;border-bottom:1.5px solid #d1fae5}
 </style>
 </head>
 <body>
@@ -107,7 +152,7 @@ var SORD=[],SDON=false,SUNSUB=null;
 var RON=false,RJOBS=[],RACT=null,REARN=0;
 var RUNSUB=null,RAUNSUB=null,OUNSUB=null;
 var TH=localStorage.getItem('th')||'dark';
-var RTAB='customer',AM='register',AR={id:'customer',col:'#10b981',ic:'&#x1F6CD;',lbl:'Customer'};
+var RTAB='customer',AM='login',AR={id:'customer',col:'#10b981',ic:'&#x1F6CD;',lbl:'Customer'};
 var PUDIST=1,PUFEE=70,TT;
 var MP='0799878872',SADMIN='0799878872';
 var FBC={apiKey:'AIzaSyB_C61rcssdlvqbyUK_QcHkl4HxbwcQBOI',authDomain:'chawkpro1.firebaseapp.com',projectId:'chawkpro1',storageBucket:'chawkpro1.firebasestorage.app',messagingSenderId:'897807998371',appId:'1:897807998371:web:33770a8ee5950c54860e16'};
@@ -220,9 +265,9 @@ function renderRole(){
   var cards={customer:{ic:'&#x1F6CD;',col:'#10b981',lbl:'Customer',sub:'Order from shops or request pickup',perks:['Browse local shops','Request pickup anywhere','Live tracking','100% Free']},rider:{ic:'&#x1F6F5;',col:'#8b5cf6',lbl:'Rider',sub:'Earn money on deliveries daily',perks:['Accept deliveries','Earn 90% per delivery','Daily M-Pesa payouts','100% Free']},shop:{ic:'&#x1F3EA;',col:'#f59e0b',lbl:'Shop Owner',sub:'Manage shop and receive orders',perks:['Add and manage stock','Record sales and debts','Orders pop up instantly','100% Free']},admin:{ic:'&#x2699;',col:'#8b5cf6',lbl:'Admin',sub:'Platform management',perks:['View all orders','Manage riders and shops','Verify accounts','Revenue dashboard']}};
   var card=cards[RTAB];
   var tabsH='<div class="rtabs">';
-  ['customer','rider','shop','admin'].forEach(function(t,i){
-    var a=t===RTAB;var aBg={customer:'linear-gradient(135deg,#10b981,#059669)',rider:'linear-gradient(135deg,#8b5cf6,#7c3aed)',shop:'linear-gradient(135deg,#f59e0b,#d97706)',admin:'linear-gradient(135deg,#8b5cf6,#7c3aed)'};var aTxt={customer:'#000',rider:'#fff',shop:'#000',admin:'#fff'};
-    tabsH+='<div class="rtab" data-tab="'+t+'" style="background:'+(a?aBg[t]:'transparent')+';color:'+(a?aTxt[t]:'rgba(255,255,255,.4)')+'">'+['&#x1F6CD;','&#x1F6F5;','&#x1F3EA;','&#x2699;'][i]+' '+['Customer','Rider','Shop','Admin'][i]+'</div>';
+  ['customer','rider','shop'].forEach(function(t,i){
+    var a=t===RTAB;var aBg={customer:'linear-gradient(135deg,#10b981,#059669)',rider:'linear-gradient(135deg,#8b5cf6,#7c3aed)',shop:'linear-gradient(135deg,#f59e0b,#d97706)'};var aTxt={customer:'#000',rider:'#fff',shop:'#000'};
+    tabsH+='<div class="rtab" data-tab="'+t+'" style="background:'+(a?aBg[t]:'transparent')+';color:'+(a?aTxt[t]:'rgba(255,255,255,.4)')+'">'+['&#x1F6CD;','&#x1F6F5;','&#x1F3EA;'][i]+' '+['Customer','Rider','Shop'][i]+'</div>';
   });
   tabsH+='</div>';
   var perksH='';card.perks.forEach(function(p){perksH+='<div style="font-size:12px;color:rgba(255,255,255,.5);margin:4px 0;display:flex;align-items:center;gap:6px"><span style="color:'+card.col+'">&#x2713;</span>'+p+'</div>';});
@@ -235,6 +280,15 @@ function renderRole(){
     +'<div style="margin-top:10px;text-align:right;font-size:13px;font-weight:700;color:'+card.col+'">Get started &#x2192;</div>'
     +'</div></div>';
   pg().querySelectorAll('.rtab').forEach(function(el){el.addEventListener('click',function(){RTAB=this.getAttribute('data-tab');renderRole();});});
+  var logoEl=document.getElementById('logo-tap');
+  if(logoEl){
+    var _ltap=0,_ltimer;
+    logoEl.addEventListener('click',function(){
+      _ltap++;clearTimeout(_ltimer);
+      if(_ltap>=5){_ltap=0;RTAB='admin';AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};AM='login';renderAuth();}
+      else{_ltimer=setTimeout(function(){_ltap=0;},1500);}
+    });
+  }
   document.getElementById('role-card').addEventListener('click',function(){AR={id:RTAB,col:cards[RTAB].col,ic:cards[RTAB].ic,lbl:cards[RTAB].lbl};AM='register';renderAuth();});
 }
 function renderAuth(){
@@ -703,10 +757,10 @@ function showAOv(){
       var onR=r[2].docs.filter(function(d){return d.data().online;}).length;
       var actS=r[3].docs.filter(function(d){return d.data().delivery_enabled;}).length;
       var ab=document.getElementById('ab');if(!ab)return;
-      ab.innerHTML='<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6">'+allO.length+'</div><div class="sl">Total Orders</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+deliv.length+'</div><div class="sl">Delivered</div></div><div class="sb2"><div class="sv" style="color:#f59e0b">'+pend+'</div><div class="sl">Pending</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+r[1].docs.length+'</div><div class="sl">Users</div></div></div><div class="g3"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">'+onR+'</div><div class="sl">Online Riders</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">'+actS+'</div><div class="sl">Active Shops</div></div><div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+r[2].docs.length+'</div><div class="sl">All Riders</div></div></div><div class="sbox"><div class="sboxt">Revenue</div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform (10%)</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Riders (90%)</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div></div><button id="aout" class="btn bo">Logout</button>';
+      ab.innerHTML='<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6">'+allO.length+'</div><div class="sl">Total Orders</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+deliv.length+'</div><div class="sl">Delivered</div></div><div class="sb2"><div class="sv" style="color:#f59e0b">'+pend+'</div><div class="sl">Pending</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+r[1].docs.length+'</div><div class="sl">Users</div></div></div><div class="g3"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">'+onR+'</div><div class="sl">Online Riders</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">'+actS+'</div><div class="sl">Active Shops</div></div><div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+r[2].docs.length+'</div><div class="sl">All Riders</div></div></div><div class="sbox"><div class="sboxt">Revenue</div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform (10%)</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Riders (90%)</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div></div>'+(USER&&USER.is_master?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">You are master admin. Add trusted sub-admins.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button></div>':'')+'<button id="aout" class="btn bo">Logout</button>';
       document.getElementById('aout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
       var mamBtn=document.getElementById('mam-btn');
-      if(mamBtn)mamBtn.addEventListener('click',showAdminUsers);
+      if(mamBtn)mamBtn.addEventListener('click',function(){if(USER&&(USER.is_master===true||USER.is_master==='true'))showAdminUsers();else toast('Master admin only');});
     }).catch(function(){});
   });
 }
