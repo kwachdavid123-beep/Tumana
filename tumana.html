@@ -81,49 +81,103 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#08080c;color:#ff
 .empty .es{font-size:12px;color:rgba(255,255,255,.4);line-height:1.6}
 
 /* ─── LIGHT MODE ─── */
-body.light{background:#f0f9f4;color:#0d2818}
-body.light #app{background:#f0f9f4}
-body.light #sb{background:#059669;color:#fff}
-body.light #sbt{color:#fff !important}
-body.light #tbtn{color:rgba(255,255,255,.8)}
-body.light #pg{background:#f0f9f4}
-body.light #nav{background:#fff;border-top:1px solid #d1fae5;box-shadow:0 -2px 10px rgba(16,185,129,.1)}
-body.light .card{background:#fff;border:1.5px solid #d1fae5;color:#0d2818;box-shadow:0 2px 8px rgba(16,185,129,.06)}
-body.light .sbox{background:#fff;border:1.5px solid #d1fae5}
-body.light .sboxt{color:rgba(13,40,24,.5)}
-body.light .sb2{background:#ecfdf5;border:1.5px solid #a7f3d0}
-body.light .sv{color:#0d2818}
-body.light .sl{color:rgba(13,40,24,.5)}
-body.light .fld label{color:rgba(13,40,24,.55)}
-body.light .fld input,body.light .fld select{background:#ecfdf5;border:1.5px solid #a7f3d0;color:#0d2818}
-body.light .fld input:focus,body.light .fld select:focus{border-color:#059669;background:#d1fae5}
-body.light .fld input::placeholder{color:rgba(13,40,24,.35)}
-body.light .fld select option{background:#ecfdf5;color:#0d2818}
-body.light .sh{background:#fff;border:1.5px solid #a7f3d0}
-body.light .hd{background:rgba(13,40,24,.15)}
-body.light .btn-o,.body.light .bo{border-color:#a7f3d0;color:#059669}
-body.light .rtabs{background:#d1fae5}
-body.light .rtab{color:rgba(13,40,24,.5)}
-body.light .stabs{background:#d1fae5}
-body.light .stab{color:rgba(13,40,24,.5)}
-body.light .stab.on{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000}
-body.light .pgrid .pc{background:#fff;border:1.5px solid #d1fae5}
-body.light .pname{color:#0d2818}
-body.light .fare{background:#fff;border:1.5px solid #d1fae5;color:#0d2818}
-body.light .fare.sel{background:#d1fae5;border-color:#10b981}
-body.light .dv{color:rgba(13,40,24,.25)}
-body.light .dv::before,.body.light .dv::after{background:rgba(13,40,24,.1)}
-body.light .empty .et{color:#0d2818}
-body.light .empty .es{color:rgba(13,40,24,.5)}
-body.light .bo{border-color:#a7f3d0 !important;color:#059669 !important}
-body.light #toast{background:#0d2818;color:#fff}
-body.light .ov{background:rgba(0,0,0,.5)}
-body.light .tog{background:#a7f3d0}
-body.light .tog.on{background:#10b981}
-/* Light mode nav active color */
-body.light [data-r]{color:rgba(13,40,24,.4)}
-/* Light mode card borders */
-body.light [style*="border-left"]{border-top:1.5px solid #d1fae5;border-right:1.5px solid #d1fae5;border-bottom:1.5px solid #d1fae5}
+body.light{background:#f0faf5!important;color:#0d2818!important}
+body.light #app{background:#f0faf5!important}
+body.light #sb{background:#059669!important}
+body.light #sbt{color:#fff!important}
+body.light #tbtn{color:rgba(255,255,255,.9)!important}
+body.light #pg{background:#f0faf5!important}
+body.light #nav{background:#fff!important;border-top:1px solid #b7f0d8!important;box-shadow:0 -2px 8px rgba(16,185,129,.08)!important}
+
+/* Cards */
+body.light .card{background:#fff!important;border:1.5px solid #c6f0de!important;color:#0d2818!important}
+body.light .sbox{background:#fff!important;border:1.5px solid #c6f0de!important}
+body.light .sboxt{color:rgba(13,40,24,.5)!important}
+body.light .sb2{background:#e8faf1!important;border:1.5px solid #b7f0d8!important}
+body.light .sv{color:#0d2818!important}
+body.light .sl{color:rgba(13,40,24,.5)!important}
+
+/* Forms */
+body.light .fld label{color:rgba(13,40,24,.6)!important}
+body.light .fld input{background:#e8faf1!important;border:1.5px solid #b7f0d8!important;color:#0d2818!important}
+body.light .fld select{background:#e8faf1!important;border:1.5px solid #b7f0d8!important;color:#0d2818!important}
+body.light .fld input:focus{border-color:#059669!important;background:#d1fae5!important}
+body.light .fld input::placeholder{color:rgba(13,40,24,.35)!important}
+body.light .fld select option{background:#e8faf1!important;color:#0d2818!important}
+
+/* Buttons */
+body.light .bo{background:transparent!important;border:1.5px solid #b7f0d8!important;color:#059669!important}
+body.light .br{background:rgba(239,68,68,.08)!important;border:1.5px solid rgba(239,68,68,.3)!important;color:#dc2626!important}
+
+/* Tabs */
+body.light .rtabs{background:#d1fae5!important}
+body.light .rtab{color:rgba(13,40,24,.45)!important}
+body.light .stabs{background:#d1fae5!important}
+body.light .stab{color:rgba(13,40,24,.45)!important}
+body.light .stab.on{background:linear-gradient(135deg,#f59e0b,#d97706)!important;color:#000!important}
+
+/* Sheet / overlay */
+body.light .sh{background:#fff!important;border:1.5px solid #b7f0d8!important;box-shadow:0 -4px 20px rgba(16,185,129,.12)!important}
+body.light .hd{background:rgba(13,40,24,.15)!important}
+body.light .ov{background:rgba(0,40,20,.5)!important}
+
+/* Toast */
+body.light #toast{background:#0d2818!important;color:#fff!important}
+
+/* Toggle */
+body.light .tog{background:#c6f0de!important}
+body.light .tog.on{background:#10b981!important}
+
+/* Product cards */
+body.light .pc{background:#fff!important;border:1.5px solid #c6f0de!important}
+body.light .pname{color:#0d2818!important}
+body.light .pprice{color:#059669!important}
+
+/* Fare cards */
+body.light .fare{background:#fff!important;border:1.5px solid #c6f0de!important;color:#0d2818!important}
+body.light .fare.sel{background:#d1fae5!important;border-color:#10b981!important}
+
+/* Divider */
+body.light .dv{color:rgba(13,40,24,.2)!important}
+body.light .dv::before,body.light .dv::after{background:rgba(13,40,24,.1)!important}
+
+/* Empty states */
+body.light .empty .et{color:#0d2818!important}
+body.light .empty .es{color:rgba(13,40,24,.5)!important}
+
+/* Nav items text */
+body.light #nav div[data-r] div:last-child{color:rgba(13,40,24,.4)}
+
+/* Dynamic inline-style overrides for light mode */
+body.light [style*="color:rgba(255,255,255"]{color:rgba(13,40,24,.55)!important}
+body.light [style*="color:#fff"]{color:#0d2818!important}
+body.light [style*="color:#ffffff"]{color:#0d2818!important}
+body.light [style*="background:#111116"]{background:#fff!important;border-color:#c6f0de!important}
+body.light [style*="background:#1a1a22"]{background:#e8faf1!important}
+body.light [style*="background:#08080c"]{background:#f0faf5!important}
+body.light [style*="background:#0d0820"]{background:linear-gradient(180deg,#d1fae5,#f0faf5)!important}
+body.light [style*="background:#000"]{background:#059669!important}
+body.light [style*="border:1.5px solid rgba(255,255,255,.07)"]{border-color:#c6f0de!important}
+body.light [style*="border:1.5px solid rgba(255,255,255,.13)"]{border-color:#b7f0d8!important}
+body.light [style*="border:1px solid rgba(255,255,255,.07)"]{border-color:#c6f0de!important}
+body.light [style*="border:1px solid rgba(255,255,255,.13)"]{border-color:#b7f0d8!important}
+body.light [style*="border-bottom:1px solid rgba(255,255,255,.07)"]{border-bottom-color:#d1fae5!important}
+body.light [style*="border-top:1px solid rgba(255,255,255,.08)"]{border-top-color:#d1fae5!important}
+/* Keep colored elements colored */
+body.light [style*="color:#10b981"]{color:#059669!important}
+body.light [style*="color:#ef4444"]{color:#dc2626!important}
+body.light [style*="color:#f59e0b"]{color:#d97706!important}
+body.light [style*="color:#8b5cf6"]{color:#7c3aed!important}
+body.light [style*="color:#fbbf24"]{color:#d97706!important}
+body.light [style*="color:#4ade80"]{color:#16a34a!important}
+body.light [style*="color:#60a5fa"]{color:#2563eb!important}
+/* Search bar */
+body.light input[placeholder*="Search"]{background:#e8faf1!important;border-color:#b7f0d8!important;color:#0d2818!important}
+body.light input[placeholder*="Search"]::placeholder{color:rgba(13,40,24,.4)!important}
+/* Location pills */
+body.light .lp{background:#fff!important;border-color:#b7f0d8!important;color:rgba(13,40,24,.6)!important}
+/* Category filter pills */
+body.light .cat-f{border-color:#b7f0d8!important;color:rgba(13,40,24,.5)!important}
 </style>
 </head>
 <body>
@@ -914,11 +968,106 @@ function accJob(jobId){
   toast('Accepted!');RJOBS=RJOBS.filter(function(j){return j.id!==jobId;});renderRBody();
 }
 function advJob(){
-  if(!RACT)return;var ns=NST[RACT.status];if(!ns)return;
+  if(!RACT)return;
+  var ns=NST[RACT.status];if(!ns)return;
+  // Special case: about to mark as delivered = collect payment first
+  if(ns==='delivered'){
+    showCollectPayment(RACT);
+    return;
+  }
   dbUpd('delivery_orders',RACT.id,{status:ns},function(){});
-  if(ns==='delivered'){var e=Math.round((RACT.delivery_fee||70)*.9);REARN+=e;loadFB(function(db){if(db){try{db.collection('riders').doc(USER.phone).update({total_earnings:firebase.firestore.FieldValue.increment(e),orders_completed:firebase.firestore.FieldValue.increment(1)}).catch(function(){});}catch(ex){}}});RACT=null;toast('Delivered! KSh '+e+' earned');}
-  else{RACT=Object.assign({},RACT,{status:ns});}
+  RACT=Object.assign({},RACT,{status:ns});
   renderRBody();
+}
+
+function showCollectPayment(order){
+  var df=order.delivery_fee||70;
+  var riderEarn=Math.round(df*.9);
+  var custName=order.customer_name||'Customer';
+  var custPhone=order.customer_phone||'';
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4B0;</div>'
+    +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:4px">Collect Delivery Fee</div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.5">Collect from <strong style="color:#fff">'+custName+'</strong></div>'
+    +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.18);border-radius:12px;padding:14px;margin-bottom:16px">'
+    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your earnings</span><span style="font-size:20px;font-weight:800;color:#10b981">KSh '+riderEarn+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your M-Pesa</span><span style="font-weight:700;color:#fff">'+USER.phone+'</span></div>'
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px">How is customer paying?</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+    +'<button id="pay-mpesa" class="btn bg" style="margin-top:0;padding:14px">&#x1F4F1; M-Pesa</button>'
+    +'<button id="pay-cash" class="btn ba" style="margin-top:0;padding:14px">&#x1F4B5; Cash</button>'
+    +'</div>'
+    +'<button id="pay-cancel" class="btn bo">Back</button>'
+  );
+  document.getElementById('pay-cancel').addEventListener('click',hideSh);
+
+  // M-PESA: customer sends to rider number, rider confirms code
+  document.getElementById('pay-mpesa').addEventListener('click',function(){
+    document.getElementById('sh').innerHTML='<div class="hd"></div>'
+      +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4F1;</div>'
+      +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:4px">M-Pesa Payment</div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;line-height:1.5;margin-bottom:14px">Tell customer to send to your number</div>'
+      +'<div style="background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.2);border-radius:12px;padding:14px;margin-bottom:14px;text-align:center">'
+      +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:4px">SEND KSh '+riderEarn+' TO</div>'
+      +'<div style="font-size:26px;font-weight:800;color:#10b981">'+USER.phone+'</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">Ref: TUM-Delivery</div>'
+      +'</div>'
+      +'<div class="fld"><label>Enter M-Pesa Confirmation Code</label><input id="rider-mpesa-code" type="text" placeholder="e.g. RGH456XYZ" style="text-transform:uppercase;letter-spacing:2px;font-size:16px;text-align:center" autocomplete="off"></div>'
+      +'<button id="confirm-mpesa-pay" class="btn bg">Confirm Payment Received</button>'
+      +'<button id="back-pay" class="btn bo" style="margin-top:6px">Back</button>';
+    document.getElementById('back-pay').addEventListener('click',function(){showCollectPayment(order);});
+    document.getElementById('confirm-mpesa-pay').addEventListener('click',function(){
+      var code=(document.getElementById('rider-mpesa-code').value||'').trim().toUpperCase();
+      if(!code||code.length<5){toast('Enter M-Pesa code from your SMS');return;}
+      completeDelivery(order,riderEarn,'mpesa',code);
+    });
+  });
+
+  // CASH: rider confirms cash received
+  document.getElementById('pay-cash').addEventListener('click',function(){
+    document.getElementById('sh').innerHTML='<div class="hd"></div>'
+      +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4B5;</div>'
+      +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:8px">Cash Payment</div>'
+      +'<div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center">'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:6px">Collect from customer</div>'
+      +'<div style="font-size:28px;font-weight:800;color:#f59e0b">KSh '+riderEarn+'</div>'
+      +'</div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.6">Confirm you have received <strong style="color:#f59e0b">KSh '+riderEarn+'</strong> cash from <strong style="color:#fff">'+custName+'</strong></div>'
+      +'<button id="confirm-cash-pay" class="btn ba">&#x2714; Cash Received - Complete Delivery</button>'
+      +'<button id="back-cash" class="btn bo" style="margin-top:6px">Back</button>';
+    document.getElementById('back-cash').addEventListener('click',function(){showCollectPayment(order);});
+    document.getElementById('confirm-cash-pay').addEventListener('click',function(){
+      completeDelivery(order,riderEarn,'cash','');
+    });
+  });
+}
+
+function completeDelivery(order,riderEarn,payMethod,mpesaCode){
+  dbUpd('delivery_orders',order.id,{
+    status:'delivered',
+    rider_payment_method:payMethod,
+    rider_mpesa_code:mpesaCode||'',
+    delivered_at:Date.now()
+  },function(ok){
+    if(!ok){toast('Connection error — try again');return;}
+    loadFB(function(db){
+      if(db){
+        try{
+          db.collection('riders').doc(USER.phone).update({
+            total_earnings:firebase.firestore.FieldValue.increment(riderEarn),
+            orders_completed:firebase.firestore.FieldValue.increment(1),
+            pending_payout:firebase.firestore.FieldValue.increment(riderEarn)
+          }).catch(function(){});
+        }catch(ex){}
+      }
+    });
+    REARN+=riderEarn;
+    RACT=null;
+    hideSh();
+    toast('Delivery complete! KSh '+riderEarn+' earned');
+    renderRBody();
+  });
 }
 function showEarn(){
   setTitle('RIDER','#8b5cf6');setNav('rider','earnings');
