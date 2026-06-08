@@ -147,7 +147,7 @@ body.light [style*="border-left"]{border-top:1.5px solid #d1fae5;border-right:1.
 <div class="ov" id="ov"><div class="sh" id="sh"></div></div>
 <script>
 var USER=null,CART=[],SHOPS=[],CS=null;
-var _db=null,_fbL=false,_fbQ=[];
+var _db=null,_fn=null,_fbL=false,_fbQ=[];
 var SORD=[],SDON=false,SUNSUB=null;
 var RON=false,RJOBS=[],RACT=null,REARN=0;
 var RUNSUB=null,RAUNSUB=null,OUNSUB=null;
@@ -201,11 +201,61 @@ function loadFB(cb){
   function ls(src,next){var s=document.createElement('script');s.src=src;s.onload=next;s.onerror=function(){_fbQ.forEach(function(f){f(null);});_fbQ=[];};document.head.appendChild(s);}
   ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js',function(){
     ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js',function(){
-      try{if(!firebase.apps.length)firebase.initializeApp(FBC);_db=firebase.firestore();}catch(e){_db=null;}
-      _fbQ.forEach(function(f){f(_db);});_fbQ=[];
+      ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js',function(){
+        ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js',function(){
+          try{
+            if(!firebase.apps.length)firebase.initializeApp(FBC);
+            _db=firebase.firestore();
+            _fn=firebase.functions();
+            // Register service worker for push notifications
+            if('serviceWorker' in navigator){
+              navigator.serviceWorker.register('./firebase-messaging-sw.js').then(function(reg){
+                console.log('SW registered');
+                initFCM();
+              }).catch(function(){});
+            }
+          }catch(e){_db=null;}
+          _fbQ.forEach(function(f){f(_db);});_fbQ=[];
+        });
+      });
     });
   });
 }
+// ── CLOUD FUNCTIONS ────────────────────────────────────────
+function callFn(name,data,cb){
+  loadFB(function(db){
+    if(!_fn){if(cb)cb({ok:false,error:'Functions not loaded'});return;}
+    var fn=_fn.httpsCallable(name);
+    fn(data).then(function(result){if(cb)cb(result.data);}).catch(function(err){if(cb)cb({ok:false,error:err.message});});
+  });
+}
+
+// ── FCM PUSH NOTIFICATIONS ──────────────────────────────────
+var FCM_TOKEN=null;
+function initFCM(){
+  try{
+    var msg=firebase.messaging();
+    // Request permission
+    Notification.requestPermission().then(function(perm){
+      if(perm!=='granted'){console.log('Notifications blocked');return;}
+      msg.getToken({vapidKey:'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SqmkXjx6QxNHb-qkjOkVjR1QGdBz0iHX6zY1a1oFcYf9hGNOsFv9A0'})
+      .then(function(token){
+        if(!token){console.log('No FCM token');return;}
+        FCM_TOKEN=token;
+        if(USER&&USER.phone){
+          // Save token to Firebase
+          callFn('registerFCMToken',{phone:USER.phone,token:token,role:USER.role},function(){});
+        }
+      }).catch(function(){});
+    }).catch(function(){});
+    // Handle foreground messages
+    msg.onMessage(function(payload){
+      var n=payload.notification||{};
+      toast((n.title?n.title+': ':'')+( n.body||'New notification'));
+    });
+  }catch(e){console.log('FCM init error:',e);}
+}
+
 function dbSet(col,id,d){loadFB(function(db){if(db)db.collection(col).doc(id).set(d,{merge:true}).catch(function(){});});}
 function dbGet(col,id,cb){loadFB(function(db){if(!db)return cb(null);db.collection(col).doc(id).get().then(function(d){cb(d.exists?Object.assign({id:d.id},d.data()):null);}).catch(function(){cb(null);});});}
 function dbAdd(col,d){loadFB(function(db){if(!db)return;db.collection(col).add(Object.assign({},d,{ts:firebase.firestore.FieldValue.serverTimestamp()})).catch(function(){});});}
@@ -295,60 +345,123 @@ function renderRole(){
 function renderAuth(){
   var isS=AR.id==='shop',isA=AR.id==='admin',isL=AM==='login';
   var btnC=isS?'ba':isA?'bp':'bg';
+  var sub=isA?'Authorised number only':isS?'Manage your shop':'Order and request pickups';
   pg().innerHTML='<div style="padding:20px 20px 80px">'
     +'<button id="bk" class="btn bo" style="width:auto;padding:6px 14px;font-size:13px;margin-bottom:20px">&#x2190; Back</button>'
     +'<div style="font-size:36px;margin-bottom:8px">'+AR.ic+'</div>'
-    +'<div style="font-size:20px;font-weight:700;color:'+AR.col+';margin-bottom:6px">'+(isL?'Welcome back':'Join as '+AR.lbl)+'</div>'
-    +'<div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:20px;line-height:1.5">'+(isA?'Restricted to authorised number':isS?'Manage shop and receive orders':'Order from shops or request pickup')+'</div>'
+    +'<div style="font-size:20px;font-weight:700;color:'+AR.col+';margin-bottom:4px">'+(isL?'Welcome back':'Join as '+AR.lbl)+'</div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:20px;line-height:1.5">'+sub+'</div>'
     +(!isL?'<div class="fld"><label>Full Name</label><input id="fn" type="text" placeholder="e.g. Jane Achieng" autocomplete="off"></div>':'')
     +'<div class="fld"><label>Phone Number</label><input id="fp" type="tel" placeholder="07XX XXX XXX" autocomplete="off"></div>'
     +(!isL&&isS?'<div class="fld"><label>Shop Name</label><input id="fs" type="text" placeholder="e.g. Mama Jane Grocery" autocomplete="off"></div>':'')
+    +(isL?'<div class="fld"><label>Your PIN</label><input id="fpin" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
+         :'<div class="fld"><label>Create 4-Digit PIN</label><input id="fpin" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
+         +'<div class="fld"><label>Confirm PIN</label><input id="fpin2" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>')
     +'<button id="ab" class="btn '+btnC+'" style="margin-top:8px">'+(isL?'Login &#x2192;':'Create Account &#x2192;')+'</button>'
     +'<div class="dv">or</div>'
     +'<button id="tg" class="btn bo">'+(isL?'Create new account':'Already registered? Login')+'</button>'
+    +(isL?'<div style="margin-top:12px;text-align:center"><span id="resetpin" style="font-size:12px;color:rgba(255,255,255,.35);cursor:pointer;text-decoration:underline">Forgot PIN? Contact admin</span></div>':'')
     +'</div>';
   document.getElementById('bk').addEventListener('click',showRole);
   document.getElementById('tg').addEventListener('click',function(){AM=AM==='login'?'register':'login';renderAuth();});
+  var resetEl=document.getElementById('resetpin');
+  if(resetEl){resetEl.addEventListener('click',function(){showSheet('<div class="hd"></div><div style="text-align:center;padding:20px 0"><div style="font-size:40px;margin-bottom:12px">&#x1F512;</div><div style="font-size:18px;font-weight:800;margin-bottom:8px">Forgot PIN?</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.7;margin-bottom:16px">Request a PIN reset. Admin will approve and you will be notified.</div><div class="fld"><label>Your Phone Number</label><input id="rst-ph" type="tel" placeholder="07XX XXX XXX"></div><button id="req-rst" class="btn bg">Request PIN Reset</button><div style="margin-top:10px;text-align:center"><a href="https://wa.me/254'+MP.slice(1)+'?text=PIN+reset+request+for+Tumana" style="font-size:12px;color:rgba(255,255,255,.35);text-decoration:underline">Or WhatsApp admin directly</a></div></div>');
+      setTimeout(function(){
+        var reqBtn=document.getElementById('req-rst');
+        if(reqBtn){reqBtn.addEventListener('click',function(){
+          var ph=(document.getElementById('rst-ph').value||'').trim();
+          if(!ph||ph.length<9){toast('Enter your phone number');return;}
+          reqBtn.textContent='Sending...';reqBtn.disabled=true;
+          callFn('requestPinReset',{phone:ph,role:AR.id,name:ph},function(r){
+            if(r&&r.ok){toast('Reset requested! Admin will notify you.');hideSh();}
+            else{toast('Error — try WhatsApp instead');reqBtn.textContent='Request PIN Reset';reqBtn.disabled=false;}
+          });
+        });}
+      },100);});}
   document.getElementById('ab').addEventListener('click',function(){
     var phone=(document.getElementById('fp').value||'').trim().replace(/\s/g,'');
+    var pin=(document.getElementById('fpin').value||'').trim();
     var name=((document.getElementById('fn')||{}).value||'').trim();
     var shop=((document.getElementById('fs')||{}).value||'').trim();
     if(!phone||phone.length<9){toast('Enter valid phone number');return;}
-    // Auto-detect if master admin number typed under any role
+    if(!pin||pin.length!==4||!/^\d+$/.test(pin)){toast('PIN must be exactly 4 digits');return;}
+    if(!isL){
+      var pin2=(document.getElementById('fpin2').value||'').trim();
+      if(pin!==pin2){toast('PINs do not match');return;}
+    }
+    // Auto-detect master admin
     var normP=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
-    if(normP===SADMIN&&AR.id!=='admin'){AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};toast('Admin access');}
+    if(normP===SADMIN&&AR.id!=='admin'){AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};}
     if(!isL&&!name&&AR.id!=='admin'){toast('Enter your name');return;}
+    // Simple PIN hash (not cryptographic but sufficient for local use)
+    var pinHash=btoa(phone+':'+pin+':tumana2026');
     if(AR.id==='admin'){
-      // Check against hardcoded master + Firebase approved admins list
-      var normPhone=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
-      var normSAdmin=SADMIN.replace(/^[+]?254/,'0');
-      if(normPhone===normSAdmin){
-        USER={role:'admin',name:name||phone,phone:phone,shopName:'',favourite_shops:[],is_master:true};
-        su();dbSet('tumana_users',phone,Object.assign({},USER,{updated_at:Date.now()}));startApp();
+      var normPhone=normP;
+      if(normPhone===SADMIN){
+        USER={role:'admin',name:name||'Admin',phone:phone,shopName:'',favourite_shops:[],is_master:true,pin_hash:pinHash};
+        su();dbSet('tumana_users',phone,{role:'admin',name:USER.name,phone:phone,pin_hash:pinHash,is_master:true,updated_at:Date.now()});startApp();
       } else {
-        // Check Firebase approved admins
         loadFB(function(db){
-          if(!db){toast('No connection — cannot verify admin');return;}
+          if(!db){toast('No connection');return;}
           db.collection('admins').doc(normPhone).get().then(function(doc){
             if(doc.exists&&doc.data().approved){
-              USER={role:'admin',name:name||doc.data().name||phone,phone:phone,shopName:'',favourite_shops:[],is_master:false};
-              su();dbSet('tumana_users',phone,Object.assign({},USER,{updated_at:Date.now()}));startApp();
-            } else {
-              toast('Admin access restricted — contact master admin');
-              var pi=document.getElementById('fp');if(pi){pi.style.borderColor='#ef4444';setTimeout(function(){pi.style.borderColor='';},2000);}
-            }
-          }).catch(function(){toast('Error verifying — check connection');});
+              USER={role:'admin',name:doc.data().name||phone,phone:phone,shopName:'',favourite_shops:[],is_master:false,pin_hash:pinHash};
+              su();startApp();
+            } else {toast('Not authorised — contact admin');}
+          }).catch(function(){toast('Error — check connection');});
         });
         return;
       }
       return;
     }
-    USER={role:AR.id,name:name||phone,phone:phone,shopName:shop||'',favourite_shops:[]};
-    su();dbSet('tumana_users',phone,Object.assign({},USER,{updated_at:Date.now()}));startApp();
+    if(isL){
+      // LOGIN: verify PIN from Firebase
+      loadFB(function(db){
+        if(!db){
+          // Offline fallback: check localStorage
+          var saved=null;try{saved=JSON.parse(localStorage.getItem('tu'));}catch(e){}
+          if(saved&&saved.phone===phone&&saved.pin_hash===pinHash){USER=saved;startApp();}
+          else{toast('Wrong PIN or phone number');return;}
+          return;
+        }
+        db.collection('tumana_users').doc(phone).get().then(function(doc){
+          if(!doc.exists){toast('Account not found — create one first');return;}
+          var data=doc.data();
+          if(data.pin_hash!==pinHash){
+            var attempts=(data.pin_attempts||0)+1;
+            db.collection('tumana_users').doc(phone).update({pin_attempts:attempts});
+            if(attempts>=5){toast('Too many wrong PINs — contact admin');return;}
+            toast('Wrong PIN ('+(5-attempts)+' tries left)');return;
+          }
+          // Check if reset pending
+          if(data.reset_pending){toast('Your PIN has been reset — check with admin');return;}
+          db.collection('tumana_users').doc(phone).update({pin_attempts:0,last_login:Date.now()});
+          USER={role:data.role||AR.id,name:data.name||phone,phone:phone,shopName:data.shopName||'',favourite_shops:data.favourite_shops||[],rating:data.rating||5.0,is_master:data.is_master||false,pin_hash:pinHash};
+          su();startApp();
+        }).catch(function(){toast('Error — check connection');});
+      });
+    } else {
+      // REGISTER: save to Firebase
+      loadFB(function(db){
+        if(!db){toast('No connection — cannot create account');return;}
+        db.collection('tumana_users').doc(phone).get().then(function(doc){
+          if(doc.exists&&doc.data().pin_hash){toast('Account exists — use Login instead');return;}
+          var userData={role:AR.id,name:name||phone,phone:phone,shopName:shop||'',favourite_shops:[],pin_hash:pinHash,rating:5.0,created_at:Date.now(),updated_at:Date.now(),pin_attempts:0};
+          db.collection('tumana_users').doc(phone).set(userData).then(function(){
+            USER=Object.assign({},userData);su();
+            if(AR.id==='shop'){dbSet('shops',phone,{name:shop||name,owner_phone:phone,owner_name:name,delivery_enabled:false,distance_km:.5,rating:5.0,category:'General',location:'Chemelil',icon:'&#x1F3EA;'});}
+            toast('Account created!');startApp();
+          }).catch(function(){toast('Error creating account');});
+        }).catch(function(){toast('Error — check connection');});
+      });
+    }
   });
 }
+function showSheet(h){document.getElementById('sh').innerHTML=h;document.getElementById('ov').classList.add('show');}
 function startApp(){
   if(!USER)return showRole();applyTheme();
+  // Register FCM token if available
+  if(FCM_TOKEN&&USER.phone){callFn('registerFCMToken',{phone:USER.phone,token:FCM_TOKEN,role:USER.role},function(){});}
   if(USER.role==='customer')startCust();
   else if(USER.role==='rider')showJobs();
   else if(USER.role==='shop')startShop();
@@ -376,7 +489,7 @@ function showHome(){
       +'</div>'
       +'<div style="display:flex;gap:5px;margin-top:8px">'
       +'<span style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:#10b981;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600">&#x1F6B4; KSh '+calcFee(s.distance_km)+'</span>'
-      +'<span style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.13);color:rgba(255,255,255,.5);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600">&#x2605; '+(s.rating||'4.8')+'</span>'
+      +'<span style="background:rgba(255,185,36,.06);border:1px solid rgba(255,185,36,.2);color:#fbbf24;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600">&#x2605; '+(s.rating||'4.8')+'</span>'
       +'</div></div>';
   });
   pg().innerHTML='<div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.07)">'
@@ -384,10 +497,45 @@ function showHome(){
     +'<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.18);padding:7px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#10b981">&#x1F4CD; Chemelil</div>'
     +'<div id="meb" style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#000;cursor:pointer">'+letter+'</div>'
     +'</div></div>'
-    +'<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.4);padding:12px 18px 6px">All Shops</div>'
+    +'<div style="padding:10px 18px 0"><input id="sh-search" type="text" placeholder="&#x1F50D; Search shops or category..." style="width:100%;background:#1a1a22;border:1.5px solid rgba(255,255,255,.13);border-radius:10px;padding:11px 14px;font-size:14px;color:#fff;font-family:inherit;outline:none"></div>'
+    +'<div style="display:flex;gap:6px;overflow-x:auto;padding:8px 18px;scrollbar-width:none">'
+    +['All','Grocery','Pharmacy','Vegetables','Butchery','Bakery'].map(function(cat){return '<div class="cat-f" data-cat="'+cat+'" style="flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:'+(cat==='All'?'rgba(16,185,129,.15)':'rgba(255,255,255,.05)')+';border:1px solid '+(cat==='All'?'rgba(16,185,129,.4)':'rgba(255,255,255,.1)')+';color:'+(cat==='All'?'#10b981':'rgba(255,255,255,.5)')+'">'+cat+'</div>';}).join('')
+    +'</div>'
+    +'<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.4);padding:4px 18px 6px">All Shops</div>'
     +'<div style="padding:4px 18px 100px">'+shH+'</div>';
   document.getElementById('meb').addEventListener('click',showMe);
   pg().querySelectorAll('.sg').forEach(function(el){el.addEventListener('click',function(){showProds(this.getAttribute('data-id'));});});
+  // Search + filter
+  var allShopsHtml=shH;
+  document.getElementById('sh-search').addEventListener('input',function(){
+    var q=this.value.toLowerCase();
+    filterShops(q,window._catFilter||'All');
+  });
+  pg().querySelectorAll('.cat-f').forEach(function(el){
+    el.addEventListener('click',function(){
+      window._catFilter=this.getAttribute('data-cat');
+      pg().querySelectorAll('.cat-f').forEach(function(c){c.style.background='rgba(255,255,255,.05)';c.style.borderColor='rgba(255,255,255,.1)';c.style.color='rgba(255,255,255,.5)';});
+      this.style.background='rgba(16,185,129,.15)';this.style.borderColor='rgba(16,185,129,.4)';this.style.color='#10b981';
+      filterShops((document.getElementById('sh-search').value||'').toLowerCase(),window._catFilter);
+    });
+  });
+  function filterShops(q,cat){
+    var filtered=shops.filter(function(s){
+      var matchQ=!q||s.name.toLowerCase().indexOf(q)>=0||s.category.toLowerCase().indexOf(q)>=0||(s.location||'').toLowerCase().indexOf(q)>=0;
+      var matchC=!cat||cat==='All'||s.category===cat;
+      return matchQ&&matchC;
+    });
+    var shopArea=document.querySelector('#pg > div:last-child');if(!shopArea)return;
+    if(!filtered.length){shopArea.innerHTML='<div style="text-align:center;padding:40px;color:rgba(255,255,255,.4)">No shops found</div>';return;}
+    var h2='';
+    filtered.forEach(function(s){
+      var isFav=(USER.favourite_shops||[]).indexOf(s.id)>=0;
+      h2+='<div class="card"><div class="sg" data-id="'+s.id+'" style="display:flex;gap:10px;align-items:center;cursor:pointer"><div style="width:50px;height:50px;border-radius:11px;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+s.icon+'</div><div style="flex:1"><div style="font-size:15px;font-weight:700;margin-bottom:2px">'+s.name+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+s.category+' · '+(s.location||'Chemelil')+'</div></div><button class="fb" data-id="'+s.id+'" style="background:none;border:none;font-size:20px;cursor:pointer;color:'+(isFav?'#fbbf24':'rgba(255,255,255,.2)')+'">'+( isFav?'&#x2605;':'&#x2606;')+'</button></div><div style="display:flex;gap:5px;margin-top:8px"><span style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:#10b981;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600">&#x1F6B4; KSh '+calcFee(s.distance_km)+'</span><span style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.13);color:rgba(255,255,255,.5);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600">&#x2605; '+(s.rating||'4.8')+'</span></div></div>';
+    });
+    shopArea.innerHTML=h2;
+    shopArea.querySelectorAll('.sg').forEach(function(el){el.addEventListener('click',function(){showProds(this.getAttribute('data-id'));});});
+    shopArea.querySelectorAll('.fb').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();var id=this.getAttribute('data-id');var cur=USER.favourite_shops||[];USER.favourite_shops=cur.indexOf(id)>=0?cur.filter(function(f){return f!==id;}):[].concat(cur,[id]);su();dbSet('tumana_users',USER.phone,{favourite_shops:USER.favourite_shops});toast('Saved!');showHome();});});
+  }
   pg().querySelectorAll('.fb').forEach(function(el){
     el.addEventListener('click',function(e){
       e.stopPropagation();var id=this.getAttribute('data-id');
@@ -458,6 +606,17 @@ function showCart(){
   document.getElementById('plb').addEventListener('click',function(){
     showSh('<div class="hd"></div><div style="font-size:40px;text-align:center;margin-bottom:10px">&#x1F4F1;</div><div style="font-size:20px;font-weight:700;text-align:center;margin-bottom:5px">Send M-Pesa Now</div><div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.6">Shop confirms payment then rider is assigned</div><div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.18);border-radius:12px;padding:13px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;margin:6px 0"><span style="font-size:12px;color:rgba(255,255,255,.4)">Send to</span><span style="font-size:15px;font-weight:700;color:#10b981">&#x1F4F1; '+MP+'</span></div><div style="display:flex;justify-content:space-between;margin:6px 0"><span style="font-size:12px;color:rgba(255,255,255,.4)">Amount</span><span style="font-size:15px;font-weight:700;color:#10b981">KSh '+total+'</span></div><div style="display:flex;justify-content:space-between;margin:6px 0"><span style="font-size:12px;color:rgba(255,255,255,.4)">Ref</span><span style="font-size:13px;font-weight:700;color:#10b981">TUM'+USER.phone.slice(-4)+'</span></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px"><button id="cn" class="btn bo" style="margin-top:0">Cancel</button><button id="sn" class="btn bg" style="margin-top:0">Sent Payment</button></div>');
     document.getElementById('cn').addEventListener('click',hideSh);
+    // Cash option
+    var cashBtn=document.getElementById('cash-btn');
+    if(cashBtn){cashBtn.addEventListener('click',function(){
+      showSheet('<div class="hd"></div><div style="font-size:36px;text-align:center;margin-bottom:10px">&#x1F4B5;</div><div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:6px">Paying with Cash</div><div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;line-height:1.7;margin-bottom:16px">You will pay the rider in cash when your order arrives. The rider will confirm receipt.</div><div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:8px">HOW IT WORKS:</div><div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.9">1. Rider picks up your order<br>2. Rider delivers to you<br>3. You pay rider exact cash<br>4. Rider taps "Confirm Cash Received"<br>5. Order marked complete</div></div><button id="cash-confirm" class="btn ba">Place Cash Order</button><button id="cash-cancel" class="btn bo">Cancel</button>');
+      document.getElementById('cash-cancel').addEventListener('click',hideSh);
+      document.getElementById('cash-confirm').addEventListener('click',function(){
+        var shop=CS||{};
+        dbAdd('delivery_orders',{type:'shop',customer_phone:USER.phone,customer_name:USER.name,shop_id:shop.id||CART[0].shopId,shopName:shop.name||CART[0].shopName,delivery_address:USER.name+' waiting',items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),subtotal:sub,delivery_fee:df,total:total,rider_earnings:Math.round(df*.9),platform_earnings:Math.round(df*.1),distance:CART[0].shopDist||.5,status:'placed',payment_method:'cash',rider_phone:null,rider_name:null});
+        CART=[];hideSh();toast('Cash order placed! Rider will collect payment on delivery.');showOrds();
+      });
+    });}
     document.getElementById('sn').addEventListener('click',function(){
       var shop=CS||{};
       dbAdd('delivery_orders',{type:'shop',customer_phone:USER.phone,customer_name:USER.name,shop_id:shop.id||CART[0].shopId,shopName:shop.name||CART[0].shopName,delivery_address:USER.name+' waiting',items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),subtotal:sub,delivery_fee:df,total:total,rider_earnings:rG,platform_earnings:df-rG,distance:CART[0].shopDist||.5,status:'placed',rider_phone:null,rider_name:null});
@@ -477,7 +636,8 @@ function showPickup(){
   var locs=['Chemelil Market','Hospital','Stage','Sugar Factory','Police Station','Railway'];
   var locsH='';locs.forEach(function(l){locsH+='<div class="lp" data-loc="'+l+'" style="background:#111116;border:1px solid rgba(255,255,255,.13);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.5)">'+l+'</div>';});
   pg().innerHTML='<div style="padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.07)"><div style="font-size:20px;font-weight:800;margin-bottom:2px">&#x1F4CD; Where to?</div></div><div style="padding:14px 18px 100px">'
-    +'<div style="background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px;margin-bottom:8px;display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:50%;background:#10b981;flex-shrink:0"></div><div style="flex:1"><div style="font-size:10px;font-weight:700;color:#10b981;margin-bottom:3px">PICKUP FROM</div><input id="pfr" type="text" placeholder="e.g. Chemelil Market..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none"></div></div>'
+    +'<div style="background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:50%;background:#10b981;flex-shrink:0"></div><div style="flex:1"><div style="font-size:10px;font-weight:700;color:#10b981;margin-bottom:3px">PICKUP FROM</div><input id="pfr" type="text" placeholder="e.g. Chemelil Market..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none"></div></div>'
+    +'<button id="gps-btn" style="margin-top:8px;width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F4CD; Use My GPS Location</button></div>'
     +'<div style="background:#111116;border:1.5px solid rgba(239,68,68,.3);border-radius:13px;padding:13px;margin-bottom:14px;display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:3px;background:#ef4444;flex-shrink:0"></div><div style="flex:1"><div style="font-size:10px;font-weight:700;color:#ef4444;margin-bottom:3px">DROP OFF AT</div><input id="pto" type="text" placeholder="e.g. My house, School..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none"></div></div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">'+locsH+'</div>'
     +faresH
@@ -495,7 +655,9 @@ function showPickup(){
     var from=(document.getElementById('pfr').value||'').trim();
     var to=(document.getElementById('pto').value||'').trim();
     if(!from){toast('Enter pickup location');return;}if(!to){toast('Enter drop-off destination');return;}
-    dbAdd('delivery_orders',{type:'pickup',customer_phone:USER.phone,customer_name:USER.name,pickup_from:from,delivery_address:to,item_description:'Pickup: '+from+' to '+to,distance:PUDIST,delivery_fee:PUFEE,total:PUFEE,rider_earnings:Math.round(PUFEE*.9),platform_earnings:Math.round(PUFEE*.1),status:'placed',rider_phone:null,rider_name:null});
+    var gpsData={};
+    if(window._gpsLat&&window._gpsLng){gpsData={pickup_lat:window._gpsLat,pickup_lng:window._gpsLng};}
+    dbAdd('delivery_orders',Object.assign({type:'pickup',customer_phone:USER.phone,customer_name:USER.name,pickup_from:from,delivery_address:to,item_description:'Pickup: '+from+' to '+to,distance:PUDIST,delivery_fee:PUFEE,total:PUFEE,rider_earnings:Math.round(PUFEE*.9),platform_earnings:Math.round(PUFEE*.1),status:'placed',rider_phone:null,rider_name:null},gpsData));
     toast('Rider requested! Track in Orders');showOrds();
   });
 }
@@ -516,9 +678,33 @@ function showOrds(){
         tH+='<div style="display:flex;gap:9px;align-items:flex-start"><div style="display:flex;flex-direction:column;align-items:center;width:22px;flex-shrink:0"><div style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;background:'+(d?'#10b981':a?'#8b5cf6':'#1a1a22')+';color:'+(d?'#000':a?'#fff':'rgba(255,255,255,.2)')+';">'+(d?'&#x2713;':(SICO[key]||'&#x2022;'))+'</div>'+(last?'':'<div style="width:2px;height:12px;margin:2px 0;background:'+(d?'#10b981':'rgba(255,255,255,.1)')+'"></div>')+'</div><div style="padding-bottom:10px"><div style="font-size:12px;font-weight:700;color:'+(d?'#10b981':a?'#fff':'rgba(255,255,255,.3)')+'">'+( SLOC[key]||key)+'</div>'+(a?'<div style="font-size:10px;color:rgba(255,255,255,.4)">Now</div>':'')+'</div></div>';
       });
       var desc=o.type==='pickup'?(o.pickup_from||'')+'→'+(o.delivery_address||''):(o.items||[]).map(function(i){return i.name+' x'+i.quantity;}).join(', ');
-      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:9px"><div><div style="font-weight:700;font-size:14px">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Order')+' #'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.shopName||o.pickup_from||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="margin:10px 0 8px">'+tH+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:5px">'+desc+'</div><div style="font-weight:700;color:#10b981">KSh '+o.total+'</div>'+(o.rider_name?'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:9px;margin-top:7px;font-size:12px;color:#8b5cf6">&#x1F6F5; '+o.rider_name+' · '+o.rider_phone+'</div>':'')+'</div>';
+      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:9px"><div><div style="font-weight:700;font-size:14px">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Order')+' #'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.shopName||o.pickup_from||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="margin:10px 0 8px">'+tH+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:5px">'+desc+'</div><div style="font-weight:700;color:#10b981">KSh '+o.total+'</div>'+(o.rider_name?'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:9px;margin-top:7px;font-size:12px;color:#8b5cf6">&#x1F6F5; '+o.rider_name+' · '+o.rider_phone+'</div>':'')
+      +(o.status==='delivered'&&!o.rated?'<div style="margin-top:8px"><div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:6px">Rate this delivery:</div><div class="rate-stars" data-id="'+o.id+'" data-riderphone="'+(o.rider_phone||'')+'" data-shopid="'+(o.shop_id||'')+'" style="display:flex;gap:6px">'+[1,2,3,4,5].map(function(n){return '<div class="star-btn" data-stars="'+n+'" style="font-size:24px;cursor:pointer;opacity:.35">&#x2605;</div>';}).join('')+'</div></div>':'')
+      +'</div>';
     });
     list.innerHTML=h;
+    // Rating handlers
+    list.querySelectorAll('.rate-stars').forEach(function(row){
+      row.querySelectorAll('.star-btn').forEach(function(star){
+        star.addEventListener('mouseenter',function(){
+          var n=parseInt(this.dataset.stars);
+          row.querySelectorAll('.star-btn').forEach(function(s,i){s.style.opacity=i<n?'1':'.35';});
+        });
+        star.addEventListener('mouseleave',function(){
+          row.querySelectorAll('.star-btn').forEach(function(s){s.style.opacity='.35';});
+        });
+        star.addEventListener('click',function(){
+          var n=parseInt(this.dataset.stars);
+          var ordId=row.dataset.id;var rPhone=row.dataset.riderphone;var shopId=row.dataset.shopid;
+          if(confirm('Rate this delivery '+n+' star'+(n>1?'s':'')+'?')){
+            dbUpd('delivery_orders',ordId,{rated:true,rating:n},function(){});
+            if(rPhone){loadFB(function(db){if(!db)return;db.collection('riders').doc(rPhone).get().then(function(d){var cur=d.exists?d.data():{rating:5,rating_count:0};var cnt=(cur.rating_count||0)+1;var newR=Math.round(((cur.rating||5)*(cnt-1)+n)/cnt*10)/10;db.collection('riders').doc(rPhone).update({rating:newR,rating_count:cnt}).catch(function(){});}).catch(function(){});});}
+            if(shopId){loadFB(function(db){if(!db)return;db.collection('shops').doc(shopId).get().then(function(d){var cur=d.exists?d.data():{rating:5,rating_count:0};var cnt=(cur.rating_count||0)+1;var newR=Math.round(((cur.rating||5)*(cnt-1)+n)/cnt*10)/10;db.collection('shops').doc(shopId).update({rating:newR,rating_count:cnt}).catch(function(){});}).catch(function(){});});}
+            toast('Rated '+n+' &#x2605; - Thank you!');
+          }
+        });
+      });
+    });
   });
 }
 function showMe(){
@@ -761,10 +947,13 @@ function showAOv(){
       var onR=r[2].docs.filter(function(d){return d.data().online;}).length;
       var actS=r[3].docs.filter(function(d){return d.data().delivery_enabled;}).length;
       var ab=document.getElementById('ab');if(!ab)return;
-      ab.innerHTML='<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6">'+allO.length+'</div><div class="sl">Total Orders</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+deliv.length+'</div><div class="sl">Delivered</div></div><div class="sb2"><div class="sv" style="color:#f59e0b">'+pend+'</div><div class="sl">Pending</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+r[1].docs.length+'</div><div class="sl">Users</div></div></div><div class="g3"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">'+onR+'</div><div class="sl">Online Riders</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">'+actS+'</div><div class="sl">Active Shops</div></div><div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+r[2].docs.length+'</div><div class="sl">All Riders</div></div></div><div class="sbox"><div class="sboxt">Revenue</div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform (10%)</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Riders (90%)</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div></div>'+(USER&&USER.is_master?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">You are master admin. Add trusted sub-admins.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button></div>':'')+'<button id="aout" class="btn bo">Logout</button>';
+      ab.innerHTML='<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6">'+allO.length+'</div><div class="sl">Total Orders</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+deliv.length+'</div><div class="sl">Delivered</div></div><div class="sb2"><div class="sv" style="color:#f59e0b">'+pend+'</div><div class="sl">Pending</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+r[1].docs.length+'</div><div class="sl">Users</div></div></div><div class="g3"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">'+onR+'</div><div class="sl">Online Riders</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">'+actS+'</div><div class="sl">Active Shops</div></div><div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+r[2].docs.length+'</div><div class="sl">All Riders</div></div></div><div class="sbox"><div class="sboxt">Revenue</div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform (10%)</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Riders (90%)</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div></div>'+(USER&&USER.is_master?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">You are master admin. Add trusted sub-admins.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button></div>':'')+(USER&&(USER.is_master===true||USER.is_master==='true')?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">Add trusted sub-admins below.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button><button id="rst-req-btn" class="btn bo" style="margin-top:6px">PIN Reset Requests</button></div>':'')
+        +'<button id="aout" class="btn bo">Logout</button>';
       document.getElementById('aout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
       var mamBtn=document.getElementById('mam-btn');
       if(mamBtn)mamBtn.addEventListener('click',function(){if(USER&&(USER.is_master===true||USER.is_master==='true'))showAdminUsers();else toast('Master admin only');});
+      var rstBtn=document.getElementById('rst-req-btn');
+      if(rstBtn)rstBtn.addEventListener('click',showPinResets);
     }).catch(function(){});
   });
 }
@@ -836,6 +1025,40 @@ function showARev(){
   });
 }
 
+function showPinResets(){
+  showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:4px">PIN Reset Requests</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Approve to allow user to set new PIN</div><div id="rst-list"><div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div></div><button id="cls-rst" class="btn bo" style="margin-top:12px">Close</button>');
+  document.getElementById('cls-rst').addEventListener('click',hideSh);
+  loadFB(function(db){
+    if(!db){document.getElementById('rst-list').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:12px">Connect to load</div>';return;}
+    db.collection('pin_resets').where('status','==','pending').get().then(function(s){
+      var rl=document.getElementById('rst-list');if(!rl)return;
+      if(!s.docs.length){rl.innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:20px">No pending reset requests</div>';return;}
+      var h='';
+      s.docs.forEach(function(doc){
+        var d=doc.data();
+        h+='<div class="card" style="margin-bottom:8px;padding:10px 12px"><div style="font-weight:700;margin-bottom:2px">'+(d.name||d.phone)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px">'+d.phone+' · '+d.role+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button class="btn br apr-rst" data-phone="'+d.phone+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:8px">Decline</button><button class="btn bg apr-rst-ok" data-phone="'+d.phone+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:8px">Approve Reset</button></div></div>';
+      });
+      rl.innerHTML=h;
+      rl.querySelectorAll('.apr-rst-ok').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var ph=this.getAttribute('data-phone');var nm=this.getAttribute('data-name');
+          if(!confirm('Approve PIN reset for '+nm+'?'))return;
+          callFn('approvePinReset',{target_phone:ph,admin_phone:USER.phone},function(r){
+            if(r&&r.ok){toast('Reset approved — user notified');showPinResets();}
+            else{toast('Error: '+(r&&r.error)||'Try again');}
+          });
+        });
+      });
+      rl.querySelectorAll('.apr-rst').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var ph=this.getAttribute('data-phone');
+          loadFB(function(db){db.collection('pin_resets').doc(ph).update({status:'declined'}).then(function(){toast('Declined');showPinResets();}).catch(function(){});});
+        });
+      });
+    }).catch(function(){document.getElementById('rst-list').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:12px">Error loading</div>';});
+  });
+}
+
 function showAdminUsers(){
   if(!USER||!USER.is_master){toast('Master admin only');return;}
   showSh('<div class="hd"></div>'
@@ -898,7 +1121,41 @@ function loadAdmList(){
 }
 
 window.history.pushState(null,'',window.location.href);
-window.addEventListener('popstate',function(){function showAdminUsers(){
+window.addEventListener('popstate',function(){function showPinResets(){
+  showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:4px">PIN Reset Requests</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Approve to allow user to set new PIN</div><div id="rst-list"><div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div></div><button id="cls-rst" class="btn bo" style="margin-top:12px">Close</button>');
+  document.getElementById('cls-rst').addEventListener('click',hideSh);
+  loadFB(function(db){
+    if(!db){document.getElementById('rst-list').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:12px">Connect to load</div>';return;}
+    db.collection('pin_resets').where('status','==','pending').get().then(function(s){
+      var rl=document.getElementById('rst-list');if(!rl)return;
+      if(!s.docs.length){rl.innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:20px">No pending reset requests</div>';return;}
+      var h='';
+      s.docs.forEach(function(doc){
+        var d=doc.data();
+        h+='<div class="card" style="margin-bottom:8px;padding:10px 12px"><div style="font-weight:700;margin-bottom:2px">'+(d.name||d.phone)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px">'+d.phone+' · '+d.role+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button class="btn br apr-rst" data-phone="'+d.phone+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:8px">Decline</button><button class="btn bg apr-rst-ok" data-phone="'+d.phone+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:8px">Approve Reset</button></div></div>';
+      });
+      rl.innerHTML=h;
+      rl.querySelectorAll('.apr-rst-ok').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var ph=this.getAttribute('data-phone');var nm=this.getAttribute('data-name');
+          if(!confirm('Approve PIN reset for '+nm+'?'))return;
+          callFn('approvePinReset',{target_phone:ph,admin_phone:USER.phone},function(r){
+            if(r&&r.ok){toast('Reset approved — user notified');showPinResets();}
+            else{toast('Error: '+(r&&r.error)||'Try again');}
+          });
+        });
+      });
+      rl.querySelectorAll('.apr-rst').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var ph=this.getAttribute('data-phone');
+          loadFB(function(db){db.collection('pin_resets').doc(ph).update({status:'declined'}).then(function(){toast('Declined');showPinResets();}).catch(function(){});});
+        });
+      });
+    }).catch(function(){document.getElementById('rst-list').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:12px">Error loading</div>';});
+  });
+}
+
+function showAdminUsers(){
   if(!USER||!USER.is_master){toast('Master admin only');return;}
   showSh('<div class="hd"></div>'
     +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">Admin Users</div>'
