@@ -185,7 +185,7 @@ body.light .cat-f{border-color:#b7f0d8!important;color:rgba(13,40,24,.5)!importa
   <div style="font-size:52px">&#x1F6B4;</div>
   <div style="font-size:28px;font-weight:800;color:#10b981">TUMANA</div>
   <div style="font-size:13px;color:rgba(255,255,255,.4)">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v7 Jun 2026</div>
+  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v8 Jun 2026</div>
   <div class="spin" style="margin-top:8px"></div>
 </div>
 <div id="app" style="display:none">
@@ -648,7 +648,7 @@ function showCart(){
   setTitle('TUMANA','#10b981');setNav('customer','cart');
   if(!CART.length){pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700">Cart</div></div>'+empty('&#x1F6D2;','Cart is empty','Browse shops and add items');return;}
   var sub=CART.reduce(function(s,i){return s+i.price*i.qty;},0);
-  var df=calcFee(CART[0].shopDist||.5);var total=sub+df;var rG=Math.round(df*.9);
+  var df=calcFee(CART[0].shopDist||.5);var total=sub+df;var rG=df;
   var h='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700;margin-bottom:2px">Your Cart</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">'+CART[0].shopName+'</div></div><div style="padding:0 18px 100px">';
   CART.forEach(function(item,i){
     h+='<div class="card" style="border-left:3px solid #10b981;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;margin-bottom:2px">'+item.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">KSh '+item.price+' each</div></div><div style="text-align:right"><div style="font-weight:700;color:#10b981;font-size:15px;margin-bottom:5px">KSh '+(item.price*item.qty)+'</div><div class="qrow"><button class="qb cim" data-i="'+i+'" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">&#x2212;</button><span style="font-weight:700;min-width:18px;text-align:center">'+item.qty+'</span><button class="qb cip" data-i="'+i+'" style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.2)">+</button></div></div></div>';
@@ -658,25 +658,99 @@ function showCart(){
   pg().querySelectorAll('.cim').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);CART[i].qty--;if(CART[i].qty<=0)CART.splice(i,1);showCart();});});
   pg().querySelectorAll('.cip').forEach(function(b){b.addEventListener('click',function(){CART[parseInt(this.dataset.i)].qty++;showCart();});});
   document.getElementById('plb').addEventListener('click',function(){
-    showSh('<div class="hd"></div><div style="font-size:40px;text-align:center;margin-bottom:10px">&#x1F4F1;</div><div style="font-size:20px;font-weight:700;text-align:center;margin-bottom:5px">Send M-Pesa Now</div><div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.6">Shop confirms payment then rider is assigned</div><div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.18);border-radius:12px;padding:13px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;margin:6px 0"><span style="font-size:12px;color:rgba(255,255,255,.4)">Send to</span><span style="font-size:15px;font-weight:700;color:#10b981">&#x1F4F1; '+MP+'</span></div><div style="display:flex;justify-content:space-between;margin:6px 0"><span style="font-size:12px;color:rgba(255,255,255,.4)">Amount</span><span style="font-size:15px;font-weight:700;color:#10b981">KSh '+total+'</span></div><div style="display:flex;justify-content:space-between;margin:6px 0"><span style="font-size:12px;color:rgba(255,255,255,.4)">Ref</span><span style="font-size:13px;font-weight:700;color:#10b981">TUM'+USER.phone.slice(-4)+'</span></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px"><button id="cn" class="btn bo" style="margin-top:0">Cancel</button><button id="sn" class="btn bg" style="margin-top:0">Sent Payment</button></div>');
-    document.getElementById('cn').addEventListener('click',hideSh);
-    // Cash option
-    var cashBtn=document.getElementById('cash-btn');
-    if(cashBtn){cashBtn.addEventListener('click',function(){
-      showSheet('<div class="hd"></div><div style="font-size:36px;text-align:center;margin-bottom:10px">&#x1F4B5;</div><div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:6px">Paying with Cash</div><div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;line-height:1.7;margin-bottom:16px">You will pay the rider in cash when your order arrives. The rider will confirm receipt.</div><div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:8px">HOW IT WORKS:</div><div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.9">1. Rider picks up your order<br>2. Rider delivers to you<br>3. You pay rider exact cash<br>4. Rider taps "Confirm Cash Received"<br>5. Order marked complete</div></div><button id="cash-confirm" class="btn ba">Place Cash Order</button><button id="cash-cancel" class="btn bo">Cancel</button>');
-      document.getElementById('cash-cancel').addEventListener('click',hideSh);
-      document.getElementById('cash-confirm').addEventListener('click',function(){
-        var shop=CS||{};
-        dbAdd('delivery_orders',{type:'shop',customer_phone:USER.phone,customer_name:USER.name,shop_id:shop.id||CART[0].shopId,shopName:shop.name||CART[0].shopName,delivery_address:USER.name+' waiting',items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),subtotal:sub,delivery_fee:df,total:total,rider_earnings:Math.round(df*.9),platform_earnings:Math.round(df*.1),distance:CART[0].shopDist||.5,status:'placed',payment_method:'cash',rider_phone:null,rider_name:null});
-        CART=[];hideSh();toast('Cash order placed! Rider will collect payment on delivery.');showOrds();
+    // Step 1: Show delivery location form
+    showSh('<div class="hd"></div>'
+      +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4CD; Delivery Location</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Tell rider exactly where to bring your order</div>'
+      +'<div class="fld"><label>Your Address / House</label><input id="del-addr" type="text" placeholder="e.g. House No.5, Kisumu Road" autocomplete="off"></div>'
+      +'<div class="fld"><label>Nearest Landmark</label><input id="del-land" type="text" placeholder="e.g. Opposite Market, near school gate" autocomplete="off"></div>'
+      +'<button id="del-gps-btn" style="width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">&#x1F4CD; Use GPS Location</button>'
+      +'<button id="del-next" class="btn bg" style="margin-top:0">Continue to Payment &#x2192;</button>'
+      +'<button id="del-cancel" class="btn bo" style="margin-top:6px">Cancel</button>'
+    );
+    document.getElementById('del-cancel').addEventListener('click',hideSh);
+    // GPS
+    document.getElementById('del-gps-btn').addEventListener('click',function(){
+      var btn=this;btn.textContent='Detecting...';
+      if(!navigator.geolocation){toast('GPS not available');return;}
+      navigator.geolocation.getCurrentPosition(function(pos){
+        window._ordLat=pos.coords.latitude.toFixed(6);
+        window._ordLng=pos.coords.longitude.toFixed(6);
+        btn.textContent='&#x2705; GPS Captured';
+        btn.style.background='rgba(16,185,129,.2)';btn.style.color='#10b981';
+        toast('Location captured!');
+      },function(){toast('Cannot get GPS — enter address manually');btn.textContent='&#x1F4CD; Use GPS Location';},{enableHighAccuracy:true,timeout:8000});
+    });
+    // Next: show payment
+    document.getElementById('del-next').addEventListener('click',function(){
+      var addr=(document.getElementById('del-addr').value||'').trim();
+      var land=(document.getElementById('del-land').value||'').trim();
+      if(!addr&&!land&&!window._ordLat){toast('Enter your address or use GPS');return;}
+      var fullAddr=[addr,land].filter(Boolean).join(' — ');
+      window._deliveryAddr=fullAddr||'GPS Location';
+      // Step 2: Payment options
+      document.getElementById('sh').innerHTML='<div class="hd"></div>'
+        +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4B3; Pay for Goods</div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:4px">Deliver to: <strong style="color:#10b981">'+( window._deliveryAddr||'')+'</strong></div>'
+        +'<div style="font-size:11px;color:rgba(255,255,255,.3);margin-bottom:14px">'+(window._ordLat?'GPS: '+window._ordLat+','+window._ordLng:'')+'</div>'
+        +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.18);border-radius:12px;padding:13px;margin-bottom:14px">'
+        +'<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Send M-Pesa to shop:</div>'
+        +'<div style="display:flex;justify-content:space-between;margin:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Number</span><span style="font-size:15px;font-weight:700;color:#10b981">&#x1F4F1; '+MP+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;margin:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Amount (Goods)</span><span style="font-size:15px;font-weight:700;color:#10b981">KSh '+sub+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;margin:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Delivery fee</span><span style="font-size:13px;font-weight:700;color:rgba(255,255,255,.6)">KSh '+df+' (pay rider on delivery)</span></div>'
+        +'<div style="display:flex;justify-content:space-between;margin:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Ref</span><span style="font-size:13px;font-weight:700;color:#10b981">TUM'+USER.phone.slice(-4)+'</span></div>'
+        +'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px">'
+        +'<button id="cn" class="btn bo" style="margin-top:0">Cancel</button>'
+        +'<button id="sn" class="btn bg" style="margin-top:0">Sent M-Pesa</button>'
+        +'</div>'
+        +'<button id="cash-btn" class="btn ba" style="margin-top:0">&#x1F4B5; Cash on Delivery</button>';
+      document.getElementById('cn').addEventListener('click',hideSh);
+      // M-Pesa path
+      document.getElementById('sn').addEventListener('click',function(){
+        placeOrder('mpesa','');
       });
-    });}
-    document.getElementById('sn').addEventListener('click',function(){
-      var shop=CS||{};
-      dbAdd('delivery_orders',{type:'shop',customer_phone:USER.phone,customer_name:USER.name,shop_id:shop.id||CART[0].shopId,shopName:shop.name||CART[0].shopName,delivery_address:USER.name+' waiting',items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),subtotal:sub,delivery_fee:df,total:total,rider_earnings:rG,platform_earnings:df-rG,distance:CART[0].shopDist||.5,status:'placed',rider_phone:null,rider_name:null});
-      CART=[];hideSh();toast('Order placed!');showOrds();
+      // Cash path
+      document.getElementById('cash-btn').addEventListener('click',function(){
+        showSh('<div class="hd"></div>'
+          +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4B5;</div>'
+          +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:8px">Cash on Delivery</div>'
+          +'<div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;margin-bottom:14px">'
+          +'<div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">&#x2022; Goods: pay <strong style="color:#f59e0b">KSh '+sub+'</strong> to shop in cash<br>&#x2022; Delivery: pay <strong style="color:#f59e0b">KSh '+df+'</strong> to rider on arrival<br>&#x2022; Rider will confirm cash received</div>'
+          +'</div>'
+          +'<button id="confirm-cash" class="btn ba">Place Cash Order</button>'
+          +'<button id="cancel-cash" class="btn bo" style="margin-top:6px">Cancel</button>'
+        );
+        document.getElementById('cancel-cash').addEventListener('click',hideSh);
+        document.getElementById('confirm-cash').addEventListener('click',function(){placeOrder('cash','');});
+      });
     });
   });
+  function placeOrder(payMethod,mpesaCode){
+    var shop=CS||{};
+    var addr=window._deliveryAddr||USER.name+' waiting';
+    var orderData={
+      type:'shop',customer_phone:USER.phone,customer_name:USER.name,
+      shop_id:shop.id||CART[0].shopId,shopName:shop.name||CART[0].shopName,
+      delivery_address:addr,
+      items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),
+      subtotal:sub,delivery_fee:df,total:sub+df,
+      rider_earnings:df,platform_earnings:0,
+      distance:CART[0].shopDist||.5,
+      status:'placed',payment_method:payMethod,
+      rider_phone:null,rider_name:null
+    };
+    if(window._ordLat){orderData.delivery_lat=window._ordLat;orderData.delivery_lng=window._ordLng;}
+    loadFB(function(db){
+      if(!db){toast('No connection');return;}
+      db.collection('delivery_orders').add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()})).then(function(){
+        CART=[];window._ordLat=null;window._ordLng=null;window._deliveryAddr=null;
+        hideSh();
+        toast(payMethod==='cash'?'Cash order placed! Rider will collect payment.':'Order placed! Shop confirming M-Pesa.');
+        showOrds();
+      }).catch(function(){toast('Error placing order — check connection');});
+    });
+  }
 }
 function showPickup(){
   setTitle('TUMANA','#10b981');setNav('customer','pickup');
@@ -711,7 +785,7 @@ function showPickup(){
     if(!from){toast('Enter pickup location');return;}if(!to){toast('Enter drop-off destination');return;}
     var gpsData={};
     if(window._gpsLat&&window._gpsLng){gpsData={pickup_lat:window._gpsLat,pickup_lng:window._gpsLng};}
-    dbAdd('delivery_orders',Object.assign({type:'pickup',customer_phone:USER.phone,customer_name:USER.name,pickup_from:from,delivery_address:to,item_description:'Pickup: '+from+' to '+to,distance:PUDIST,delivery_fee:PUFEE,total:PUFEE,rider_earnings:Math.round(PUFEE*.9),platform_earnings:Math.round(PUFEE*.1),status:'placed',rider_phone:null,rider_name:null},gpsData));
+    dbAdd('delivery_orders',Object.assign({type:'pickup',customer_phone:USER.phone,customer_name:USER.name,pickup_from:from,delivery_address:to,item_description:'Pickup: '+from+' to '+to,distance:PUDIST,delivery_fee:PUFEE,total:PUFEE,rider_earnings:PUFEE,platform_earnings:0,status:'placed',rider_phone:null,rider_name:null},gpsData));
     toast('Rider requested! Track in Orders');showOrds();
   });
 }
@@ -782,7 +856,8 @@ function showCreateShop(){
     var cat=document.getElementById('csc').value;
     var loc=(document.getElementById('csl').value||'').trim();
     if(!name){toast('Enter shop name');return;}if(!loc){toast('Enter your location');return;}
-    dbSet('shops',USER.phone,{name:name,category:cat,location:loc,icon:'&#x1F3EA;',owner_phone:USER.phone,owner_name:USER.name,delivery_enabled:false,distance_km:.5,rating:5.0});
+    var locDesc=(document.getElementById('csld')&&document.getElementById('csld').value||'').trim();
+    dbSet('shops',USER.phone,{name:name,category:cat,location:loc,location_desc:locDesc,icon:'&#x1F3EA;',owner_phone:USER.phone,owner_name:USER.name,delivery_enabled:false,distance_km:.5,rating:5.0});
     USER.shopName=name;su();toast('Shop created!');SDON=false;renderShopDash();
   });
 }
@@ -829,10 +904,16 @@ function showSOrd(){
 function showSSales(){
   var el=document.getElementById('shc');if(!el)return;
   var view=window._sv||'sales';var isSales=view==='sales';
-  var tabH='<div style="display:flex;gap:6px;margin-bottom:12px"><button id="svs" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid '+(isSales?'#10b981':'rgba(255,255,255,.13)')+';background:'+(isSales?'rgba(16,185,129,.1)':'#1a1a22')+';color:'+(isSales?'#10b981':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">Sales</button><button id="svd" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid '+(!isSales?'#ef4444':'rgba(255,255,255,.13)')+';background:'+(!isSales?'rgba(239,68,68,.08)':'#1a1a22')+';color:'+(!isSales?'#ef4444':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">Debts</button></div>';
+  var isHistory=view==='history';
+  var tabH='<div style="display:flex;gap:5px;margin-bottom:12px">'
+    +'<button id="svs" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid '+(isSales?'#10b981':'rgba(255,255,255,.13)')+';background:'+(isSales?'rgba(16,185,129,.1)':'#1a1a22')+';color:'+(isSales?'#10b981':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:11px;cursor:pointer">Sales</button>'
+    +'<button id="svd" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid '+(!isSales&&!isHistory?'#ef4444':'rgba(255,255,255,.13)')+';background:'+(!isSales&&!isHistory?'rgba(239,68,68,.08)':'#1a1a22')+';color:'+(!isSales&&!isHistory?'#ef4444':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:11px;cursor:pointer">Debts</button>'
+    +'<button id="svh" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid '+(isHistory?'#8b5cf6':'rgba(255,255,255,.13)')+';background:'+(isHistory?'rgba(139,92,246,.1)':'#1a1a22')+';color:'+(isHistory?'#8b5cf6':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:11px;cursor:pointer">History</button>'
+    +'</div>';
   el.innerHTML=tabH+'<button id="recb" class="btn ba" style="margin-bottom:12px;margin-top:0">+ Record Sale</button><div id="svdata"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
   document.getElementById('svs').addEventListener('click',function(){window._sv='sales';showSSales();});
   document.getElementById('svd').addEventListener('click',function(){window._sv='debts';showSSales();});
+  document.getElementById('svh').addEventListener('click',function(){window._sv='history';showSSales();});
   document.getElementById('recb').addEventListener('click',showRecSale);
   loadFB(function(db){
     if(!db){document.getElementById('svdata').innerHTML=empty('&#x1F4B0;','Sales','Connect to view data');return;}
@@ -947,7 +1028,7 @@ function renderRBody(){
     var dots='<div style="display:flex;align-items:center;gap:4px;margin:8px 0 12px">';
     PROG.forEach(function(k,i){dots+='<div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;background:'+(i<ci?'#10b981':i===ci?'#8b5cf6':'#1a1a22')+';color:'+(i<=ci?'#000':'rgba(255,255,255,.2)')+'">'+(i<ci?'&#x2713;':i+1)+'</div>'+(i<PROG.length-1?'<div style="flex:1;height:2px;background:'+(i<ci?'#10b981':'rgba(255,255,255,.1)')+'"></div>':'');});
     dots+='</div>';
-    h='<div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;margin-bottom:8px;letter-spacing:1.5px">Active Delivery</div><div class="card" style="border:2px solid #10b981"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><div style="font-weight:700">#'+a.id.slice(-6).toUpperCase()+'</div><div style="font-weight:800;color:#10b981;font-size:20px">KSh '+Math.round((a.delivery_fee||70)*.9)+'</div></div>'+dots+'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">From: '+(a.shopName||a.pickup_from||'')+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">To: '+(a.customer_name||'')+' · '+(a.delivery_address||'')+'</div>'+(NST[a.status]?'<button id="advb" class="btn bg">'+NLB[a.status]+'</button>':'')+'</div>';
+    h='<div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;margin-bottom:8px;letter-spacing:1.5px">Active Delivery</div><div class="card" style="border:2px solid #10b981"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><div style="font-weight:700">#'+a.id.slice(-6).toUpperCase()+'</div><div style="font-weight:800;color:#10b981;font-size:20px">KSh '+(a.delivery_fee||70)+'</div></div>'+dots+'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">From: '+(a.shopName||a.pickup_from||'')+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">To: '+(a.customer_name||'')+' · '+(a.delivery_address||'')+'</div>'+(NST[a.status]?'<button id="advb" class="btn bg">'+NLB[a.status]+'</button>':'')+'</div>';
   }
   if(!RON){h+=empty('&#x1F634;','Offline','Toggle Online to receive deliveries');}
   else if(!RJOBS.length&&!RACT){h+=empty('&#x23F3;','No jobs yet','Jobs appear when shops confirm payment');}
@@ -982,7 +1063,7 @@ function advJob(){
 
 function showCollectPayment(order){
   var df=order.delivery_fee||70;
-  var riderEarn=Math.round(df*.9);
+  var riderEarn=df;
   var custName=order.customer_name||'Customer';
   var custPhone=order.customer_phone||'';
   showSh('<div class="hd"></div>'
@@ -1096,7 +1177,7 @@ function showAOv(){
       var onR=r[2].docs.filter(function(d){return d.data().online;}).length;
       var actS=r[3].docs.filter(function(d){return d.data().delivery_enabled;}).length;
       var ab=document.getElementById('ab');if(!ab)return;
-      ab.innerHTML='<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6">'+allO.length+'</div><div class="sl">Total Orders</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+deliv.length+'</div><div class="sl">Delivered</div></div><div class="sb2"><div class="sv" style="color:#f59e0b">'+pend+'</div><div class="sl">Pending</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+r[1].docs.length+'</div><div class="sl">Users</div></div></div><div class="g3"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">'+onR+'</div><div class="sl">Online Riders</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">'+actS+'</div><div class="sl">Active Shops</div></div><div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+r[2].docs.length+'</div><div class="sl">All Riders</div></div></div><div class="sbox"><div class="sboxt">Revenue</div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform (10%)</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Riders (90%)</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div></div>'+(USER&&USER.is_master?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">You are master admin. Add trusted sub-admins.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button></div>':'')+(USER&&(USER.is_master===true||USER.is_master==='true')?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">Add trusted sub-admins below.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button><button id="rst-req-btn" class="btn bo" style="margin-top:6px">PIN Reset Requests</button></div>':'')
+      ab.innerHTML='<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6">'+allO.length+'</div><div class="sl">Total Orders</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+deliv.length+'</div><div class="sl">Delivered</div></div><div class="sb2"><div class="sv" style="color:#f59e0b">'+pend+'</div><div class="sl">Pending</div></div><div class="sb2"><div class="sv" style="color:#10b981">'+r[1].docs.length+'</div><div class="sl">Users</div></div></div><div class="g3"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">'+onR+'</div><div class="sl">Online Riders</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">'+actS+'</div><div class="sl">Active Shops</div></div><div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+r[2].docs.length+'</div><div class="sl">All Riders</div></div></div><div class="sbox"><div class="sboxt">Revenue</div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform Revenue</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div><div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Rider Payouts</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div></div>'+(USER&&USER.is_master?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">You are master admin. Add trusted sub-admins.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button></div>':'')+(USER&&(USER.is_master===true||USER.is_master==='true')?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">Add trusted sub-admins below.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button><button id="rst-req-btn" class="btn bo" style="margin-top:6px">PIN Reset Requests</button></div>':'')
         +'<button id="aout" class="btn bo">Logout</button>';
       document.getElementById('aout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
       var mamBtn=document.getElementById('mam-btn');
@@ -1108,13 +1189,44 @@ function showAOv(){
 }
 function showAOrds(){
   setNav('admin','orders');
-  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">All Orders</div></div><div id="ab" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
-  dbAll('delivery_orders',function(orders){
+  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">All Orders</div></div>'
+    +'<div style="display:flex;gap:5px;padding:0 18px 10px;overflow-x:auto">'
+    +'<button id="ord-all" class="btn bg" style="margin-top:0;flex-shrink:0;font-size:11px;padding:6px 12px">All</button>'
+    +'<button id="ord-pend" class="btn ba" style="margin-top:0;flex-shrink:0;font-size:11px;padding:6px 12px">Pending</button>'
+    +'<button id="ord-active" class="btn bp" style="margin-top:0;flex-shrink:0;font-size:11px;padding:6px 12px">Active</button>'
+    +'<button id="ord-done" class="btn bo" style="margin-top:0;flex-shrink:0;font-size:11px;padding:6px 12px">Delivered</button>'
+    +'</div>'
+    +'<div id="ab" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  var allOrds=[];
+  function renderOrds(list){
     var ab=document.getElementById('ab');if(!ab)return;
-    orders.sort(function(a,b){return(b.ts&&b.ts.seconds||0)-(a.ts&&a.ts.seconds||0);});
-    if(!orders.length){ab.innerHTML=empty('&#x1F4CB;','No orders','');return;}
-    ab.innerHTML=orders.map(function(o){return '<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div><div style="font-weight:700">#'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(o.type==='pickup'?'Pickup':'Shop')+' · '+(o.customer_name||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="font-size:12px;color:rgba(255,255,255,.4)">KSh '+(o.total||0)+' · '+(o.rider_name||'No rider')+'</div></div>';}).join('');
+    if(!list.length){ab.innerHTML=empty('&#x1F4CB;','No orders here','');return;}
+    ab.innerHTML=list.map(function(o){
+      return '<div class="card" style="margin-bottom:10px;border-left:3px solid '+(o.status==='delivered'?'#10b981':o.status==='placed'?'#f59e0b':o.status==='rejected'?'#ef4444':'#8b5cf6')+'">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
+        +'<div><div style="font-weight:700">#'+o.id.slice(-6).toUpperCase()+'</div>'
+        +'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Shop')+' · '+(o.customer_name||'')+'</div>'
+        +(o.delivery_address?'<div style="font-size:11px;color:rgba(255,255,255,.35)">&#x1F4CD; '+(o.delivery_address||'')+(o.delivery_description?' · '+o.delivery_description:'')+'</div>':'')
+        +'</div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.4)">'
+        +'<span>KSh '+(o.total||0)+'</span>'
+        +'<span>'+(o.rider_name?'&#x1F6F5; '+o.rider_name:'No rider')+'</span>'
+        +'<span>'+(o.payment_method==='cash'?'&#x1F4B5; Cash':'&#x1F4F1; M-Pesa')+'</span>'
+        +'</div></div>';
+    }).join('');
+  }
+  dbAll('delivery_orders',function(orders){
+    allOrds=orders.sort(function(a,b){return(b.ts&&b.ts.seconds||0)-(a.ts&&a.ts.seconds||0);});
+    renderOrds(allOrds);
+    var pendCount=allOrds.filter(function(o){return o.status==='placed';}).length;
+    if(pendCount&&document.getElementById('ord-pend')){
+      document.getElementById('ord-pend').textContent='Pending ('+pendCount+')';
+    }
   });
+  document.getElementById('ord-all').addEventListener('click',function(){renderOrds(allOrds);});
+  document.getElementById('ord-pend').addEventListener('click',function(){renderOrds(allOrds.filter(function(o){return o.status==='placed';}));});
+  document.getElementById('ord-active').addEventListener('click',function(){renderOrds(allOrds.filter(function(o){return['confirmed','assigned','heading','picked','transit'].indexOf(o.status)>=0;}));});
+  document.getElementById('ord-done').addEventListener('click',function(){renderOrds(allOrds.filter(function(o){return o.status==='delivered';}));});
 }
 function showARiders(){
   setNav('admin','riders');
@@ -1129,12 +1241,14 @@ function showARiders(){
       h+='<div class="card" style="border-left:3px solid '+clr+';margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div><div style="font-weight:700">'+(r.name||r.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(r.phone||r.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(r.orders_completed||0)+' del · KSh '+(r.total_earnings||0)+'</div><div style="font-size:11px;color:'+(r.online?'#10b981':'rgba(255,255,255,.3)')+'">'+( r.online?'Online':'Offline')+'</div></div><span class="badge" style="background:rgba(0,0,0,.15);color:'+clr+'">'+badge+'</span></div><div style="display:flex;gap:6px">'
         +(r.verified!==true?'<button class="avr btn bg" data-id="'+r.id+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Verify</button>':'')
         +(r.verified!==false?'<button class="arr btn br" data-id="'+r.id+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Reject</button>':'')
-        +'<button class="adr btn br" data-id="'+r.id+'" data-name="'+(r.name||r.id)+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Delete</button></div></div>';
+        +'<button class="adr btn br" data-id="'+r.id+'" data-name="'+(r.name||r.id)+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Delete</button>'
+        +'</div><button class="view-rider btn bo" data-id="'+r.id+'" data-name="'+(r.name||r.id)+'" style="margin-top:6px;width:100%;font-size:11px;padding:7px">&#x1F4CB; View Details</button></div>';
     });
     ab.innerHTML=h;
     ab.querySelectorAll('.avr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:true}).then(function(){toast('Verified');showARiders();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.arr').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:false,online:false}).then(function(){toast('Rejected');showARiders();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.adr').forEach(function(btn){btn.addEventListener('click',function(){var nm=this.getAttribute('data-name');if(!confirm('Delete '+nm+'?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).delete().then(function(){toast('Deleted');showARiders();}).catch(function(){toast('Error');});});});});
+    ab.querySelectorAll('.view-rider').forEach(function(btn){btn.addEventListener('click',function(){showRiderDetail(this.getAttribute('data-id'),this.getAttribute('data-name'));});});
   });
 }
 function showAShops(){
@@ -1150,14 +1264,116 @@ function showAShops(){
       h+='<div class="card" style="border-left:3px solid '+clr+';margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="font-size:28px">'+(s.icon||'&#x1F3EA;')+'</div><div><div style="font-weight:700">'+(s.name||s.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(s.category||'')+' · '+(s.location||'Chemelil')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(s.owner_phone||s.id)+'</div></div></div><span class="badge" style="background:rgba(0,0,0,.15);color:'+clr+'">'+badge+'</span></div><div style="display:flex;gap:6px">'
         +(s.verified!==true?'<button class="avs btn bg" data-id="'+s.id+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Verify</button>':'')
         +(s.verified!==false?'<button class="ars btn br" data-id="'+s.id+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Reject</button>':'')
-        +'<button class="ads btn br" data-id="'+s.id+'" data-name="'+(s.name||s.id)+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Delete</button></div></div>';
+        +'<button class="ads btn br" data-id="'+s.id+'" data-name="'+(s.name||s.id)+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Delete</button>'
+        +'</div><button class="view-shop btn bo" data-id="'+s.id+'" data-name="'+(s.name||s.id)+'" style="margin-top:6px;width:100%;font-size:11px;padding:7px">&#x1F4CB; View Details</button></div>';
     });
     ab.innerHTML=h;
     ab.querySelectorAll('.avs').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('shops').doc(id).update({verified:true}).then(function(){toast('Shop verified');showAShops();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.ars').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('shops').doc(id).update({verified:false,delivery_enabled:false}).then(function(){toast('Rejected');showAShops();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.ads').forEach(function(btn){btn.addEventListener('click',function(){var nm=this.getAttribute('data-name');if(!confirm('Delete '+nm+'?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('shops').doc(id).delete().then(function(){toast('Deleted');showAShops();}).catch(function(){toast('Error');});});});});
+    ab.querySelectorAll('.view-shop').forEach(function(btn){btn.addEventListener('click',function(){showShopDetail(this.getAttribute('data-id'),this.getAttribute('data-name'));});});
   });
 }
+function showShopDetail(shopId, shopName){
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">'+shopName+'</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Shop Details</div>'
+    +'<div id="sd-body"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>'
+    +'<button id="sd-close" class="btn bo" style="margin-top:12px">Close</button>'
+  );
+  document.getElementById('sd-close').addEventListener('click',hideSh);
+  loadFB(function(db){
+    if(!db){document.getElementById('sd-body').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center">Connect to load</div>';return;}
+    Promise.all([
+      db.collection('shops').doc(shopId).get(),
+      db.collection('delivery_orders').where('shop_id','==',shopId).limit(20).get(),
+      db.collection('shops').doc(shopId).collection('sales').limit(5).get()
+    ]).then(function(results){
+      var shop=results[0].exists?results[0].data():{};
+      var orders=results[1].docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      var sales=results[2].docs.map(function(d){return d.data();});
+      var pending=orders.filter(function(o){return o.status!=='delivered'&&o.status!=='rejected';});
+      var delivered=orders.filter(function(o){return o.status==='delivered';});
+      var todayS=sales.filter(function(s){return new Date(s.created_at||0).toDateString()===new Date().toDateString();});
+      var todayRev=todayS.reduce(function(s,x){return s+(x.total||0);},0);
+      var clr=shop.verified===true?'#10b981':shop.verified===false?'#ef4444':'#f59e0b';
+      var status=shop.verified===true?'Verified':shop.verified===false?'Rejected':'Pending';
+      var sdb=document.getElementById('sd-body');if(!sdb)return;
+      sdb.innerHTML=
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
+        +'<div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">'+pending.length+'</div><div class="sl">Pending</div></div>'
+        +'<div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+delivered.length+'</div><div class="sl">Delivered</div></div>'
+        +'<div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">KSh '+todayRev+'</div><div class="sl">Today</div></div>'
+        +'</div>'
+        +'<div class="sbox"><div class="sboxt">Shop Info</div>'
+        +'<div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.9">'
+        +'&#x1F4DE; <strong style="color:#fff">'+( shop.owner_phone||shopId)+'</strong><br>'
+        +'&#x1F3EA; '+( shop.category||'General')+' · '+(shop.location||'Chemelil')+'<br>'
+        +(shop.location_desc?'&#x1F4CD; '+shop.location_desc+'<br>':'')
+        +'&#x2705; Status: <strong style="color:'+clr+'">'+status+'</strong><br>'
+        +'&#x1F4E6; Delivery: <strong style="color:'+(shop.delivery_enabled?'#10b981':'#ef4444')+'">'+(shop.delivery_enabled?'ON':'OFF')+'</strong><br>'
+        +'&#x2B50; Rating: <strong style="color:#fbbf24">'+(shop.rating||5.0)+'</strong>'
+        +'</div></div>'
+        +(pending.length?'<div class="sbox"><div class="sboxt">Pending Orders</div>'
+        +pending.map(function(o){return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div style="font-size:12px;font-weight:700">#'+o.id.slice(-6).toUpperCase()+'</div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div>';}).join('')
+        +'</div>':'')
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">'
+        +'<button id="whatsapp-shop" class="btn bg" style="margin-top:0;font-size:12px">&#x1F4F1; WhatsApp</button>'
+        +'<a href="tel:'+(shop.owner_phone||shopId)+'" style="display:block;padding:13px;border-radius:10px;border:1.5px solid rgba(16,185,129,.3);color:#10b981;text-align:center;font-weight:700;font-size:12px;text-decoration:none">&#x1F4DE; Call</a>'
+        +'</div>';
+      var wBtn=document.getElementById('whatsapp-shop');
+      if(wBtn){wBtn.addEventListener('click',function(){window.open('https://wa.me/254'+(shop.owner_phone||shopId).slice(1),'_blank');});}
+    }).catch(function(){document.getElementById('sd-body').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:20px">Error loading</div>';});
+  });
+}
+
+function showRiderDetail(riderId, riderName){
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">'+riderName+'</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Rider Details</div>'
+    +'<div id="rd-body"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>'
+    +'<button id="rd-close" class="btn bo" style="margin-top:12px">Close</button>'
+  );
+  document.getElementById('rd-close').addEventListener('click',hideSh);
+  loadFB(function(db){
+    if(!db){document.getElementById('rd-body').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center">Connect to load</div>';return;}
+    Promise.all([
+      db.collection('riders').doc(riderId).get(),
+      db.collection('delivery_orders').where('rider_phone','==',riderId).limit(20).get()
+    ]).then(function(results){
+      var rider=results[0].exists?results[0].data():{};
+      var orders=results[1].docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      var delivered=orders.filter(function(o){return o.status==='delivered';});
+      var active=orders.filter(function(o){return ['assigned','heading','picked','transit'].indexOf(o.status)>=0;});
+      var clr=rider.verified===true?'#10b981':rider.verified===false?'#ef4444':'#f59e0b';
+      var rdb=document.getElementById('rd-body');if(!rdb)return;
+      rdb.innerHTML=
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
+        +'<div class="sb2"><div class="sv" style="color:#10b981;font-size:18px">'+(rider.orders_completed||0)+'</div><div class="sl">Deliveries</div></div>'
+        +'<div class="sb2"><div class="sv" style="color:#f59e0b;font-size:18px">KSh '+(rider.total_earnings||0)+'</div><div class="sl">Earned</div></div>'
+        +'<div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:18px">'+(rider.rating||5.0)+'&#x2B50;</div><div class="sl">Rating</div></div>'
+        +'</div>'
+        +'<div class="sbox"><div class="sboxt">Rider Info</div>'
+        +'<div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.9">'
+        +'&#x1F4DE; <strong style="color:#fff">'+( rider.phone||riderId)+'</strong><br>'
+        +'&#x1F7E2; Status: <strong style="color:'+(rider.online?'#10b981':'rgba(255,255,255,.4)')+'">'+(rider.online?'Online':'Offline')+'</strong><br>'
+        +'&#x2705; Verification: <strong style="color:'+clr+'">'+(rider.verified===true?'Verified':rider.verified===false?'Rejected':'Pending')+'</strong><br>'
+        +'&#x1F4B0; Pending payout: <strong style="color:#fbbf24">KSh '+(rider.pending_payout||0)+'</strong>'
+        +'</div></div>'
+        +(active.length?'<div class="sbox"><div class="sboxt">Active Delivery</div>'
+        +active.map(function(o){return '<div style="font-size:12px;display:flex;justify-content:space-between;padding:6px 0"><div style="font-weight:700">#'+o.id.slice(-6).toUpperCase()+' - '+(o.shopName||'Shop')+'</div><span class="badge '+(SCLS[o.status]||'bas')+'">'+(SLBL[o.status]||o.status)+'</span></div>';}).join('')
+        +'</div>':'')
+        +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:8px 0 4px">Recent Deliveries: '+delivered.length+'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">'
+        +'<button id="whatsapp-rider" class="btn bg" style="margin-top:0;font-size:12px">&#x1F4F1; WhatsApp</button>'
+        +'<a href="tel:'+(rider.phone||riderId)+'" style="display:block;padding:13px;border-radius:10px;border:1.5px solid rgba(16,185,129,.3);color:#10b981;text-align:center;font-weight:700;font-size:12px;text-decoration:none">&#x1F4DE; Call</a>'
+        +'</div>';
+      var wBtn=document.getElementById('whatsapp-rider');
+      if(wBtn){wBtn.addEventListener('click',function(){window.open('https://wa.me/254'+(rider.phone||riderId).slice(1),'_blank');});}
+    }).catch(function(){document.getElementById('rd-body').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:20px">Error loading</div>';});
+  });
+}
+
 function showARev(){
   setNav('admin','revenue');
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:12px">Revenue</div></div><div id="ab" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
@@ -1270,109 +1486,32 @@ function loadAdmList(){
 }
 
 window.history.pushState(null,'',window.location.href);
-window.addEventListener('popstate',function(){function showPinResets(){
-  showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:4px">PIN Reset Requests</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Approve to allow user to set new PIN</div><div id="rst-list"><div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div></div><button id="cls-rst" class="btn bo" style="margin-top:12px">Close</button>');
-  document.getElementById('cls-rst').addEventListener('click',hideSh);
-  loadFB(function(db){
-    if(!db){document.getElementById('rst-list').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:12px">Connect to load</div>';return;}
-    db.collection('pin_resets').where('status','==','pending').get().then(function(s){
-      var rl=document.getElementById('rst-list');if(!rl)return;
-      if(!s.docs.length){rl.innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:20px">No pending reset requests</div>';return;}
-      var h='';
-      s.docs.forEach(function(doc){
-        var d=doc.data();
-        h+='<div class="card" style="margin-bottom:8px;padding:10px 12px"><div style="font-weight:700;margin-bottom:2px">'+(d.name||d.phone)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px">'+d.phone+' · '+d.role+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button class="btn br apr-rst" data-phone="'+d.phone+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:8px">Decline</button><button class="btn bg apr-rst-ok" data-phone="'+d.phone+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:8px">Approve Reset</button></div></div>';
-      });
-      rl.innerHTML=h;
-      rl.querySelectorAll('.apr-rst-ok').forEach(function(btn){
-        btn.addEventListener('click',function(){
-          var ph=this.getAttribute('data-phone');var nm=this.getAttribute('data-name');
-          if(!confirm('Approve PIN reset for '+nm+'?'))return;
-          callFn('approvePinReset',{target_phone:ph,admin_phone:USER.phone},function(r){
-            if(r&&r.ok){toast('Reset approved — user notified');showPinResets();}
-            else{toast('Error: '+(r&&r.error)||'Try again');}
-          });
-        });
-      });
-      rl.querySelectorAll('.apr-rst').forEach(function(btn){
-        btn.addEventListener('click',function(){
-          var ph=this.getAttribute('data-phone');
-          loadFB(function(db){db.collection('pin_resets').doc(ph).update({status:'declined'}).then(function(){toast('Declined');showPinResets();}).catch(function(){});});
-        });
-      });
-    }).catch(function(){document.getElementById('rst-list').innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:12px">Error loading</div>';});
-  });
+window.addEventListener('popstate',function(){
+  window.history.pushState(null,'',window.location.href);
+  if(USER){
+    if(USER.role==='customer')showHome();
+    else if(USER.role==='rider')showJobs();
+    else if(USER.role==='shop')renderShopDash();
+    else if(USER.role==='admin')showAOv();
+  } else {showRole();}
+});
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});
 }
 
-function showAdminUsers(){
-  if(!USER||!USER.is_master){toast('Master admin only');return;}
-  showSh('<div class="hd"></div>'
-    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">Admin Users</div>'
-    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Only you can add or remove admins</div>'
-    +'<div class="fld"><label>Phone Number to Add</label><input id="adm-ph" type="tel" placeholder="07XX XXX XXX" autocomplete="off"></div>'
-    +'<div class="fld"><label>Name (optional)</label><input id="adm-nm" type="text" placeholder="e.g. John Supervisor" autocomplete="off"></div>'
-    +'<button id="add-adm" class="btn bp">Add Admin</button>'
-    +'<div style="margin-top:16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.45);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Current Admins</div>'
-    +'<div id="adm-list"><div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div></div>'
-    +'<button id="close-adm" class="btn bo" style="margin-top:12px">Close</button>'
-  );
-  document.getElementById('close-adm').addEventListener('click',hideSh);
-  document.getElementById('add-adm').addEventListener('click',function(){
-    var phone=(document.getElementById('adm-ph').value||'').trim().replace(/\s/g,'');
-    var name=(document.getElementById('adm-nm').value||'').trim();
-    if(!phone||phone.length<9){toast('Enter valid phone number');return;}
-    var norm=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
-    if(norm===SADMIN){toast('That is the master admin number');return;}
-    loadFB(function(db){
-      if(!db){toast('No connection');return;}
-      db.collection('admins').doc(norm).set({phone:norm,name:name||norm,approved:true,added_by:USER.phone,added_at:Date.now()}).then(function(){
-        toast('Admin added: '+( name||norm));
-        document.getElementById('adm-ph').value='';
-        document.getElementById('adm-nm').value='';
-        loadAdmList();
-      }).catch(function(){toast('Error adding');});
-    });
-  });
-  loadAdmList();
-}
-function loadAdmList(){
-  var list=document.getElementById('adm-list');if(!list)return;
-  loadFB(function(db){
-    if(!db){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px">Connect to load</div>';return;}
-    db.collection('admins').get().then(function(s){
-      if(!s.docs.length){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px;text-align:center;padding:12px">No extra admins added yet</div>';return;}
-      var h='';
-      s.docs.forEach(function(doc){
-        var d=doc.data();
-        h+='<div class="card" style="margin-bottom:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">'
-          +'<div><div style="font-weight:700;font-size:14px">'+(d.name||d.phone)+'</div>'
-          +'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+d.phone+'</div></div>'
-          +'<button class="rem-adm btn br" data-id="'+doc.id+'" data-name="'+(d.name||d.phone)+'" style="margin-top:0;font-size:11px;padding:5px 12px;width:auto">Remove</button>'
-          +'</div>';
-      });
-      list.innerHTML=h;
-      list.querySelectorAll('.rem-adm').forEach(function(btn){
-        btn.addEventListener('click',function(){
-          var id=this.getAttribute('data-id');var nm=this.getAttribute('data-name');
-          if(!confirm('Remove admin access for '+nm+'?'))return;
-          loadFB(function(db){
-            if(!db){toast('No connection');return;}
-            db.collection('admins').doc(id).delete().then(function(){toast('Removed: '+nm);loadAdmList();}).catch(function(){toast('Error');});
-          });
-        });
-      });
-    }).catch(function(){list.innerHTML='<div style="color:rgba(255,255,255,.4);font-size:13px">Error loading</div>';});
-  });
-}
-
-window.history.pushState(null,'',window.location.href);if(USER){if(USER.role==='customer')showHome();else if(USER.role==='rider')showJobs();else if(USER.role==='shop')renderShopDash();else if(USER.role==='admin')showAOv();}else{showRole();}});
-if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});}
 function boot(){
-  try{var s=localStorage.getItem('tu');if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}}catch(e){try{localStorage.removeItem('tu');}catch(ex){}}
+  try{
+    var s=localStorage.getItem('tu');
+    if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
+  }catch(e){try{localStorage.removeItem('tu');}catch(ex){}}
   applyTheme();
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='flex';
-  if(USER)startApp();else showRole();
+  if(window.location.search.indexOf('admin')>=0||window.location.hash==='#admin'){
+    AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};AM='login';renderAuth();
+  } else if(USER){startApp();}
+  else{showRole();}
 }
 boot();
 </script>
