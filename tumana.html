@@ -185,7 +185,7 @@ body.light .cat-f{border-color:#b7f0d8!important;color:rgba(13,40,24,.5)!importa
   <div style="font-size:52px">&#x1F6B4;</div>
   <div style="font-size:28px;font-weight:800;color:#10b981">TUMANA</div>
   <div style="font-size:13px;color:rgba(255,255,255,.4)">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v8 Jun 2026</div>
+  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v9 Jun 2026</div>
   <div class="spin" style="margin-top:8px"></div>
 </div>
 <div id="app" style="display:none">
@@ -903,57 +903,270 @@ function showSOrd(){
 }
 function showSSales(){
   var el=document.getElementById('shc');if(!el)return;
-  var view=window._sv||'sales';var isSales=view==='sales';
-  var isHistory=view==='history';
+  var view=window._sv||'sales';
+  var isSales=view==='sales', isDebt=view==='debts', isHistory=view==='history';
+
+  // ── Tab bar ─────────────────────────────────────────────
   var tabH='<div style="display:flex;gap:5px;margin-bottom:12px">'
-    +'<button id="svs" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid '+(isSales?'#10b981':'rgba(255,255,255,.13)')+';background:'+(isSales?'rgba(16,185,129,.1)':'#1a1a22')+';color:'+(isSales?'#10b981':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:11px;cursor:pointer">Sales</button>'
-    +'<button id="svd" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid '+(!isSales&&!isHistory?'#ef4444':'rgba(255,255,255,.13)')+';background:'+(!isSales&&!isHistory?'rgba(239,68,68,.08)':'#1a1a22')+';color:'+(!isSales&&!isHistory?'#ef4444':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:11px;cursor:pointer">Debts</button>'
-    +'<button id="svh" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid '+(isHistory?'#8b5cf6':'rgba(255,255,255,.13)')+';background:'+(isHistory?'rgba(139,92,246,.1)':'#1a1a22')+';color:'+(isHistory?'#8b5cf6':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:11px;cursor:pointer">History</button>'
+    +'<button id="svs" style="flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid '+(isSales?'#10b981':'rgba(255,255,255,.13)')+';background:'+(isSales?'rgba(16,185,129,.1)':'transparent')+';color:'+(isSales?'#10b981':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">&#x1F4B0; Sales</button>'
+    +'<button id="svd" style="flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid '+(isDebt?'#ef4444':'rgba(255,255,255,.13)')+';background:'+(isDebt?'rgba(239,68,68,.08)':'transparent')+';color:'+(isDebt?'#ef4444':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">&#x26A0; Debts</button>'
+    +'<button id="svh" style="flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid '+(isHistory?'#8b5cf6':'rgba(255,255,255,.13)')+';background:'+(isHistory?'rgba(139,92,246,.1)':'transparent')+';color:'+(isHistory?'#8b5cf6':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">&#x1F4C5; History</button>'
     +'</div>';
-  el.innerHTML=tabH+'<button id="recb" class="btn ba" style="margin-bottom:12px;margin-top:0">+ Record Sale</button><div id="svdata"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
+
+  el.innerHTML=tabH
+    +'<button id="recb" class="btn ba" style="margin-bottom:12px;margin-top:0">+ Record Sale</button>'
+    +'<div id="svdata"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
+
+  // Attach tab listeners immediately after render
   document.getElementById('svs').addEventListener('click',function(){window._sv='sales';showSSales();});
   document.getElementById('svd').addEventListener('click',function(){window._sv='debts';showSSales();});
   document.getElementById('svh').addEventListener('click',function(){window._sv='history';showSSales();});
   document.getElementById('recb').addEventListener('click',showRecSale);
+
+  // ── Load data ────────────────────────────────────────────
   loadFB(function(db){
-    if(!db){document.getElementById('svdata').innerHTML=empty('&#x1F4B0;','Sales','Connect to view data');return;}
-    db.collection('shops').doc(USER.phone).collection('sales').limit(50).get().then(function(s){
+    if(!db){document.getElementById('svdata').innerHTML=empty('&#x1F4B0;','No connection','Connect to load sales data');return;}
+    db.collection('shops').doc(USER.phone).collection('sales').limit(200).get().then(function(s){
       var allS=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}).sort(function(a,b){return(b.created_at||0)-(a.created_at||0);});
       var svd=document.getElementById('svdata');if(!svd)return;
-      if(!isSales){
-        var debts=allS.filter(function(x){return x.is_debt&&!x.debt_paid;});
-        var dT=debts.reduce(function(s,d){return s+(d.total||0);},0);
-        var dH='';
-        if(!debts.length){dH=empty('&#x2705;','No outstanding debts','');}
-        else{debts.forEach(function(d){dH+='<div class="card" style="border-left:3px solid #ef4444;margin-bottom:8px;display:flex;justify-content:space-between;align-items:start"><div><div style="font-weight:700">'+(d.customer_name||'Customer')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(d.product_name||'')+'</div></div><div style="text-align:right"><div style="font-weight:800;color:#ef4444">KSh '+(d.total||0)+'</div><button class="pb btn bg" data-id="'+d.id+'" style="font-size:11px;padding:5px 10px;margin-top:4px;width:auto">Paid</button></div></div>';});}
-        svd.innerHTML='<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between"><div style="font-size:11px;font-weight:700;color:#ef4444">TOTAL OWED</div><div style="font-size:20px;font-weight:800;color:#ef4444">KSh '+dT.toLocaleString()+'</div></div>'+dH;
-        svd.querySelectorAll('.pb').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Mark as paid?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db){toast('No connection');return;}db.collection('shops').doc(USER.phone).collection('sales').doc(id).update({debt_paid:true}).then(function(){toast('Marked as paid!');showSSales();}).catch(function(){toast('Error');});});});});
-      }else{
+
+      // ── SALES TAB ────────────────────────────────────────
+      if(isSales){
+        var paid=allS.filter(function(x){return !x.is_debt;});
         var today=new Date().toDateString();
-        var todayT=allS.filter(function(x){return new Date(x.created_at||0).toDateString()===today&&!x.is_debt;}).reduce(function(s,x){return s+(x.total||0);},0);
-        var allT=allS.reduce(function(s,x){return s+(x.is_debt?0:(x.total||0));},0);
-        var lH='';if(!allS.length){lH=empty('&#x1F4B0;','No sales yet','Record your first sale above');}
-        allS.slice(0,30).forEach(function(x){lH+='<div class="card" style="border-left:3px solid '+(x.is_debt?'#ef4444':'#10b981')+';margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700">'+(x.customer_name||'Walk-in')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(x.product_name||'Sale')+'</div></div><div style="text-align:right"><div style="font-weight:800;color:'+(x.is_debt?'#ef4444':'#10b981')+'">KSh '+(x.total||0)+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">'+(x.is_debt?'Debt':'Paid')+'</div></div></div>';});
-        svd.innerHTML='<div class="g2"><div class="sb2"><div class="sv" style="color:#f59e0b">KSh '+todayT.toLocaleString()+'</div><div class="sl">Today</div></div><div class="sb2"><div class="sv" style="color:#10b981">KSh '+allT.toLocaleString()+'</div><div class="sl">All Time</div></div></div>'+lH;
+        var todayT=paid.filter(function(x){return new Date(x.created_at||0).toDateString()===today;}).reduce(function(s,x){return s+(x.total||0);},0);
+        var todayCost=paid.filter(function(x){return new Date(x.created_at||0).toDateString()===today;}).reduce(function(s,x){return s+(x.cost||0);},0);
+        var allT=paid.reduce(function(s,x){return s+(x.total||0);},0);
+        var allCost=paid.reduce(function(s,x){return s+(x.cost||0);},0);
+        var todayProfit=todayT-todayCost;
+        var allProfit=allT-allCost;
+        var statsH='<div class="g3" style="margin-bottom:10px">'
+          +'<div class="sb2"><div class="sv" style="color:#f59e0b;font-size:17px">KSh '+todayT.toLocaleString()+'</div><div class="sl">Today Sales</div></div>'
+          +'<div class="sb2"><div class="sv" style="color:#10b981;font-size:17px">KSh '+todayProfit.toLocaleString()+'</div><div class="sl">Today Profit</div></div>'
+          +'<div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:17px">KSh '+allT.toLocaleString()+'</div><div class="sl">All Time</div></div>'
+          +'</div>';
+        var lH='';
+        if(!paid.length){lH=empty('&#x1F4B0;','No sales yet','Use + Record Sale to start');}
+        paid.slice(0,50).forEach(function(x){
+          var profit=(x.total||0)-(x.cost||0);
+          lH+='<div class="card" style="border-left:3px solid #10b981;margin-bottom:8px">'
+            +'<div style="display:flex;justify-content:space-between;align-items:start">'
+            +'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+(x.product_name||'Sale')+'</div>'
+            +'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+(x.customer_name||'Walk-in')+'</div>'
+            +'<div style="font-size:10px;color:rgba(255,255,255,.3)">'+new Date(x.created_at||0).toLocaleDateString('en-KE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</div></div>'
+            +'<div style="text-align:right;flex-shrink:0;margin-left:10px">'
+            +'<div style="font-weight:800;color:#10b981">KSh '+(x.total||0)+'</div>'
+            +(profit>0?'<div style="font-size:10px;color:#4ade80">+KSh '+profit+' profit</div>':'')
+            +'<div style="font-size:10px;color:rgba(255,255,255,.4)">'+(x.payment_type||'cash')+'</div>'
+            +'</div></div></div>';
+        });
+        svd.innerHTML=statsH+lH;
       }
-    }).catch(function(){document.getElementById('svdata').innerHTML=empty('&#x1F4B0;','Error','Could not load sales');});
+
+      // ── DEBTS TAB ────────────────────────────────────────
+      else if(isDebt){
+        var debts=allS.filter(function(x){return x.is_debt&&!x.debt_paid;});
+        var dPaid=allS.filter(function(x){return x.is_debt&&x.debt_paid;});
+        var dTotal=debts.reduce(function(s,d){return s+(d.total||0);},0);
+        var dH='';
+        if(!debts.length){dH='<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:20px;text-align:center;margin-bottom:12px"><div style="font-size:32px;margin-bottom:6px">&#x2705;</div><div style="font-weight:700">No outstanding debts</div></div>';}
+        else{
+          debts.forEach(function(d){
+            dH+='<div class="card" style="border-left:3px solid #ef4444;margin-bottom:9px">'
+              +'<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">'
+              +'<div><div style="font-weight:700;font-size:14px">'+(d.customer_name||'Customer')+'</div>'
+              +'<div style="font-size:12px;color:rgba(255,255,255,.4)">'+(d.product_name||'')+'</div>'
+              +(d.customer_phone?'<div style="font-size:11px;color:rgba(255,255,255,.35)">&#x1F4DE; '+d.customer_phone+'</div>':'')
+              +'<div style="font-size:10px;color:rgba(255,255,255,.3)">'+new Date(d.created_at||0).toLocaleDateString('en-KE',{day:'numeric',month:'short'})+'</div></div>'
+              +'<div style="text-align:right"><div style="font-size:18px;font-weight:800;color:#ef4444">KSh '+(d.total||0)+'</div>'
+              +(d.customer_phone?'<a href="https://wa.me/254'+d.customer_phone.slice(1)+'" target="_blank" style="display:block;font-size:10px;color:#25D366;margin-top:3px;text-decoration:none">&#x1F4F1; WhatsApp</a>':'')
+              +'<button class="pd-btn btn bg" data-id="'+d.id+'" style="font-size:11px;padding:5px 10px;margin-top:5px;width:auto">Mark Paid</button>'
+              +'</div></div></div>';
+          });
+        }
+        // Show recently paid debts
+        if(dPaid.length){
+          dH+='<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px">Recently Paid</div>';
+          dPaid.slice(0,5).forEach(function(d){
+            dH+='<div class="card" style="border-left:3px solid #10b981;margin-bottom:8px;opacity:.7;display:flex;justify-content:space-between;align-items:center">'
+              +'<div><div style="font-weight:700;font-size:13px">'+(d.customer_name||'Customer')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(d.product_name||'')+'</div></div>'
+              +'<div style="text-align:right"><div style="font-weight:700;color:#10b981">KSh '+(d.total||0)+'</div><div style="font-size:10px;color:rgba(255,255,255,.3)">Paid &#x2705;</div></div></div>';
+          });
+        }
+        svd.innerHTML='<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:11px;font-weight:700;color:#ef4444">TOTAL OWED TO YOU</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">'+debts.length+' customers</div></div><div style="font-size:22px;font-weight:800;color:#ef4444">KSh '+dTotal.toLocaleString()+'</div></div>'+dH;
+        svd.querySelectorAll('.pd-btn').forEach(function(btn){
+          btn.addEventListener('click',function(){
+            if(!confirm('Mark as paid?'))return;
+            var id=this.getAttribute('data-id');
+            loadFB(function(db){if(!db){toast('No connection');return;}
+              db.collection('shops').doc(USER.phone).collection('sales').doc(id).update({debt_paid:true,paid_at:Date.now()}).then(function(){toast('Marked as paid!');window._sv='debts';showSSales();}).catch(function(){toast('Error');});
+            });
+          });
+        });
+      }
+
+      // ── HISTORY TAB (CHAWKPRO-style) ─────────────────────
+      else if(isHistory){
+        var paid2=allS.filter(function(x){return !x.is_debt;});
+        var allCost2=paid2.reduce(function(s,x){return s+(x.cost||0);},0);
+        var allRev=paid2.reduce(function(s,x){return s+(x.total||0);},0);
+        var allProfit2=allRev-allCost2;
+        // This week
+        var weekAgo=Date.now()-7*24*3600*1000;
+        var weekS=paid2.filter(function(x){return(x.created_at||0)>weekAgo;});
+        var weekRev=weekS.reduce(function(s,x){return s+(x.total||0);},0);
+        var weekCost=weekS.reduce(function(s,x){return s+(x.cost||0);},0);
+        var weekProfit=weekRev-weekCost;
+        // This month
+        var now=new Date(); var monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
+        var monthS=paid2.filter(function(x){return(x.created_at||0)>monthStart;});
+        var monthRev=monthS.reduce(function(s,x){return s+(x.total||0);},0);
+        var monthProfit=monthRev-monthS.reduce(function(s,x){return s+(x.cost||0);},0);
+
+        // Summary cards
+        var summH='<div style="margin-bottom:14px">'
+          +'<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Summary</div>'
+          +'<div class="g2"><div class="sb2"><div class="sv" style="color:#10b981;font-size:16px">KSh '+weekRev.toLocaleString()+'</div><div class="sl">This Week Sales</div></div><div class="sb2"><div class="sv" style="color:#4ade80;font-size:16px">KSh '+weekProfit.toLocaleString()+'</div><div class="sl">This Week Profit</div></div></div>'
+          +'<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:16px">KSh '+monthRev.toLocaleString()+'</div><div class="sl">This Month Sales</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:16px">KSh '+monthProfit.toLocaleString()+'</div><div class="sl">Month Profit</div></div></div>'
+          +'<div class="sb2" style="text-align:center;margin-bottom:0"><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:4px">All Time</div><div style="display:flex;justify-content:space-around"><div><div style="font-size:18px;font-weight:800;color:#10b981">KSh '+allRev.toLocaleString()+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Revenue</div></div><div><div style="font-size:18px;font-weight:800;color:#4ade80">KSh '+allProfit2.toLocaleString()+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Profit</div></div><div><div style="font-size:18px;font-weight:800;color:#fbbf24">'+paid2.length+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Sales</div></div></div></div>'
+          +'</div>';
+
+        // Daily breakdown
+        var days={};
+        paid2.forEach(function(x){
+          var d=new Date(x.created_at||0);
+          var key=d.toLocaleDateString('en-KE',{weekday:'short',day:'numeric',month:'short',year:'2-digit'});
+          if(!days[key])days[key]={rev:0,cost:0,count:0,items:[]};
+          days[key].rev+=(x.total||0);
+          days[key].cost+=(x.cost||0);
+          days[key].count++;
+          days[key].items.push((x.product_name||'Item')+' KSh '+(x.total||0));
+        });
+
+        var dayKeys=Object.keys(days);
+        var dayH='<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Daily Breakdown</div>';
+        if(!dayKeys.length){dayH+=empty('&#x1F4C5;','No records yet','Start recording sales');}
+        dayKeys.forEach(function(day){
+          var d=days[day];
+          var profit=d.rev-d.cost;
+          dayH+='<div class="card" style="margin-bottom:9px">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+            +'<div style="font-weight:700;font-size:14px">'+day+'</div>'
+            +'<div style="text-align:right"><div style="font-weight:800;color:#10b981">KSh '+d.rev.toLocaleString()+'</div>'
+            +(profit>0?'<div style="font-size:11px;color:#4ade80">+KSh '+profit+' profit</div>':'')+'</div></div>'
+            +'<div style="display:flex;gap:12px;font-size:11px;color:rgba(255,255,255,.4)">'
+            +'<span>'+d.count+' sales</span>'
+            +(d.cost>0?'<span>Cost: KSh '+d.cost+'</span>':'')
+            +'</div>'
+            +(d.items.length?'<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,.3)">'+d.items.slice(0,3).join(', ')+(d.items.length>3?' +'+( d.items.length-3)+' more':'')+'</div>':'')
+            +'</div>';
+        });
+
+        // Product performance
+        var prods={};
+        paid2.forEach(function(x){
+          var n=x.product_name||'Unknown';
+          if(!prods[n])prods[n]={rev:0,count:0,profit:0};
+          prods[n].rev+=(x.total||0);
+          prods[n].count++;
+          prods[n].profit+=(x.total||0)-(x.cost||0);
+        });
+        var prodKeys=Object.keys(prods).sort(function(a,b){return prods[b].rev-prods[a].rev;});
+        var prodH='<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin:14px 0 8px">Top Products</div>';
+        prodKeys.slice(0,8).forEach(function(name){
+          var p=prods[name];
+          prodH+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">'
+            +'<div><div style="font-weight:700;font-size:13px">'+name+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+p.count+' sold</div></div>'
+            +'<div style="text-align:right"><div style="font-weight:800;color:#10b981">KSh '+p.rev.toLocaleString()+'</div>'
+            +(p.profit>0?'<div style="font-size:10px;color:#4ade80">+KSh '+p.profit+' profit</div>':'')+'</div></div>';
+        });
+
+        // WhatsApp summary share
+        var waText='*TUMANA Daily Summary - '+new Date().toLocaleDateString('en-KE')+'*\n\n'
+          +'Today Sales: KSh '+paid2.filter(function(x){return new Date(x.created_at||0).toDateString()===new Date().toDateString();}).reduce(function(s,x){return s+(x.total||0);},0).toLocaleString()+'\n'
+          +'This Week: KSh '+weekRev.toLocaleString()+' (Profit: KSh '+weekProfit.toLocaleString()+')\n'
+          +'This Month: KSh '+monthRev.toLocaleString()+' (Profit: KSh '+monthProfit.toLocaleString()+')';
+        var shareH='<a href="https://wa.me/?text='+encodeURIComponent(waText)+'" target="_blank" style="display:block;margin-top:14px;padding:13px;background:rgba(37,211,102,.1);border:1.5px solid rgba(37,211,102,.3);border-radius:10px;color:#25D366;text-align:center;font-weight:800;font-size:14px;text-decoration:none">&#x1F4F1; Share Summary on WhatsApp</a>';
+
+        svd.innerHTML=summH+dayH+prodH+shareH;
+      }
+
+    }).catch(function(){
+      var svd=document.getElementById('svdata');
+      if(svd)svd.innerHTML=empty('&#x26A0;','Error loading','Check your connection and try again');
+    });
   });
 }
 function showRecSale(){
-  showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:16px">Record Sale</div><div class="fld"><label>Customer Name</label><input id="rcc" type="text" placeholder="e.g. Mama Jane (optional)" autocomplete="off"></div><div class="fld"><label>Item Sold</label><input id="rcp" type="text" placeholder="e.g. Maziwa 500ml x2" autocomplete="off"></div><div class="fld"><label>Amount (KSh)</label><input id="rca" type="number" placeholder="120"></div><div class="fld"><label>Customer Phone (for debt)</label><input id="rcph" type="tel" placeholder="07XX (optional)"></div><div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:8px">PAYMENT</div><div style="display:flex;gap:8px"><button id="ptc" class="btn bg" style="margin-top:0;font-size:12px;padding:10px">Cash</button><button id="ptm" class="btn bo" style="margin-top:0;font-size:12px;padding:10px">M-Pesa</button><button id="ptd" class="btn bo" style="margin-top:0;font-size:12px;padding:10px;border-color:#ef4444;color:#ef4444">Debt</button></div></div><button id="ssb" class="btn ba">Save Sale</button><button id="csb" class="btn bo">Cancel</button>');
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:16px">&#x1F4B0; Record Sale</div>'
+    +'<div class="fld"><label>Customer Name</label><input id="rcc" type="text" placeholder="e.g. Mama Jane (optional)" autocomplete="off"></div>'
+    +'<div class="fld"><label>Product / Item Sold</label><input id="rcp" type="text" placeholder="e.g. Maziwa 500ml" autocomplete="off"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+    +'<div class="fld" style="margin-bottom:0"><label>Selling Price (KSh)</label><input id="rca" type="number" placeholder="e.g. 60"></div>'
+    +'<div class="fld" style="margin-bottom:0"><label>Cost Price (KSh)</label><input id="rcc2" type="number" placeholder="e.g. 45"></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+    +'<div class="fld" style="margin-bottom:0"><label>Quantity</label><input id="rcq" type="number" placeholder="1" value="1"></div>'
+    +'<div class="fld" style="margin-bottom:0"><label>Customer Phone</label><input id="rcph" type="tel" placeholder="07XX (debt only)"></div>'
+    +'</div>'
+    +'<div style="background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.2);border-radius:10px;padding:10px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">'
+    +'<span style="font-size:12px;color:rgba(255,255,255,.4)">Total Amount</span>'
+    +'<span id="sale-total" style="font-size:20px;font-weight:800;color:#10b981">KSh 0</span>'
+    +'</div>'
+    +'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:1.5px">Payment Method</div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button id="ptc" class="btn bg" style="margin-top:0;font-size:12px;padding:10px;flex:1">Cash</button>'
+    +'<button id="ptm" class="btn bo" style="margin-top:0;font-size:12px;padding:10px;flex:1">M-Pesa</button>'
+    +'<button id="ptd" class="btn bo" style="margin-top:0;font-size:12px;padding:10px;flex:1;border-color:#ef4444;color:#ef4444">Debt</button>'
+    +'</div></div>'
+    +'<button id="ssb" class="btn ba">Save Sale</button>'
+    +'<button id="csb" class="btn bo">Cancel</button>'
+  );
   var pt='cash';
   function setPT(t){pt=t;var cols={cash:'#10b981',mpesa:'#3b82f6',debt:'#ef4444'};[['ptc','cash'],['ptm','mpesa'],['ptd','debt']].forEach(function(x){var el=document.getElementById(x[0]);if(!el)return;var a=x[1]===t;el.style.borderColor=a?cols[t]:'rgba(255,255,255,.2)';el.style.background=a?'rgba('+(t==='cash'?'16,185,129':t==='mpesa'?'59,130,246':'239,68,68')+',.15)':'transparent';el.style.color=a?cols[t]:'rgba(255,255,255,.6)';});}
   document.getElementById('ptc').addEventListener('click',function(){setPT('cash');});
   document.getElementById('ptm').addEventListener('click',function(){setPT('mpesa');});
   document.getElementById('ptd').addEventListener('click',function(){setPT('debt');});
+  // Auto-calculate total
+  function calcTotal(){
+    var price=parseFloat((document.getElementById('rca')&&document.getElementById('rca').value)||0)||0;
+    var qty=parseInt((document.getElementById('rcq')&&document.getElementById('rcq').value)||1)||1;
+    var total=price*qty;
+    var el=document.getElementById('sale-total');
+    if(el)el.textContent='KSh '+total.toLocaleString();
+    return total;
+  }
+  setTimeout(function(){
+    var pa=document.getElementById('rca');var pq=document.getElementById('rcq');
+    if(pa)pa.addEventListener('input',calcTotal);
+    if(pq)pq.addEventListener('input',calcTotal);
+  },50);
+
   document.getElementById('csb').addEventListener('click',hideSh);
   document.getElementById('ssb').addEventListener('click',function(){
     var cust=(document.getElementById('rcc').value||'Walk-in').trim();
     var prod=(document.getElementById('rcp').value||'').trim();
-    var amt=parseFloat(document.getElementById('rca').value)||0;
+    var price=parseFloat(document.getElementById('rca').value)||0;
+    var cost=parseFloat((document.getElementById('rcc2')&&document.getElementById('rcc2').value)||0)||0;
+    var qty=parseInt((document.getElementById('rcq')&&document.getElementById('rcq').value)||1)||1;
+    var amt=price*qty;
+    var totalCost=cost*qty;
     var phone=(document.getElementById('rcph').value||'').trim();
-    if(!prod){toast('Enter item name');return;}if(!amt){toast('Enter amount');return;}
-    loadFB(function(db){if(!db){toast('No connection');return;}db.collection('shops').doc(USER.phone).collection('sales').add({customer_name:cust,product_name:prod,total:amt,payment_type:pt,is_debt:pt==='debt',debt_paid:false,customer_phone:phone,created_at:Date.now(),shop_phone:USER.phone}).then(function(){toast(pt==='debt'?'Debt recorded: KSh '+amt:'Sale saved: KSh '+amt);hideSh();window._sv='sales';showSSales();}).catch(function(){toast('Error saving');});});
+    if(!prod){toast('Enter item name');return;}
+    if(!price){toast('Enter selling price');return;}
+    loadFB(function(db){
+      if(!db){toast('No connection');return;}
+      db.collection('shops').doc(USER.phone).collection('sales').add({
+        customer_name:cust,product_name:prod,quantity:qty,
+        selling_price:price,cost:totalCost,total:amt,
+        payment_type:pt,is_debt:pt==='debt',debt_paid:false,
+        customer_phone:phone,created_at:Date.now(),shop_phone:USER.phone
+      }).then(function(){
+        toast(pt==='debt'?'Debt: '+cust+' owes KSh '+amt:'Saved: KSh '+amt+(totalCost>0?' · Profit: KSh '+(amt-totalCost):''));
+        hideSh();window._sv='sales';showSSales();
+      }).catch(function(){toast('Error saving');});
+    });
   });
 }
 function showSStock(){
