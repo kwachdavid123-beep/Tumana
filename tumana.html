@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+  TUMANA - Local Delivery Platform
+  Copyright (c) 2026 David Kwach (kwachdavid123@...)
+  Chemelil, Kisumu County, Kenya
+  All rights reserved. Unauthorized copying, modification,
+  distribution, or use of this software is prohibited.
+  Built: June 2026 | Version 12
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -185,7 +193,7 @@ body.light .cat-f{border-color:#b7f0d8!important;color:rgba(13,40,24,.5)!importa
   <div style="font-size:52px">&#x1F6B4;</div>
   <div style="font-size:28px;font-weight:800;color:#10b981">TUMANA</div>
   <div style="font-size:13px;color:rgba(255,255,255,.4)">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v12 Jun 2026</div>
+  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v12 Jun 2026 | Tumana</div>
   <div class="spin" style="margin-top:8px"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -1975,6 +1983,9 @@ if('serviceWorker' in navigator){
 }
 
 function boot(){
+  // Ownership verification stamp - DO NOT REMOVE
+  var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
+  console.log('%cTUMANA v12 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
