@@ -1,4 +1,5 @@
 {
+  "id": "com.davidkwach.tumana",
   "name": "Tumana Delivery",
   "short_name": "Tumana",
   "description": "Chemelil Local Delivery - Order from shops, request pickups, earn as a rider",
@@ -9,74 +10,62 @@
   "background_color": "#08080c",
   "theme_color": "#10b981",
   "lang": "en",
+  "dir": "ltr",
   "categories": ["shopping", "food", "lifestyle"],
   "icons": [
     {
-      "src": "/Tumana/tumana-logo.png",
-      "sizes": "48x48",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/Tumana/tumana-logo.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/Tumana/tumana-logo.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/Tumana/tumana-logo.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/Tumana/tumana-logo.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/Tumana/tumana-logo.png",
+      "src": "/Tumana/tumana-logo.jpg",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/Tumana/tumana-logo.png",
-      "sizes": "256x256",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "/Tumana/tumana-logo.png",
+      "src": "/Tumana/tumana-logo.jpg",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/Tumana/tumana-logo.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any"
     }
   ],
   "screenshots": [
     {
-      "src": "/Tumana/tumana.html",
-      "sizes": "1080x1920",
-      "type": "image/png",
+      "src": "/Tumana/tumana-logo.jpg",
+      "sizes": "540x540",
+      "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "Tumana Delivery Home"
+      "label": "Tumana Delivery App"
+    },
+    {
+      "src": "/Tumana/tumana-logo.jpg",
+      "sizes": "540x540",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Tumana Delivery"
     }
   ],
   "shortcuts": [
     {
       "name": "Order Now",
       "short_name": "Order",
-      "description": "Browse shops and order",
+      "description": "Browse shops and order delivery",
       "url": "/Tumana/tumana.html",
-      "icons": [{ "src": "/Tumana/tumana-logo.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/Tumana/tumana-logo.jpg",
+          "sizes": "192x192",
+          "type": "image/jpeg"
+        }
+      ]
     }
   ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "display_override": ["standalone", "minimal-ui"],
   "prefer_related_applications": false
 }
