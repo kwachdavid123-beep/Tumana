@@ -201,7 +201,7 @@ body.light .cat-f{border-color:#b7f0d8!important;color:rgba(13,40,24,.5)!importa
   <div style="font-size:52px">&#x1F6B4;</div>
   <div style="font-size:28px;font-weight:800;color:#10b981">TUMANA</div>
   <div style="font-size:13px;color:rgba(255,255,255,.4)">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v13 Jun 2026 | Tumana</div>
+  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v15 Jun 2026 | Tumana</div>
   <div class="spin" style="margin-top:8px"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -500,11 +500,14 @@ function renderAuth(){
     if(!isL&&!name&&AR.id!=='admin'){toast('Enter your name');return;}
     // Simple PIN hash (not cryptographic but sufficient for local use)
     var pinHash=btoa(phone+':'+pin+':tumana2026');
+    // One phone number can hold a SEPARATE profile per role (customer/rider/shop).
+    // Each role's account is stored under its own document key: phone_role
+    var udocId=phone+'_'+AR.id;
     if(AR.id==='admin'){
       var normPhone=normP;
       if(normPhone===SADMIN){
         USER={role:'admin',name:name||'Admin',phone:phone,shopName:'',favourite_shops:[],is_master:true,pin_hash:pinHash};
-        su();dbSet('tumana_users',phone,{role:'admin',name:USER.name,phone:phone,pin_hash:pinHash,is_master:true,updated_at:Date.now()});startApp();
+        su();dbSet('tumana_users',phone+'_admin',{role:'admin',name:USER.name,phone:phone,pin_hash:pinHash,is_master:true,updated_at:Date.now()});startApp();
       } else {
         loadFB(function(db){
           if(!db){toast('No connection');return;}
@@ -520,39 +523,39 @@ function renderAuth(){
       return;
     }
     if(isL){
-      // LOGIN: verify PIN from Firebase
+      // LOGIN: verify PIN from Firebase for THIS role's profile
       loadFB(function(db){
         if(!db){
           // Offline fallback: check localStorage
           var saved=null;try{saved=JSON.parse(localStorage.getItem('tu'));}catch(e){}
-          if(saved&&saved.phone===phone&&saved.pin_hash===pinHash){USER=saved;startApp();}
+          if(saved&&saved.phone===phone&&saved.role===AR.id&&saved.pin_hash===pinHash){USER=saved;startApp();}
           else{toast('Wrong PIN or phone number');return;}
           return;
         }
-        db.collection('tumana_users').doc(phone).get().then(function(doc){
-          if(!doc.exists){toast('Account not found — create one first');return;}
+        db.collection('tumana_users').doc(udocId).get().then(function(doc){
+          if(!doc.exists){toast('No '+AR.lbl+' account for this number — create one first');return;}
           var data=doc.data();
           if(data.pin_hash!==pinHash){
             var attempts=(data.pin_attempts||0)+1;
-            db.collection('tumana_users').doc(phone).update({pin_attempts:attempts});
+            db.collection('tumana_users').doc(udocId).update({pin_attempts:attempts});
             if(attempts>=5){toast('Too many wrong PINs — contact admin');return;}
             toast('Wrong PIN ('+(5-attempts)+' tries left)');return;
           }
           // Check if reset pending
           if(data.reset_pending){toast('Your PIN has been reset — check with admin');return;}
-          db.collection('tumana_users').doc(phone).update({pin_attempts:0,last_login:Date.now()});
+          db.collection('tumana_users').doc(udocId).update({pin_attempts:0,last_login:Date.now()});
           USER={role:data.role||AR.id,name:data.name||phone,phone:phone,shopName:data.shopName||'',favourite_shops:data.favourite_shops||[],rating:data.rating||5.0,is_master:data.is_master||false,pin_hash:pinHash};
           su();startApp();
         }).catch(function(){toast('Error — check connection');});
       });
     } else {
-      // REGISTER: save to Firebase
+      // REGISTER: save to Firebase under this role's own profile slot
       loadFB(function(db){
         if(!db){toast('No connection — cannot create account');return;}
-        db.collection('tumana_users').doc(phone).get().then(function(doc){
-          if(doc.exists&&doc.data().pin_hash){toast('Account exists — use Login instead');return;}
+        db.collection('tumana_users').doc(udocId).get().then(function(doc){
+          if(doc.exists&&doc.data().pin_hash){toast('You already have a '+AR.lbl+' account on this number — use Login instead');return;}
           var userData={role:AR.id,name:name||phone,phone:phone,shopName:shop||'',favourite_shops:[],pin_hash:pinHash,rating:5.0,created_at:Date.now(),updated_at:Date.now(),pin_attempts:0};
-          db.collection('tumana_users').doc(phone).set(userData).then(function(){
+          db.collection('tumana_users').doc(udocId).set(userData).then(function(){
             USER=Object.assign({},userData);su();
             if(AR.id==='shop'){dbSet('shops',phone,{name:shop||name,owner_phone:phone,owner_name:name,delivery_enabled:false,distance_km:.5,rating:5.0,category:'General',location:'Chemelil',icon:'&#x1F3EA;'});}
             toast('Account created!');startApp();
@@ -645,14 +648,14 @@ function showHome(){
     });
     shopArea.innerHTML=h2;
     shopArea.querySelectorAll('.sg').forEach(function(el){el.addEventListener('click',function(){showProds(this.getAttribute('data-id'));});});
-    shopArea.querySelectorAll('.fb').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();var id=this.getAttribute('data-id');var cur=USER.favourite_shops||[];USER.favourite_shops=cur.indexOf(id)>=0?cur.filter(function(f){return f!==id;}):[].concat(cur,[id]);su();dbSet('tumana_users',USER.phone,{favourite_shops:USER.favourite_shops});toast('Saved!');showHome();});});
+    shopArea.querySelectorAll('.fb').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();var id=this.getAttribute('data-id');var cur=USER.favourite_shops||[];USER.favourite_shops=cur.indexOf(id)>=0?cur.filter(function(f){return f!==id;}):[].concat(cur,[id]);su();dbSet('tumana_users',USER.phone+'_'+USER.role,{favourite_shops:USER.favourite_shops});toast('Saved!');showHome();});});
   }
   pg().querySelectorAll('.fb').forEach(function(el){
     el.addEventListener('click',function(e){
       e.stopPropagation();var id=this.getAttribute('data-id');
       var cur=USER.favourite_shops||[];
       USER.favourite_shops=cur.indexOf(id)>=0?cur.filter(function(f){return f!==id;}):[].concat(cur,[id]);
-      su();dbSet('tumana_users',USER.phone,{favourite_shops:USER.favourite_shops});toast('Saved!');showHome();
+      su();dbSet('tumana_users',USER.phone+'_'+USER.role,{favourite_shops:USER.favourite_shops});toast('Saved!');showHome();
     });
   });
 }

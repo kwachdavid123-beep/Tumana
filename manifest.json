@@ -14,36 +14,30 @@
   "categories": ["shopping", "food", "lifestyle"],
   "icons": [
     {
-      "src": "/Tumana/tumana-logo.jpg",
+      "src": "/Tumana/tumana-logo-192.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/Tumana/tumana-logo.jpg",
+      "src": "/Tumana/tumana-logo.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/Tumana/tumana-logo.jpg",
-      "sizes": "any",
-      "type": "image/jpeg",
-      "purpose": "any"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [
     {
-      "src": "/Tumana/tumana-logo.jpg",
-      "sizes": "540x540",
-      "type": "image/jpeg",
+      "src": "/Tumana/tumana-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "form_factor": "narrow",
       "label": "Tumana Delivery App"
     },
     {
-      "src": "/Tumana/tumana-logo.jpg",
-      "sizes": "540x540",
-      "type": "image/jpeg",
+      "src": "/Tumana/tumana-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "form_factor": "wide",
       "label": "Tumana Delivery"
     }
@@ -52,20 +46,11 @@
     {
       "name": "Order Now",
       "short_name": "Order",
-      "description": "Browse shops and order delivery",
       "url": "/Tumana/tumana.html",
-      "icons": [
-        {
-          "src": "/Tumana/tumana-logo.jpg",
-          "sizes": "192x192",
-          "type": "image/jpeg"
-        }
-      ]
+      "icons": [{ "src": "/Tumana/tumana-logo-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  },
+  "launch_handler": { "client_mode": "focus-existing" },
   "display_override": ["standalone", "minimal-ui"],
   "prefer_related_applications": false
 }
