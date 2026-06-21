@@ -33,7 +33,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#08080c;color:#ff
 #pg{flex:1;overflow-y:auto}
 #pg::-webkit-scrollbar{display:none}
 #nav{flex-shrink:0;background:#000;border-top:1px solid rgba(255,255,255,.08)}
-#loading{position:fixed;inset:0;background:#08080c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:9999}
+#loading{position:fixed;inset:0;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:9999}
 @keyframes sp{to{transform:rotate(360deg)}}
 .spin{width:32px;height:32px;border:3px solid rgba(255,255,255,.1);border-top-color:#10b981;border-radius:50%;animation:sp .8s linear infinite;display:block}
 #toast{position:fixed;top:48px;left:50%;transform:translateX(-50%);background:#fff;color:#000;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.5);white-space:nowrap;max-width:90vw;text-align:center}
@@ -105,7 +105,7 @@ body.light #tbtn{color:rgba(255,255,255,.9)!important}
 body.light #pg{background:#f0faf5!important}
 body.light #nav{background:#fff!important;border-top:1px solid #b7f0d8!important;box-shadow:0 -2px 8px rgba(16,185,129,.08)!important}
 
-/* Cards */
+/* Cards & containers */
 body.light .card{background:#fff!important;border:1.5px solid #c6f0de!important;color:#0d2818!important}
 body.light .sbox{background:#fff!important;border:1.5px solid #c6f0de!important}
 body.light .sboxt{color:rgba(13,40,24,.5)!important}
@@ -121,65 +121,89 @@ body.light .fld input:focus{border-color:#059669!important;background:#d1fae5!im
 body.light .fld input::placeholder{color:rgba(13,40,24,.35)!important}
 body.light .fld select option{background:#e8faf1!important;color:#0d2818!important}
 
-/* Buttons */
+/* Buttons (outline/neutral only - colored gradient buttons stay identical in both themes) */
 body.light .bo{background:transparent!important;border:1.5px solid #b7f0d8!important;color:#059669!important}
 body.light .br{background:rgba(239,68,68,.08)!important;border:1.5px solid rgba(239,68,68,.3)!important;color:#dc2626!important}
 
-/* Tabs */
+/* Role tabs + sales sub-tabs */
 body.light .rtabs{background:#d1fae5!important}
 body.light .rtab{color:rgba(13,40,24,.45)!important}
 body.light .stabs{background:#d1fae5!important}
 body.light .stab{color:rgba(13,40,24,.45)!important}
 body.light .stab.on{background:linear-gradient(135deg,#f59e0b,#d97706)!important;color:#000!important}
 
-/* Sheet / overlay */
+/* Sheet / overlay / toast */
 body.light .sh{background:#fff!important;border:1.5px solid #b7f0d8!important;box-shadow:0 -4px 20px rgba(16,185,129,.12)!important}
 body.light .hd{background:rgba(13,40,24,.15)!important}
 body.light .ov{background:rgba(0,40,20,.5)!important}
-
-/* Toast */
 body.light #toast{background:#0d2818!important;color:#fff!important}
 
-/* Toggle */
+/* Toggle switch */
 body.light .tog{background:#c6f0de!important}
 body.light .tog.on{background:#10b981!important}
 
-/* Product cards */
+/* Product / fare cards */
 body.light .pc{background:#fff!important;border:1.5px solid #c6f0de!important}
 body.light .pname{color:#0d2818!important}
 body.light .pprice{color:#059669!important}
-
-/* Fare cards */
 body.light .fare{background:#fff!important;border:1.5px solid #c6f0de!important;color:#0d2818!important}
 body.light .fare.sel{background:#d1fae5!important;border-color:#10b981!important}
 
-/* Divider */
+/* Divider / empty states / nav labels */
 body.light .dv{color:rgba(13,40,24,.2)!important}
 body.light .dv::before,body.light .dv::after{background:rgba(13,40,24,.1)!important}
-
-/* Empty states */
 body.light .empty .et{color:#0d2818!important}
 body.light .empty .es{color:rgba(13,40,24,.5)!important}
-
-/* Nav items text */
 body.light #nav div[data-r] div:last-child{color:rgba(13,40,24,.4)}
 
-/* Dynamic inline-style overrides for light mode */
-body.light [style*="color:rgba(255,255,255"]{color:rgba(13,40,24,.55)!important}
-body.light [style*="color:#fff"]{color:#0d2818!important}
-body.light [style*="color:#ffffff"]{color:#0d2818!important}
-body.light [style*="background:#111116"]{background:#fff!important;border-color:#c6f0de!important}
-body.light [style*="background:#1a1a22"]{background:#e8faf1!important}
+/* Search / location / category pills */
+body.light input[placeholder*="Search"]{background:#e8faf1!important;border-color:#b7f0d8!important;color:#0d2818!important}
+body.light input[placeholder*="Search"]::placeholder{color:rgba(13,40,24,.4)!important}
+body.light .lp{background:#fff!important;border-color:#b7f0d8!important;color:rgba(13,40,24,.6)!important}
+body.light .cat-f{border-color:#b7f0d8!important;color:rgba(13,40,24,.5)!important}
+
+/* ───────────────────────────────────────────────────────────
+   "ALWAYS-DARK HERO BANNERS" (shop dashboard header, rider
+   jobs header, rider earnings header) — these use a permanent
+   dark gradient background in BOTH themes by design (like a
+   colored hero/brand strip), so their text must STAY LIGHT.
+   This is the #1 fix for the "blackened tabs" / invisible
+   text bug: a blanket light-mode override was previously
+   forcing dark text onto these dark banners, making it
+   unreadable. Excluding them below fixes it properly.
+   ─────────────────────────────────────────────────────────── */
+body.light .hero-dark{color:rgba(255,255,255,.92)!important}
+body.light .hero-dark [style*="background:#1a1a22"]{background:rgba(255,255,255,.06)!important;border-color:rgba(255,255,255,.13)!important}
+
+/* ───────────────────────────────────────────────────────────
+   GENERIC TEXT-COLOR FLIP — the broad rule that makes most of
+   the app's secondary/muted text (originally light-on-dark)
+   readable as dark-on-light. Excludes:
+     • .hero-dark and anything inside it (handled above)
+     • any element whose OWN style also has a gradient/vivid
+       background (avatar circles, brand buttons, colored
+       active tabs) — those keep their original contrast-safe
+       text color since their background never changes.
+   ─────────────────────────────────────────────────────────── */
+body.light [style*="color:rgba(255,255,255"]:not(.hero-dark, .hero-dark *):not([style*="gradient"]){color:rgba(13,40,24,.55)!important}
+body.light [style*="color:#fff"]:not(.hero-dark, .hero-dark *):not([style*="gradient"]){color:#0d2818!important}
+body.light [style*="color:#ffffff"]:not(.hero-dark, .hero-dark *):not([style*="gradient"]){color:#0d2818!important}
+
+/* Background flips for plain dark containers (cards built via inline style instead of .card class) */
+body.light [style*="background:#111116"]:not(.hero-dark, .hero-dark *){background:#fff!important;border-color:#c6f0de!important}
+body.light [style*="background:#1a1a22"]:not(.hero-dark, .hero-dark *){background:#e8faf1!important}
 body.light [style*="background:#08080c"]{background:#f0faf5!important}
-body.light [style*="background:#0d0820"]{background:linear-gradient(180deg,#d1fae5,#f0faf5)!important}
-body.light [style*="background:#000"]{background:#059669!important}
-body.light [style*="border:1.5px solid rgba(255,255,255,.07)"]{border-color:#c6f0de!important}
-body.light [style*="border:1.5px solid rgba(255,255,255,.13)"]{border-color:#b7f0d8!important}
-body.light [style*="border:1px solid rgba(255,255,255,.07)"]{border-color:#c6f0de!important}
-body.light [style*="border:1px solid rgba(255,255,255,.13)"]{border-color:#b7f0d8!important}
-body.light [style*="border-bottom:1px solid rgba(255,255,255,.07)"]{border-bottom-color:#d1fae5!important}
-body.light [style*="border-top:1px solid rgba(255,255,255,.08)"]{border-top-color:#d1fae5!important}
-/* Keep colored elements colored */
+body.light [style*="background:#000"]:not([style*="gradient"]){background:#059669!important}
+
+/* Border flips for plain dark containers */
+body.light [style*="border:1.5px solid rgba(255,255,255,.07)"]:not(.hero-dark, .hero-dark *){border-color:#c6f0de!important}
+body.light [style*="border:1.5px solid rgba(255,255,255,.13)"]:not(.hero-dark, .hero-dark *){border-color:#b7f0d8!important}
+body.light [style*="border:1px solid rgba(255,255,255,.07)"]:not(.hero-dark, .hero-dark *){border-color:#c6f0de!important}
+body.light [style*="border:1px solid rgba(255,255,255,.13)"]:not(.hero-dark, .hero-dark *){border-color:#b7f0d8!important}
+body.light [style*="border-bottom:1px solid rgba(255,255,255,.07)"]:not(.hero-dark, .hero-dark *){border-bottom-color:#d1fae5!important}
+body.light [style*="border-top:1px solid rgba(255,255,255,.08)"]:not(.hero-dark, .hero-dark *){border-top-color:#d1fae5!important}
+
+/* Keep brand/status colors vivid but slightly deeper for light-bg contrast */
 body.light [style*="color:#10b981"]{color:#059669!important}
 body.light [style*="color:#ef4444"]{color:#dc2626!important}
 body.light [style*="color:#f59e0b"]{color:#d97706!important}
@@ -187,24 +211,46 @@ body.light [style*="color:#8b5cf6"]{color:#7c3aed!important}
 body.light [style*="color:#fbbf24"]{color:#d97706!important}
 body.light [style*="color:#4ade80"]{color:#16a34a!important}
 body.light [style*="color:#60a5fa"]{color:#2563eb!important}
-/* Search bar */
-body.light input[placeholder*="Search"]{background:#e8faf1!important;border-color:#b7f0d8!important;color:#0d2818!important}
-body.light input[placeholder*="Search"]::placeholder{color:rgba(13,40,24,.4)!important}
-/* Location pills */
-body.light .lp{background:#fff!important;border-color:#b7f0d8!important;color:rgba(13,40,24,.6)!important}
-/* Category filter pills */
-body.light .cat-f{border-color:#b7f0d8!important;color:rgba(13,40,24,.5)!important}
 </style>
 </head>
 <body>
 <div id="loading">
-  <div style="font-size:52px">&#x1F6B4;</div>
-  <div style="font-size:28px;font-weight:800;color:#10b981">TUMANA</div>
-  <div style="font-size:13px;color:rgba(255,255,255,.4)">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">v15 Jun 2026 | Tumana</div>
-  <div class="spin" style="margin-top:8px"></div>
+  <img src="/Tumana/tumana-splash.png" alt="Tumana" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" onerror="this.style.display='none';document.getElementById('splash-fallback').style.display='block';">
+  <div id="splash-fallback" style="display:none;text-align:center">
+    <div style="font-size:30px;font-weight:800;color:#059669;letter-spacing:1px">TUMANA</div>
+  </div>
+  <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v18 Jun 2026 | Tumana</div>
+  <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
+<script>
+// ── ONE-TIME ZOMBIE SW CLEANUP ── runs before EVERYTHING else.
+// Uses a URL marker (not localStorage) so this can NEVER loop forever,
+// even if storage is blocked, partitioned, or behaves unexpectedly
+// inside an installed APK/TWA webview.
+(function(){
+  var alreadyCleared = window.location.search.indexOf('_cleared=1') >= 0;
+  if (alreadyCleared) return; // guaranteed: this branch never reloads again
+
+  if ('serviceWorker' in navigator) {
+    Promise.all([
+      navigator.serviceWorker.getRegistrations().then(function(regs){
+        return Promise.all(regs.map(function(r){ return r.unregister(); }));
+      }),
+      ('caches' in window) ? caches.keys().then(function(keys){
+        return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+      }) : Promise.resolve()
+    ]).then(function(){
+      var sep = window.location.href.indexOf('?') >= 0 ? '&' : '?';
+      window.location.replace(window.location.href + sep + '_cleared=1');
+    }).catch(function(){
+      var sep = window.location.href.indexOf('?') >= 0 ? '&' : '?';
+      window.location.replace(window.location.href + sep + '_cleared=1');
+    });
+  }
+})();
+</script>
 <script>
 // ── BOOT WATCHDOG ── runs independently of the main app script.
 // If the main script throws before boot() hides #loading, OR if
@@ -218,10 +264,10 @@ body.light .cat-f{border-color:#b7f0d8!important;color:rgba(13,40,24,.5)!importa
     var err=document.getElementById('boot-err');
     if(!ld||!err)return;
     err.style.display='block';
-    err.innerHTML='<div style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:6px">App failed to load</div>'
-      +'<div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.6;margin-bottom:14px;word-break:break-word">'+msg+'</div>'
-      +'<button id="bw-reload" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#000;font-weight:700;font-size:13px;font-family:inherit;cursor:pointer;margin-bottom:8px">Reload Page</button>'
-      +'<button id="bw-clear" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-weight:700;font-size:13px;font-family:inherit;cursor:pointer">Clear Saved Data &amp; Reload</button>';
+    err.innerHTML='<div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:6px">App failed to load</div>'
+      +'<div style="font-size:11px;color:#6b7280;line-height:1.6;margin-bottom:14px;word-break:break-word">'+msg+'</div>'
+      +'<button id="bw-reload" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;font-size:13px;font-family:inherit;cursor:pointer;margin-bottom:8px">Reload Page</button>'
+      +'<button id="bw-clear" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #d1d5db;background:transparent;color:#6b7280;font-weight:700;font-size:13px;font-family:inherit;cursor:pointer">Clear Saved Data &amp; Reload</button>';
     var rb=document.getElementById('bw-reload');
     if(rb)rb.addEventListener('click',function(){location.reload(true);});
     var cb=document.getElementById('bw-clear');
@@ -320,9 +366,7 @@ function loadFB(cb){
       try{_fn=firebase.functions();}catch(e){}
     },true);
     ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js',function(){
-      if('serviceWorker' in navigator){
-        navigator.serviceWorker.register('./firebase-messaging-sw.js').then(function(){initFCM();}).catch(function(){});
-      }
+      initFCM(); // SW already registered once globally as sw.js — Firebase Messaging picks it up automatically
     },true);
   });
 }
@@ -343,14 +387,16 @@ function initFCM(){
     // Request permission
     Notification.requestPermission().then(function(perm){
       if(perm!=='granted'){console.log('Notifications blocked');return;}
-      msg.getToken({vapidKey:'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SqmkXjx6QxNHb-qkjOkVjR1QGdBz0iHX6zY1a1oFcYf9hGNOsFv9A0'})
-      .then(function(token){
-        if(!token){console.log('No FCM token');return;}
-        FCM_TOKEN=token;
-        if(USER&&USER.phone){
-          // Save token to Firebase
-          callFn('registerFCMToken',{phone:USER.phone,token:token,role:USER.role},function(){});
-        }
+      navigator.serviceWorker.ready.then(function(reg){
+        msg.getToken({vapidKey:'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SqmkXjx6QxNHb-qkjOkVjR1QGdBz0iHX6zY1a1oFcYf9hGNOsFv9A0',serviceWorkerRegistration:reg})
+        .then(function(token){
+          if(!token){console.log('No FCM token');return;}
+          FCM_TOKEN=token;
+          if(USER&&USER.phone){
+            // Save token to Firebase
+            callFn('registerFCMToken',{phone:USER.phone,token:token,role:USER.role},function(){});
+          }
+        }).catch(function(e){console.log('getToken error:',e.message);});
       }).catch(function(){});
     }).catch(function(){});
     // Handle foreground messages
@@ -924,7 +970,7 @@ function showCreateShop(){
 function renderShopDash(){
   setNav('shop','orders');
   var sn=USER.shopName||USER.name;
-  pg().innerHTML='<div style="background:linear-gradient(180deg,#1a1200,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:17px;font-weight:700">'+sn+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+'</div></div><button id="shout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.12);border-radius:10px;padding:10px 12px"><div><div style="font-weight:700;font-size:13px;color:'+(SDON?'#10b981':'rgba(255,255,255,.4)')+'">'+( SDON?'&#x1F7E2; Accepting Orders':'&#x1F534; Delivery Off')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(SDON?'Customers can see your shop':'Toggle to receive orders')+'</div></div><div id="dtog" class="tog'+(SDON?' on':'')+'"><div class="togth"></div></div></div></div><div class="stabs"><div class="stab on" data-st="orders">&#x1F4CB; Orders</div><div class="stab" data-st="sales">&#x1F4B0; Sales</div><div class="stab" data-st="stock">&#x1F4E6; Stock</div><div class="stab" data-st="settings">&#x2699;</div></div><div id="shc" style="overflow-y:auto;padding:10px 18px 100px"></div>';
+  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#1a1200,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:17px;font-weight:700">'+sn+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+'</div></div><button id="shout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.12);border-radius:10px;padding:10px 12px"><div><div style="font-weight:700;font-size:13px;color:'+(SDON?'#10b981':'rgba(255,255,255,.4)')+'">'+( SDON?'&#x1F7E2; Accepting Orders':'&#x1F534; Delivery Off')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(SDON?'Customers can see your shop':'Toggle to receive orders')+'</div></div><div id="dtog" class="tog'+(SDON?' on':'')+'"><div class="togth"></div></div></div></div><div class="stabs"><div class="stab on" data-st="orders">&#x1F4CB; Orders</div><div class="stab" data-st="sales">&#x1F4B0; Sales</div><div class="stab" data-st="stock">&#x1F4E6; Stock</div><div class="stab" data-st="settings">&#x2699;</div></div><div id="shc" style="overflow-y:auto;padding:10px 18px 100px"></div>';
   document.getElementById('shout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
   document.getElementById('dtog').addEventListener('click',function(){
     SDON=!SDON;dbSet('shops',USER.phone,{delivery_enabled:SDON,name:USER.shopName||USER.name,owner_phone:USER.phone,location:'Chemelil',category:'General',icon:'&#x1F3EA;',distance_km:.5,rating:5.0});
@@ -1501,7 +1547,7 @@ var PROG=['assigned','heading','picked','transit','delivered'];
 function showJobs(){
   setTitle('RIDER','#8b5cf6');setNav('rider','jobs');
   var rn=(USER.name&&USER.name!==USER.phone?USER.name.split(' ')[0]:USER.phone);
-  pg().innerHTML='<div style="background:linear-gradient(180deg,#0d0820,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:18px;font-weight:700">Hey '+rn+'! &#x1F6F5;</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+' · Tumana Rider</div></div><button id="rout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:#1a1a22;border:1.5px solid rgba(255,255,255,.13);border-radius:12px;padding:12px 14px"><div><div style="font-weight:700;color:'+(RON?'#10b981':'rgba(255,255,255,.4)')+'">'+( RON?'&#x1F7E2; Online':'&#x1F534; Offline')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(RON?'Receiving jobs':'Toggle to earn')+'</div></div><div id="rtog" class="tog'+(RON?' on':'')+'"><div class="togth"></div></div></div></div><div style="display:flex;gap:8px;padding:10px 18px 0"><div class="sb2" style="flex:1"><div class="sv" style="color:#10b981">KSh '+REARN+'</div><div class="sl">Today</div></div><div class="sb2" style="flex:1"><div class="sv" style="color:#8b5cf6" id="jcnt">0</div><div class="sl">Available</div></div></div><div id="rbody" style="padding:10px 18px 100px"></div>';
+  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:18px;font-weight:700">Hey '+rn+'! &#x1F6F5;</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+' · Tumana Rider</div></div><button id="rout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:#1a1a22;border:1.5px solid rgba(255,255,255,.13);border-radius:12px;padding:12px 14px"><div><div style="font-weight:700;color:'+(RON?'#10b981':'rgba(255,255,255,.4)')+'">'+( RON?'&#x1F7E2; Online':'&#x1F534; Offline')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(RON?'Receiving jobs':'Toggle to earn')+'</div></div><div id="rtog" class="tog'+(RON?' on':'')+'"><div class="togth"></div></div></div></div><div style="display:flex;gap:8px;padding:10px 18px 0"><div class="sb2" style="flex:1"><div class="sv" style="color:#10b981">KSh '+REARN+'</div><div class="sl">Today</div></div><div class="sb2" style="flex:1"><div class="sv" style="color:#8b5cf6" id="jcnt">0</div><div class="sl">Available</div></div></div><div id="rbody" style="padding:10px 18px 100px"></div>';
   document.getElementById('rout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
   document.getElementById('rtog').addEventListener('click',function(){RON=!RON;dbSet('riders',USER.phone,{online:RON,name:USER.name,phone:USER.phone});toast(RON?'Online - receiving jobs':'Offline');if(RON)startJL();else{if(RUNSUB){RUNSUB();RUNSUB=null;}RJOBS=[];}showJobs();});
   renderRBody();if(RON)startJL();startAL();
@@ -1656,7 +1702,7 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
 }
 function showEarn(){
   setTitle('RIDER','#8b5cf6');setNav('rider','earnings');
-  pg().innerHTML='<div style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="font-size:20px;font-weight:800;margin-bottom:2px">My Earnings</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div><div id="earn" style="padding:10px 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="font-size:20px;font-weight:800;margin-bottom:2px">My Earnings</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div><div id="earn" style="padding:10px 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
   loadFB(function(db){
     if(!db){document.getElementById('earn').innerHTML=empty('&#x1F4B0;','Earnings','Connect to see history');return;}
     db.collection('riders').doc(USER.phone).get().then(function(r){
@@ -2146,98 +2192,83 @@ function showItemSearch(query){
   });
 }
 
-window.history.pushState(null,'',window.location.href);
-window.addEventListener('popstate',function(){
-  function showItemSearch(query){
-  if(!query){toast('Enter item name to search');return;}
-  setTitle('SEARCH','#10b981');
-  setNav('customer','home');
-  pg().innerHTML='<div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.07)">'
-    +'<button id="back-search" style="background:#1a1a22;border:1px solid rgba(255,255,255,.13);border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;color:rgba(255,255,255,.5);cursor:pointer;margin-bottom:10px;font-family:inherit">&#x2190; Back</button>'
-    +'<div style="font-size:16px;font-weight:700;margin-bottom:2px">&#x1F50D; "'+query+'"</div>'
-    +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Searching across all shops...</div>'
-    +'</div>'
-    +'<div id="search-results" style="padding:10px 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
-  document.getElementById('back-search').addEventListener('click',showHome);
-
-  loadFB(function(db){
-    if(!db){document.getElementById('search-results').innerHTML=empty('&#x1F50D;','Connect to search','');return;}
-    var q=query.toLowerCase();
-    // Search across ALL shops stock using collectionGroup
-    db.collectionGroup('stock').get().then(function(snap){
-      var results=[];
-      snap.docs.forEach(function(doc){
-        var p=Object.assign({id:doc.id},doc.data());
-        var shopPhone=doc.ref.parent.parent.id;
-        // Match on name or description
-        var nameMatch=(p.name||'').toLowerCase().indexOf(q)>=0;
-        var descMatch=(p.description||'').toLowerCase().indexOf(q)>=0;
-        if((nameMatch||descMatch)&&(p.quantity||0)>0&&(p.selling_price||0)>0){
-          p._shopPhone=shopPhone;
-          results.push(p);
-        }
-      });
-      // Also search by shop name
-      var shopMatches=SHOPS.filter(function(s){return(s.name||'').toLowerCase().indexOf(q)>=0||(s.category||'').toLowerCase().indexOf(q)>=0;});
-
-      var sr=document.getElementById('search-results');if(!sr)return;
-      var h='';
-      if(results.length){
-        h+='<div style="font-size:10px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">'+results.length+' item'+(results.length>1?'s':'')+' found</div>';
-        results.forEach(function(p){
-          var shop=SHOPS.filter(function(s){return s.id===p._shopPhone;})[0];
-          var shopName=shop?shop.name:p._shopPhone;
-          h+='<div class="card" style="display:flex;gap:10px;align-items:center;margin-bottom:9px;cursor:pointer" data-shop="'+p._shopPhone+'">'
-            +(p.photo?'<img src="'+p.photo+'" style="width:56px;height:56px;border-radius:9px;object-fit:cover;flex-shrink:0">':'<div style="width:56px;height:56px;border-radius:9px;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">'+(p.emoji||'&#x1F6D2;')+'</div>')
-            +'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+p.name+'</div>'
-            +(p.description?'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+p.description+'</div>':'')
-            +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:2px">&#x1F3EA; '+shopName+'</div></div>'
-            +'<div style="text-align:right;flex-shrink:0"><div style="font-weight:800;color:#10b981;font-size:16px">KSh '+p.selling_price+'</div>'
-            +'<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:2px">'+( p.quantity||0)+' left</div></div></div>';
-        });
-      }
-      if(shopMatches.length){
-        h+='<div style="font-size:10px;font-weight:700;color:#8b5cf6;text-transform:uppercase;letter-spacing:1.5px;margin:'+(results.length?'14px 0 8px':'0 0 8px')+'">Shops matching</div>';
-        shopMatches.forEach(function(s){
-          h+='<div class="card sg" data-id="'+s.id+'" style="display:flex;gap:10px;align-items:center;cursor:pointer"><div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:20px">'+s.icon+'</div><div><div style="font-weight:700">'+s.name+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+s.category+' · '+s.location+'</div></div></div>';
-        });
-      }
-      if(!results.length&&!shopMatches.length){
-        h=empty('&#x1F50D;','Nothing found for "'+query+'"','Try a different name or browse shops');
-      }
-      sr.innerHTML=h;
-      // Click item → go to that shop
-      sr.querySelectorAll('[data-shop]').forEach(function(el){el.addEventListener('click',function(){showProds(this.getAttribute('data-shop'));});});
-      sr.querySelectorAll('.sg').forEach(function(el){el.addEventListener('click',function(){showProds(this.getAttribute('data-id'));});});
-    }).catch(function(){
-      var sr=document.getElementById('search-results');
-      if(sr)sr.innerHTML=empty('&#x26A0;','Search error','Check connection and try again');
-    });
+// ── SERVICE WORKER — register immediately, independent of Firebase ──
+// This makes offline mode work even before any Firebase script loads.
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/Tumana/sw.js').then(function(reg){
+    console.log('SW registered:', reg.scope);
+  }).catch(function(){
+    navigator.serviceWorker.register('./sw.js').then(function(reg){
+      console.log('SW registered (relative):', reg.scope);
+    }).catch(function(e){console.log('SW registration failed:', e.message);});
   });
 }
 
+// ── OFFLINE STATUS BANNER ───────────────────────────────────────────
+function updateOnlineStatus(){
+  var existing=document.getElementById('offline-banner');
+  if(!navigator.onLine){
+    if(!existing){
+      var b=document.createElement('div');
+      b.id='offline-banner';
+      b.style.cssText='position:fixed;top:38px;left:0;right:0;max-width:430px;margin:0 auto;background:#f59e0b;color:#000;text-align:center;padding:6px;font-size:12px;font-weight:700;z-index:9997';
+      b.textContent='\u26A0\uFE0F You are offline - some features unavailable';
+      document.body.appendChild(b);
+    }
+  } else if(existing){existing.remove();}
+}
+window.addEventListener('online',updateOnlineStatus);
+window.addEventListener('offline',updateOnlineStatus);
+
+// ── BACK BUTTON: ask before exiting the app ─────────────────────────
+var _exitConfirmed=false;
 window.history.pushState(null,'',window.location.href);
+window.addEventListener('popstate',function(){
+  if(_exitConfirmed) return; // already confirmed, let it close naturally
+  // Re-trap this back press, then ask the user
+  window.history.pushState(null,'',window.location.href);
+  showExitConfirm();
+});
+
+function showExitConfirm(){
+  showSheet('<div class="hd"></div>'
+    +'<div style="text-align:center;padding:8px 0 4px">'
+    +'<div style="font-size:38px;margin-bottom:10px">&#x1F6AA;</div>'
+    +'<div style="font-size:17px;font-weight:800;margin-bottom:6px">Exit Tumana?</div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:18px">You will need to reopen the app to continue</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +'<button id="exit-no" class="btn bo" style="margin-top:0">Stay</button>'
+    +'<button id="exit-yes" class="btn br" style="margin-top:0">Exit App</button>'
+    +'</div>'
+  );
+  document.getElementById('exit-no').addEventListener('click',hideSh);
+  document.getElementById('exit-yes').addEventListener('click',function(){
+    _exitConfirmed=true;
+    hideSh();
+    window.history.back();
+  });
+}
+
+function renderCurrentView(){
   if(USER){
     if(USER.role==='customer')showHome();
     else if(USER.role==='rider')showJobs();
     else if(USER.role==='shop')renderShopDash();
     else if(USER.role==='admin')showAOv();
   } else {showRole();}
-});
-
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister();});});
 }
 
 function boot(){
   // Ownership verification stamp - DO NOT REMOVE
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v12 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v18 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
   }catch(e){try{localStorage.removeItem('tu');}catch(ex){}}
   applyTheme();
+  updateOnlineStatus();
   // Preload Firebase in background so login is instant when user taps it
   loadFB(function(){});
   document.getElementById('loading').style.display='none';
