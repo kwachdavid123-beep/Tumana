@@ -220,7 +220,7 @@ body.light [style*="color:#60a5fa"]{color:#2563eb!important}
     <div style="font-size:30px;font-weight:800;color:#059669;letter-spacing:1px">TUMANA</div>
   </div>
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v18 Jun 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v19 Jun 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -356,23 +356,41 @@ function loadFB(cb){
   // STEP 1: Load app SDK (required first)
   ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js',function(){
     try{if(!firebase.apps.length)firebase.initializeApp(FBC);}catch(e){}
-    // STEP 2: Load firestore - resolves _db as soon as ready (critical path for login)
+    // STEP 2: Load firestore only — this is the critical path for login/data.
+    // Functions + Messaging are NOT loaded here anymore (they used to load
+    // in parallel on every single boot, adding 2 extra network requests
+    // before the user even logs in). They now load lazily, on-demand,
+    // only when actually needed — see loadFBExtras() below.
     ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js',function(){
       try{_db=firebase.firestore();}catch(e){_db=null;}
       _fbQ.forEach(function(f){f(_db);});_fbQ=[];
     });
-    // STEP 2b (PARALLEL, non-blocking): functions + messaging load alongside firestore
-    ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js',function(){
+  });
+}
+
+// ── LAZY-LOADED EXTRAS: Cloud Functions + Push Messaging ──────────
+// Only fetched the first time callFn() or initFCM() is actually needed
+// (e.g. after a successful login, or when calling a cloud function) —
+// not on every cold app launch. Cuts initial load time noticeably.
+var _fbExtrasLoading=false, _fbExtrasQ=[];
+function loadFBExtras(cb){
+  if(_fn){cb();return;}
+  _fbExtrasQ.push(cb);
+  if(_fbExtrasLoading)return;
+  _fbExtrasLoading=true;
+  loadFB(function(){
+    function ls2(src,next){var s=document.createElement('script');s.src=src;s.onload=next;s.onerror=next;document.head.appendChild(s);}
+    ls2('https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js',function(){
       try{_fn=firebase.functions();}catch(e){}
-    },true);
-    ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js',function(){
-      initFCM(); // SW already registered once globally as sw.js — Firebase Messaging picks it up automatically
-    },true);
+      ls2('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js',function(){
+        _fbExtrasQ.forEach(function(f){f();});_fbExtrasQ=[];
+      });
+    });
   });
 }
 // ── CLOUD FUNCTIONS ────────────────────────────────────────
 function callFn(name,data,cb){
-  loadFB(function(db){
+  loadFBExtras(function(){
     if(!_fn){if(cb)cb({ok:false,error:'Functions not loaded'});return;}
     var fn=_fn.httpsCallable(name);
     fn(data).then(function(result){if(cb)cb(result.data);}).catch(function(err){if(cb)cb({ok:false,error:err.message});});
@@ -614,13 +632,19 @@ function renderAuth(){
 function showSheet(h){document.getElementById('sh').innerHTML=h;document.getElementById('ov').classList.add('show');}
 function startApp(){
   if(!USER)return showRole();applyTheme();
-  // Register FCM token if available
-  if(FCM_TOKEN&&USER.phone){callFn('registerFCMToken',{phone:USER.phone,token:FCM_TOKEN,role:USER.role},function(){});}
   if(USER.role==='customer')startCust();
   else if(USER.role==='rider')showJobs();
   else if(USER.role==='shop')startShop();
   else if(USER.role==='admin')showAOv();
   else showRole();
+  // Set up push notifications in the BACKGROUND, after the screen has
+  // already rendered — this keeps login feeling instant instead of
+  // waiting on 2 extra Firebase script downloads first.
+  if(USER.phone){
+    loadFBExtras(function(){
+      initFCM();
+    });
+  }
 }
 
 function startCust(){
@@ -2262,7 +2286,7 @@ function renderCurrentView(){
 function boot(){
   // Ownership verification stamp - DO NOT REMOVE
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v18 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v19 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}

@@ -8,7 +8,7 @@
  *  - Firebase/Google requests: never intercepted, always pass through.
  */
 
-const CACHE = 'tumana-v18';
+const CACHE = 'tumana-v19';
 const APP_URL = '/Tumana/tumana.html';
 const STATIC_ASSETS = [
   '/Tumana/tumana-logo.png',
