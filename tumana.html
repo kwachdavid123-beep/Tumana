@@ -409,20 +409,19 @@ function initFCM(){
   try{
     var msg=firebase.messaging();
     // Request permission
-    Notification.requestPermission().then(function(perm){
-      if(perm!=='granted'){console.log('Notifications blocked');return;}
-      navigator.serviceWorker.ready.then(function(reg){
-        msg.getToken({vapidKey:'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SqmkXjx6QxNHb-qkjOkVjR1QGdBz0iHX6zY1a1oFcYf9hGNOsFv9A0',serviceWorkerRegistration:reg})
-        .then(function(token){
-          if(!token){console.log('No FCM token');return;}
-          FCM_TOKEN=token;
-          if(USER&&USER.phone){
-            // Save token to Firebase
-            callFn('registerFCMToken',{phone:USER.phone,token:token,role:USER.role},function(){});
-          }
-        }).catch(function(e){console.log('getToken error:',e.message);});
-      }).catch(function(){});
-    }).catch(function(){});
+    // Delay permission request by 8 seconds after login
+    // so it doesn't pop up immediately like an intrusive browser dialog
+    setTimeout(function(){
+      if(typeof Notification==='undefined')return;
+      if(Notification.permission==='granted'){
+        doGetToken(msg);
+      } else if(Notification.permission!=='denied'){
+        // Show a friendly in-app prompt first (implemented in showNotifPrompt)
+        showNotifPrompt(function(allowed){
+          if(allowed) Notification.requestPermission().then(function(p){if(p==='granted')doGetToken(msg);});
+        });
+      }
+    }, 8000);
     // Handle foreground messages
     msg.onMessage(function(payload){
       var n=payload.notification||{};
@@ -864,10 +863,11 @@ function showCart(){
   });
   function placeOrder(payMethod,mpesaCode){
     var shop=CS||{};
+    var shopId=shop.id||CART[0].shopId;
     var addr=window._deliveryAddr||USER.name+' waiting';
     var orderData={
       type:'shop',customer_phone:USER.phone,customer_name:USER.name,
-      shop_id:shop.id||CART[0].shopId,shopName:shop.name||CART[0].shopName,
+      shop_id:shopId,shopName:shop.name||CART[0].shopName,
       delivery_address:addr,
       items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),
       subtotal:sub,delivery_fee:df,total:sub+df,
@@ -879,12 +879,34 @@ function showCart(){
     if(window._ordLat){orderData.delivery_lat=window._ordLat;orderData.delivery_lng=window._ordLng;}
     loadFB(function(db){
       if(!db){toast('No connection');return;}
-      db.collection('delivery_orders').add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()})).then(function(){
-        CART=[];window._ordLat=null;window._ordLng=null;window._deliveryAddr=null;
-        hideSh();
-        toast(payMethod==='cash'?'Cash order placed! Rider will collect payment.':'Order placed! Shop confirming M-Pesa.');
-        showOrds();
-      }).catch(function(){toast('Error placing order — check connection');});
+      // Duplicate check: block same customer ordering from same shop if active order exists
+      db.collection('delivery_orders')
+        .where('customer_phone','==',USER.phone)
+        .where('shop_id','==',shopId)
+        .where('status','in',['placed','confirmed'])
+        .get().then(function(snap){
+          if(!snap.empty){
+            hideSh();
+            toast('You have an active order from this shop. Track it in My Orders tab.');
+            showOrds();
+            return;
+          }
+          // No duplicate — place the order
+          db.collection('delivery_orders').add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()})).then(function(){
+            CART=[];window._ordLat=null;window._ordLng=null;window._deliveryAddr=null;
+            hideSh();
+            toast(payMethod==='cash'?'Cash order placed! Rider will collect payment.':'Order placed! Shop confirming M-Pesa.');
+            showOrds();
+          }).catch(function(){toast('Error placing order — check connection');});
+        }).catch(function(){
+          // If check fails just place the order
+          db.collection('delivery_orders').add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()})).then(function(){
+            CART=[];window._ordLat=null;window._ordLng=null;window._deliveryAddr=null;
+            hideSh();
+            toast(payMethod==='cash'?'Cash order placed! Rider will collect payment.':'Order placed! Shop confirming M-Pesa.');
+            showOrds();
+          }).catch(function(){toast('Error placing order — check connection');});
+        });
     });
   }
 }
@@ -2250,6 +2272,33 @@ if('serviceWorker' in navigator){
       console.log('SW registered (relative):', reg.scope);
     }).catch(function(e){console.log('SW registration failed:', e.message);});
   });
+}
+
+function doGetToken(msg){
+  try{
+    navigator.serviceWorker.ready.then(function(reg){
+      msg.getToken({vapidKey:'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SqmkXjx6QxNHb-qkjOkVjR1QGdBz0iHX6zY1a1oFcYf9hGNOsFv9A0',serviceWorkerRegistration:reg}).then(function(token){
+        if(!token)return;FCM_TOKEN=token;
+        if(USER&&USER.phone)callFn('registerFCMToken',{phone:USER.phone,token:token,role:USER.role},function(){});
+      }).catch(function(){});
+    });
+  }catch(e){}
+}
+
+function showNotifPrompt(cb){
+  // Only show once per install
+  try{if(localStorage.getItem('notif_asked')==='1'){cb(false);return;}localStorage.setItem('notif_asked','1');}catch(e){}
+  showSh('<div class="hd"></div>'
+    +'<div style="text-align:center;padding:16px 0 8px">'
+    +'<div style="font-size:38px;margin-bottom:10px">&#x1F514;</div>'
+    +'<div style="font-size:17px;font-weight:800;margin-bottom:6px">Stay Updated</div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.7;margin-bottom:18px">'+(USER&&USER.role==='rider'?'Get notified instantly when new jobs are available — even when the app is closed.':'Get order updates and delivery notifications.')+'</div>'
+    +'</div>'
+    +'<button id="notif-yes" class="btn bg" style="margin-bottom:8px">&#x2714; Allow Notifications</button>'
+    +'<button id="notif-no" class="btn bo">Not Now</button>'
+  );
+  document.getElementById('notif-yes').addEventListener('click',function(){hideSh();cb(true);});
+  document.getElementById('notif-no').addEventListener('click',function(){hideSh();cb(false);});
 }
 
 // ── OFFLINE STATUS BANNER ───────────────────────────────────────────

@@ -66,10 +66,13 @@ exports.onOrderUpdate = functions.firestore.document("delivery_orders/{orderId}"
     const snap=await db.collection("riders")
       .where("online","==",true)
       .where("verified","==",true)
-      .where("busy","==",false)   // skip riders already on a delivery
       .get().catch(()=>null);
     if(snap&&snap.docs.length){
-      const tokens=snap.docs.map(d=>d.data().fcm_token).filter(Boolean);
+      // Filter busy riders in code (not WHERE clause) because existing docs
+      // without a 'busy' field would be excluded by WHERE busy==false,
+      // meaning NO rider would ever get notified.
+      const availableRiders=snap.docs.filter(d=>d.data().busy!==true);
+      const tokens=availableRiders.map(d=>d.data().fcm_token).filter(Boolean);
       const fee=after.delivery_fee||70;
       const from=after.shopName||after.pickup_from||"Shop";
       const type=after.type==="pickup"?"Pickup":"Delivery";
