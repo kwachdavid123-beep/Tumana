@@ -220,7 +220,7 @@ body.light [style*="color:#60a5fa"]{color:#2563eb!important}
     <div style="font-size:30px;font-weight:800;color:#059669;letter-spacing:1px">TUMANA</div>
   </div>
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v20 Jun 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v21 Jun 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -477,10 +477,12 @@ function navGo(r,t){
 var MSHOPS=[{id:'s1',name:'Mama Jane Grocery',category:'Grocery',distance_km:.5,rating:4.8,icon:'&#x1F6D2;',location:'Chemelil Center',delivery_enabled:true,verified:true},{id:'s2',name:'Chemelil Pharmacy',category:'Pharmacy',distance_km:.8,rating:4.9,icon:'&#x1F48A;',location:'Near Hospital',delivery_enabled:true,verified:true},{id:'s3',name:'Fresh Mboga',category:'Vegetables',distance_km:.3,rating:4.7,icon:'&#x1F96C;',location:'Market',delivery_enabled:true,verified:true}];
 var MPRODS={s1:[{id:'p1',name:'Maziwa 500ml',selling_price:60,emoji:'&#x1F95B;'},{id:'p2',name:'Mkate Brown',selling_price:55,emoji:'&#x1F35E;'}],s2:[{id:'p5',name:'Panadol',selling_price:50,emoji:'&#x1F48A;'}],s3:[{id:'p7',name:'Tomatoes 1kg',selling_price:80,emoji:'&#x1F345;'},{id:'p8',name:'Sukuma Wiki',selling_price:30,emoji:'&#x1F96C;'}]};
 var STEPS={shop:['placed','confirmed','assigned','heading','picked','transit','delivered'],pickup:['placed','assigned','heading','picked','transit','delivered']};
-var SLBL={placed:'Placed',confirmed:'Paid',assigned:'Rider',heading:'En Route',picked:'Picked Up',transit:'In Transit',delivered:'Delivered',rejected:'Rejected'};
-var SCLS={placed:'bpl',confirmed:'bco',assigned:'bas',heading:'bas',picked:'bpi',transit:'btr',delivered:'bde',rejected:'brj'};
-var SICO={placed:'&#x1F550;',confirmed:'&#x2705;',assigned:'&#x1F6F5;',heading:'&#x1F50D;',picked:'&#x1F4E6;',transit:'&#x1F6B4;',delivered:'&#x1F389;'};
-var SLOC={placed:'Order Placed',confirmed:'Payment Confirmed',assigned:'Rider Assigned',heading:'En Route',picked:'Picked Up',transit:'Out for Delivery',delivered:'Delivered'};
+var SLBL={placed:'Waiting',confirmed:'Confirmed',assigned:'Rider Assigned',picked:'Picked Up',delivered:'Delivered',rejected:'Rejected'};
+var SCLS={placed:'bpl',confirmed:'bco',assigned:'bas',picked:'bpi',delivered:'bde',rejected:'brj',
+          // Legacy status fallbacks for old orders
+          heading:'bas',transit:'btr'};
+var SICO={placed:'&#x23F3;',confirmed:'&#x2705;',assigned:'&#x1F6F5;',picked:'&#x1F4E6;',delivered:'&#x1F389;'};
+var SLOC={placed:'Order Placed',confirmed:'Payment Confirmed',assigned:'Rider On The Way',picked:'Order Picked Up',delivered:'Delivered!'};
 
 function showRole(){
   setTitle('TUMANA','#10b981');document.getElementById('nav').style.display='none';renderRole();
@@ -861,92 +863,210 @@ function showCart(){
       });
     });
   });
-  function placeOrder(payMethod,mpesaCode){
-    var shop=CS||{};
-    var shopId=shop.id||CART[0].shopId;
-    var addr=window._deliveryAddr||USER.name+' waiting';
-    var orderData={
-      type:'shop',customer_phone:USER.phone,customer_name:USER.name,
-      shop_id:shopId,shopName:shop.name||CART[0].shopName,
-      delivery_address:addr,
-      items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),
-      subtotal:sub,delivery_fee:df,total:sub+df,
-      rider_earnings:df,platform_earnings:0,
-      distance:CART[0].shopDist||.5,
-      status:'placed',payment_method:payMethod,
-      rider_phone:null,rider_name:null
-    };
-    if(window._ordLat){orderData.delivery_lat=window._ordLat;orderData.delivery_lng=window._ordLng;}
-    loadFB(function(db){
-      if(!db){toast('No connection');return;}
-      // Duplicate check: block same customer ordering from same shop if active order exists
-      db.collection('delivery_orders')
-        .where('customer_phone','==',USER.phone)
-        .where('shop_id','==',shopId)
-        .where('status','in',['placed','confirmed'])
-        .get().then(function(snap){
-          if(!snap.empty){
-            hideSh();
-            toast('You have an active order from this shop. Track it in My Orders tab.');
-            showOrds();
-            return;
-          }
-          // No duplicate — place the order
-          db.collection('delivery_orders').add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()})).then(function(){
-            CART=[];window._ordLat=null;window._ordLng=null;window._deliveryAddr=null;
-            hideSh();
-            toast(payMethod==='cash'?'Cash order placed! Rider will collect payment.':'Order placed! Shop confirming M-Pesa.');
-            showOrds();
-          }).catch(function(){toast('Error placing order — check connection');});
-        }).catch(function(){
-          // If check fails just place the order
-          db.collection('delivery_orders').add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()})).then(function(){
-            CART=[];window._ordLat=null;window._ordLng=null;window._deliveryAddr=null;
-            hideSh();
-            toast(payMethod==='cash'?'Cash order placed! Rider will collect payment.':'Order placed! Shop confirming M-Pesa.');
-            showOrds();
-          }).catch(function(){toast('Error placing order — check connection');});
-        });
-    });
   }
+// ── TOP-LEVEL placeOrder: self-contained, no closure deps ───────────
+function placeOrder(payMethod,mpesaCode){
+  if(!CART.length){toast('Cart is empty');return;}
+  var shop=CS||{};
+  var shopId=shop.id||CART[0].shopId||'';
+  var sub=CART.reduce(function(s,i){return s+(i.price||0)*(i.qty||1);},0);
+  var df=calcFee(CART[0].shopDist||.5);
+  var addr=window._deliveryAddr||USER.name+' waiting';
+  var orderData={
+    type:'shop',
+    customer_phone:USER.phone,
+    customer_name:USER.name,
+    shop_id:shopId,
+    shopName:shop.name||CART[0].shopName||'',
+    delivery_address:addr,
+    items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),
+    subtotal:sub,delivery_fee:df,total:sub+df,
+    rider_earnings:df,platform_earnings:0,
+    distance:CART[0].shopDist||.5,
+    status:'placed',payment_method:payMethod,
+    rider_phone:null,rider_name:null
+  };
+  if(window._ordLat){orderData.delivery_lat=window._ordLat;orderData.delivery_lng=window._ordLng;}
+
+  function doPlace(db){
+    db.collection('delivery_orders')
+      .add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()}))
+      .then(function(docRef){
+        CART=[];
+        window._ordLat=null;window._ordLng=null;window._deliveryAddr=null;
+        hideSh();
+        toast(payMethod==='cash'?'&#x1F4B5; Cash order placed! Pay rider on arrival.':'&#x2705; Order sent! Track it in My Orders.');
+        showOrds();
+      })
+      .catch(function(e){
+        console.error('Order placement error:',e);
+        toast('Error placing order — check connection and try again');
+      });
+  }
+
+  loadFB(function(db){
+    if(!db){toast('No connection — cannot place order');return;}
+    // Try duplicate check (needs composite index — safe to skip if it fails)
+    db.collection('delivery_orders')
+      .where('customer_phone','==',USER.phone)
+      .where('status','in',['placed','confirmed'])
+      .get()
+      .then(function(snap){
+        // Check if any of the results are from the same shop
+        var dup=snap.docs.some(function(d){return d.data().shop_id===shopId;});
+        if(dup){
+          hideSh();
+          toast('You already have an active order from this shop. Track it in My Orders.');
+          showOrds();
+          return;
+        }
+        doPlace(db);
+      })
+      .catch(function(){
+        // Composite index missing — place order without duplicate check
+        doPlace(db);
+      });
+  });
 }
 function showPickup(){
   setTitle('TUMANA','#10b981');setNav('customer','pickup');
   PUDIST=1;PUFEE=calcFee(1);
-  var fares=[[.5,'Under 0.5 km'],[1,'1 km'],[2,'2 km'],[3,'3 km'],[5,'5 km'],[8,'Muhoroni ~8km']];
-  var faresH='';
-  fares.forEach(function(f,i){
-    var df=calcFee(f[0]);
-    faresH+='<div class="fare'+(i===1?' sel':'')+'" data-km="'+f[0]+'" data-fee="'+df+'"><div style="display:flex;align-items:center;gap:12px"><div style="font-size:22px">&#x1F6F5;</div><div style="font-weight:700;font-size:14px;color:'+(i===1?'#10b981':'inherit')+'">'+f[1]+'</div></div><div style="font-size:18px;font-weight:800;color:'+(i===1?'#10b981':'inherit')+'">KSh '+df+'</div></div>';
-  });
-  var locs=['Chemelil Market','Hospital','Stage','Sugar Factory','Police Station','Railway'];
-  var locsH='';locs.forEach(function(l){locsH+='<div class="lp" data-loc="'+l+'" style="background:#111116;border:1px solid rgba(255,255,255,.13);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.5)">'+l+'</div>';});
-  pg().innerHTML='<div style="padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.07)"><div style="font-size:20px;font-weight:800;margin-bottom:2px">&#x1F4CD; Where to?</div></div><div style="padding:14px 18px 100px">'
-    +'<div style="background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:50%;background:#10b981;flex-shrink:0"></div><div style="flex:1"><div style="font-size:10px;font-weight:700;color:#10b981;margin-bottom:3px">PICKUP FROM</div><input id="pfr" type="text" placeholder="e.g. Chemelil Market..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none"></div></div>'
-    +'<button id="gps-btn" style="margin-top:8px;width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F4CD; Use My GPS Location</button></div>'
-    +'<div style="background:#111116;border:1.5px solid rgba(239,68,68,.3);border-radius:13px;padding:13px;margin-bottom:14px;display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:3px;background:#ef4444;flex-shrink:0"></div><div style="flex:1"><div style="font-size:10px;font-weight:700;color:#ef4444;margin-bottom:3px">DROP OFF AT</div><input id="pto" type="text" placeholder="e.g. My house, School..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none"></div></div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">'+locsH+'</div>'
-    +faresH
-    +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px;margin:14px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:13px;color:rgba(255,255,255,.4)">Your fare</span><span id="fared" style="font-size:22px;font-weight:800;color:#10b981">KSh '+calcFee(1)+'</span></div><div style="font-size:11px;color:rgba(255,255,255,.4)">Pay to &#x1F4F1; <strong style="color:#10b981">'+MP+'</strong> · Ref: TUM'+USER.phone.slice(-4)+'</div></div>'
-    +'<button id="reqb" class="btn bg" style="font-size:16px;padding:17px">&#x1F6F5; Request Rider</button></div>';
-  pg().querySelectorAll('.lp').forEach(function(el){el.addEventListener('click',function(){document.getElementById('pfr').value=this.getAttribute('data-loc');});});
-  pg().querySelectorAll('.fare').forEach(function(el){
+  window._gpsLat=null;window._gpsLng=null;
+  window._dropLat=null;window._dropLng=null;
+
+  var locs=['Chemelil Market','Hospital','Stage','Sugar Factory','Police Station','Railway','Chemelil Estate'];
+  var locsH='';locs.forEach(function(l){locsH+='<div class="lp" data-loc="'+l+'" style="border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">'+l+'</div>';});
+
+  pg().innerHTML='<div style="padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.07)">'
+    +'<div style="font-size:20px;font-weight:800;margin-bottom:2px">&#x1F4CD; Where to?</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Price updates automatically with GPS</div></div>'
+    +'<div style="padding:14px 18px 100px">'
+    // ── PICKUP ──────────────────────────────────────────────────
+    +'<div style="background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px;margin-bottom:8px">'
+    +'<div style="display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:50%;background:#10b981;flex-shrink:0"></div>'
+    +'<div style="flex:1"><div style="font-size:10px;font-weight:700;color:#10b981;margin-bottom:3px">PICKUP FROM</div>'
+    +'<input id="pfr" type="text" placeholder="e.g. Chemelil Market..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none"></div></div>'
+    +'<button id="gps-pickup-btn" style="margin-top:9px;width:100%;padding:10px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:9px;color:#10b981;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F4CD; Use My GPS as Pickup Point</button>'
+    +'<div id="gps-pickup-status" style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-top:5px"></div>'
+    +'</div>'
+    // ── DROPOFF ─────────────────────────────────────────────────
+    +'<div style="background:#111116;border:1.5px solid rgba(239,68,68,.3);border-radius:13px;padding:13px;margin-bottom:10px">'
+    +'<div style="display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:3px;background:#ef4444;flex-shrink:0"></div>'
+    +'<div style="flex:1"><div style="font-size:10px;font-weight:700;color:#ef4444;margin-bottom:3px">DROP OFF AT</div>'
+    +'<input id="pto" type="text" placeholder="e.g. My house, School..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none"></div></div>'
+    +'<button id="gps-drop-btn" style="margin-top:9px;width:100%;padding:10px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:9px;color:#ef4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F4CD; Use My GPS as Drop-off Point</button>'
+    +'<div id="gps-drop-status" style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-top:5px"></div>'
+    +'</div>'
+    // ── QUICK LOCATIONS ─────────────────────────────────────────
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">'+locsH+'</div>'
+    // ── FARE DISPLAY ────────────────────────────────────────────
+    +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px;margin-bottom:14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+    +'<span style="font-size:13px;color:rgba(255,255,255,.4)">Your fare</span>'
+    +'<span id="fared" style="font-size:24px;font-weight:800;color:#10b981">KSh '+calcFee(1)+'</span></div>'
+    +'<div id="fare-breakdown" style="font-size:11px;color:rgba(255,255,255,.4)">KSh 50 base + KSh 20/km · 1 km estimated</div>'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px">Pay via &#x1F4F1; <strong style="color:#10b981">'+MP+'</strong> · Ref: TUM'+USER.phone.slice(-4)+'</div>'
+    +'</div>'
+    +'<button id="reqb" class="btn bg" style="font-size:16px;padding:17px">&#x1F6F5; Request Rider</button>'
+    +'</div>';
+
+  // ── Quick location chips → fill PICKUP field ─────────────────
+  pg().querySelectorAll('.lp').forEach(function(el){
     el.addEventListener('click',function(){
-      pg().querySelectorAll('.fare').forEach(function(f){f.classList.remove('sel');});
-      this.classList.add('sel');PUDIST=parseFloat(this.getAttribute('data-km'));PUFEE=parseInt(this.getAttribute('data-fee'));
-      document.getElementById('fared').textContent='KSh '+PUFEE;
+      document.getElementById('pfr').value=this.getAttribute('data-loc');
     });
   });
+
+  // ── Haversine distance between two GPS points ────────────────
+  function haversineKm(lat1,lng1,lat2,lng2){
+    var R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+    var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+
+  function updateFare(){
+    var km=PUDIST;
+    // If we have both GPS points, use real distance
+    if(window._gpsLat&&window._gpsLng&&window._dropLat&&window._dropLng){
+      km=Math.max(.2,haversineKm(window._gpsLat,window._gpsLng,window._dropLat,window._dropLng));
+      km=Math.round(km*10)/10; // round to 1 decimal
+    }
+    PUDIST=km;PUFEE=calcFee(km);
+    var fd=document.getElementById('fared');var fb=document.getElementById('fare-breakdown');
+    if(fd)fd.textContent='KSh '+PUFEE;
+    if(fb)fb.textContent='KSh 50 base + KSh 20/km · '+km.toFixed(1)+' km'+(window._gpsLat&&window._dropLat?' (GPS)':' estimated');
+  }
+
+  function getGPS(successFn,statusId){
+    var st=document.getElementById(statusId);
+    if(st)st.textContent='Getting GPS...';
+    if(!navigator.geolocation){if(st)st.textContent='GPS not available';return;}
+    navigator.geolocation.getCurrentPosition(function(pos){
+      successFn(pos.coords.latitude,pos.coords.longitude);
+      if(st)st.textContent='&#x2705; GPS captured ('+pos.coords.latitude.toFixed(4)+', '+pos.coords.longitude.toFixed(4)+')';
+    },function(){
+      if(st)st.textContent='Could not get GPS. Enter location manually.';
+    },{enableHighAccuracy:true,timeout:10000});
+  }
+
+  // GPS for PICKUP
+  document.getElementById('gps-pickup-btn').addEventListener('click',function(){
+    getGPS(function(lat,lng){
+      window._gpsLat=lat;window._gpsLng=lng;
+      var pfr=document.getElementById('pfr');
+      if(pfr&&!pfr.value)pfr.value='My location (GPS)';
+      updateFare();
+    },'gps-pickup-status');
+  });
+
+  // GPS for DROPOFF
+  document.getElementById('gps-drop-btn').addEventListener('click',function(){
+    getGPS(function(lat,lng){
+      window._dropLat=lat;window._dropLng=lng;
+      var pto=document.getElementById('pto');
+      if(pto&&!pto.value)pto.value='My location (GPS)';
+      updateFare();
+    },'gps-drop-status');
+  });
+
+  // ── Request Rider ─────────────────────────────────────────────
   document.getElementById('reqb').addEventListener('click',function(){
     var from=(document.getElementById('pfr').value||'').trim();
     var to=(document.getElementById('pto').value||'').trim();
-    if(!from){toast('Enter pickup location');return;}if(!to){toast('Enter drop-off destination');return;}
-    var gpsData={};
-    if(window._gpsLat&&window._gpsLng){gpsData={pickup_lat:window._gpsLat,pickup_lng:window._gpsLng};}
-    dbAdd('delivery_orders',Object.assign({type:'pickup',customer_phone:USER.phone,customer_name:USER.name,pickup_from:from,delivery_address:to,item_description:'Pickup: '+from+' to '+to,distance:PUDIST,delivery_fee:PUFEE,total:PUFEE,rider_earnings:PUFEE,platform_earnings:0,status:'placed',rider_phone:null,rider_name:null},gpsData));
-    toast('Rider requested! Track in Orders');showOrds();
+    if(!from){toast('Enter pickup location');return;}
+    if(!to){toast('Enter drop-off destination');return;}
+    var orderData={
+      type:'pickup',
+      customer_phone:USER.phone,
+      customer_name:USER.name,
+      pickup_from:from,
+      delivery_address:to,
+      item_description:'Pickup: '+from+' → '+to,
+      distance:PUDIST,
+      delivery_fee:PUFEE,
+      total:PUFEE,
+      rider_earnings:PUFEE,
+      platform_earnings:0,
+      // Pickup orders go straight to 'confirmed' — no shop approval needed
+      // This makes them immediately visible to available riders
+      status:'confirmed',
+      rider_phone:null,
+      rider_name:null
+    };
+    if(window._gpsLat&&window._gpsLng){
+      orderData.pickup_lat=window._gpsLat;
+      orderData.pickup_lng=window._gpsLng;
+    }
+    if(window._dropLat&&window._dropLng){
+      orderData.delivery_lat=window._dropLat;
+      orderData.delivery_lng=window._dropLng;
+    }
+    dbAdd('delivery_orders',Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()}));
+    toast('&#x1F6F5; Rider requested! KSh '+PUFEE+' · Track in Orders');
+    showOrds();
   });
 }
+
 function showOrds(){
   setTitle('TUMANA','#10b981');setNav('customer','orders');
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700;margin-bottom:12px">My Orders</div></div><div id="olist" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
@@ -964,7 +1084,13 @@ function showOrds(){
         tH+='<div style="display:flex;gap:9px;align-items:flex-start"><div style="display:flex;flex-direction:column;align-items:center;width:22px;flex-shrink:0"><div style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;background:'+(d?'#10b981':a?'#8b5cf6':'#1a1a22')+';color:'+(d?'#000':a?'#fff':'rgba(255,255,255,.2)')+';">'+(d?'&#x2713;':(SICO[key]||'&#x2022;'))+'</div>'+(last?'':'<div style="width:2px;height:12px;margin:2px 0;background:'+(d?'#10b981':'rgba(255,255,255,.1)')+'"></div>')+'</div><div style="padding-bottom:10px"><div style="font-size:12px;font-weight:700;color:'+(d?'#10b981':a?'#fff':'rgba(255,255,255,.3)')+'">'+( SLOC[key]||key)+'</div>'+(a?'<div style="font-size:10px;color:rgba(255,255,255,.4)">Now</div>':'')+'</div></div>';
       });
       var desc=o.type==='pickup'?(o.pickup_from||'')+'→'+(o.delivery_address||''):(o.items||[]).map(function(i){return i.name+' x'+i.quantity;}).join(', ');
-      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:9px"><div><div style="font-weight:700;font-size:14px">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Order')+' #'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.shopName||o.pickup_from||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="margin:10px 0 8px">'+tH+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:5px">'+desc+'</div><div style="font-weight:700;color:#10b981">KSh '+o.total+'</div>'+(o.rider_name?'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:9px;margin-top:7px;font-size:12px;color:#8b5cf6">&#x1F6F5; '+o.rider_name+' · '+o.rider_phone+'</div>':'')
+      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:9px"><div><div style="font-weight:700;font-size:14px">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Order')+' #'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.shopName||o.pickup_from||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="margin:10px 0 8px">'+tH+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:5px">'+desc+'</div><div style="font-weight:700;color:#10b981">KSh '+o.total+'</div>'+(o.rider_name?'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:9px;margin-top:7px">'
+        +'<div style="font-size:12px;color:#8b5cf6;font-weight:700;margin-bottom:4px">&#x1F6F5; '+o.rider_name+'</div>'
+        +'<div style="display:flex;gap:6px">'
+        +'<a href="tel:'+o.rider_phone+'" style="flex:1;padding:7px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:7px;color:#10b981;text-align:center;font-size:11px;font-weight:700;text-decoration:none">&#x1F4DE; Call</a>'
+        +'<a href="https://wa.me/254'+(o.rider_phone||'').replace(/^0/,'')+'" target="_blank" style="flex:1;padding:7px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:7px;color:#25D366;text-align:center;font-size:11px;font-weight:700;text-decoration:none">&#x1F4AC; WhatsApp</a>'
+        +(o.delivery_lat?'<a href="https://www.google.com/maps/dir/?api=1&destination='+o.delivery_lat+','+o.delivery_lng+'" target="_blank" style="flex:1;padding:7px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:7px;color:#3b82f6;text-align:center;font-size:11px;font-weight:700;text-decoration:none">&#x1F5FA; Map</a>':'')
+        +'</div></div>':'')
       +(o.status==='delivered'&&!o.rated?'<div style="margin-top:8px"><div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:6px">Rate this delivery:</div><div class="rate-stars" data-id="'+o.id+'" data-riderphone="'+(o.rider_phone||'')+'" data-shopid="'+(o.shop_id||'')+'" style="display:flex;gap:6px">'+[1,2,3,4,5].map(function(n){return '<div class="star-btn" data-stars="'+n+'" style="font-size:24px;cursor:pointer;opacity:.35">&#x2605;</div>';}).join('')+'</div></div>':'')
       +'</div>';
     });
@@ -1592,9 +1718,10 @@ function showSSet(){
   document.getElementById('ssout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
 }
 
-var NST={assigned:'heading',heading:'picked',picked:'transit',transit:'delivered'};
-var NLB={assigned:'Heading to Pickup',heading:'Picked Up',picked:'Out for Delivery',transit:'Mark Delivered'};
-var PROG=['assigned','heading','picked','transit','delivered'];
+// Simplified 3-stage rider flow: Accept → Picked Up → Delivered
+var NST={assigned:'picked',picked:'delivered'};
+var NLB={assigned:'&#x1F4E6; Picked Up from Shop',picked:'&#x2705; Mark Delivered'};
+var PROG=['assigned','picked','delivered'];
 
 function showJobs(){
   setTitle('RIDER','#8b5cf6');setNav('rider','jobs');
@@ -1608,7 +1735,7 @@ function startJL(){
   if(RUNSUB){RUNSUB();RUNSUB=null;}
   // Mark rider as NOT busy when they start listening for jobs
   dbSet('riders',USER.phone,{busy:false,online:true,name:USER.name,phone:USER.phone});
-  RUNSUB=dbListenIn('delivery_orders','status',['confirmed','placed'],function(jobs){
+  RUNSUB=dbListenIn('delivery_orders','status',['confirmed'],function(jobs){
     // Filter: only show jobs with no rider assigned yet
     // If rider has an active delivery, suppress the job list entirely
     RJOBS = RACT ? [] : jobs.filter(function(j){return !j.rider_phone;});
@@ -1628,7 +1755,15 @@ function renderRBody(){
     var dots='<div style="display:flex;align-items:center;gap:4px;margin:8px 0 12px">';
     PROG.forEach(function(k,i){dots+='<div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;background:'+(i<ci?'#10b981':i===ci?'#8b5cf6':'#1a1a22')+';color:'+(i<=ci?'#000':'rgba(255,255,255,.2)')+'">'+(i<ci?'&#x2713;':i+1)+'</div>'+(i<PROG.length-1?'<div style="flex:1;height:2px;background:'+(i<ci?'#10b981':'rgba(255,255,255,.1)')+'"></div>':'');});
     dots+='</div>';
-    h='<div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;margin-bottom:8px;letter-spacing:1.5px">Active Delivery</div><div class="card" style="border:2px solid #10b981"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><div style="font-weight:700">#'+a.id.slice(-6).toUpperCase()+'</div><div style="font-weight:800;color:#10b981;font-size:20px">KSh '+(a.delivery_fee||70)+'</div></div>'+dots+'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">From: '+(a.shopName||a.pickup_from||'')+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">To: '+(a.customer_name||'')+' · '+(a.delivery_address||'')+'</div>'+(NST[a.status]?'<button id="advb" class="btn bg">'+NLB[a.status]+'</button>':'')+'</div>';
+    h='<div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;margin-bottom:8px;letter-spacing:1.5px">Active Delivery</div><div class="card" style="border:2px solid #10b981"><div style="display:flex;justify-content:space-between;margin-bottom:10px"><div style="font-weight:700">#'+a.id.slice(-6).toUpperCase()+'</div><div style="font-weight:800;color:#10b981;font-size:20px">KSh '+(a.delivery_fee||70)+'</div></div>'+dots+'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">&#x1F3EA; From: '+(a.shopName||a.pickup_from||'')+'</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:4px 0">&#x1F4CD; To: '+(a.customer_name||'')+' · '+(a.delivery_address||'')+'</div>'
+    +'<div style="display:flex;gap:6px;margin-top:8px">'
+    +(a.delivery_lat
+      ?'<a href="https://www.google.com/maps/dir/?api=1&destination='+a.delivery_lat+','+a.delivery_lng+'" target="_blank" style="flex:1;padding:9px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);border-radius:9px;color:#3b82f6;text-align:center;font-size:12px;font-weight:700;text-decoration:none">&#x1F5FA; Google Maps</a>'
+       +'<a href="waze://?ll='+a.delivery_lat+','+a.delivery_lng+'&navigate=yes" target="_blank" style="flex:1;padding:9px;background:rgba(0,188,212,.1);border:1px solid rgba(0,188,212,.25);border-radius:9px;color:#00bcd4;text-align:center;font-size:12px;font-weight:700;text-decoration:none">&#x1F6F0; Waze</a>'
+      :'<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent((a.delivery_address||a.customer_name||'Delivery location'))+'" target="_blank" style="flex:1;padding:9px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);border-radius:9px;color:#3b82f6;text-align:center;font-size:12px;font-weight:700;text-decoration:none">&#x1F5FA; Navigate</a>')
+    +'<a href="tel:'+(a.customer_phone||'')+'" style="flex:1;padding:9px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:9px;color:#10b981;text-align:center;font-size:12px;font-weight:700;text-decoration:none">&#x1F4DE; Customer</a>'
+    +'</div>'+(NST[a.status]?'<button id="advb" class="btn bg">'+NLB[a.status]+'</button>':'')+'</div>';
   }
   if(!RON){h+=empty('&#x1F634;','Offline','Toggle Online to receive deliveries');}
   else if(RACT){/* Active delivery shown above — no job list until done */}
@@ -2262,6 +2397,24 @@ function showItemSearch(query){
   });
 }
 
+// ── SUPPRESS PWA INSTALL PROMPT / URL-share popup ─────────────────
+// The browser shows an "install app" / "add to home screen" banner
+// by default in the Android notification area when visiting a PWA.
+// Capture and suppress the event so it never auto-shows.
+// (User can still install via Chrome's ⋮ menu → Add to Home Screen)
+// Suppress Chrome PWA install / share-link banner from appearing
+// in the notification bar or at the bottom of the screen automatically.
+// The user can still install via Chrome ⋮ → Add to Home Screen.
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();
+  window._installPrompt=e;
+  return false;
+});
+// Suppress "App available" app banner on Android
+window.addEventListener('appinstalled',function(e){
+  window._installPrompt=null;
+});
+
 // ── SERVICE WORKER — register immediately, independent of Firebase ──
 // This makes offline mode work even before any Firebase script loads.
 if('serviceWorker' in navigator){
@@ -2359,7 +2512,7 @@ function renderCurrentView(){
 function boot(){
   // Ownership verification stamp - DO NOT REMOVE
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v20 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v21 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
