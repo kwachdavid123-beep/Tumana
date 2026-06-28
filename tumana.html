@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <!--
-  TUMANA - Local Delivery Platform
+  TUMANA - Local Delivery Platform v23
   Copyright (c) 2026 David Kwach, Chemelil, Kenya
-  v22 Jun 2026
 -->
 <html lang="en">
 <head>
@@ -14,7 +13,6 @@
 <meta name="apple-mobile-web-app-title" content="Tumana Delivery">
 <meta property="og:title" content="Tumana Delivery">
 <meta property="og:description" content="Chemelil Local Delivery">
-<meta property="og:image" content="/Tumana/tumana-logo.png">
 <link rel="manifest" href="/Tumana/manifest.json">
 <link rel="apple-touch-icon" href="/Tumana/tumana-logo.png">
 <link rel="icon" type="image/png" href="/Tumana/tumana-logo.png">
@@ -167,9 +165,9 @@ body.light [style*="color:#4ade80"]{color:#16a34a!important}
 <body>
 
 <div id="loading">
-  <img src="/Tumana/tumana-splash.png" alt="Tumana Delivery" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" onerror="this.style.display='none'">
+  <img src="/Tumana/tumana-splash.png" alt="Tumana" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v22 Jun 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v23 Jun 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -393,8 +391,35 @@ function dbSet(col,id,d){loadFB(function(db){if(db)db.collection(col).doc(id).se
 function dbGet(col,id,cb){loadFB(function(db){if(!db)return cb(null);db.collection(col).doc(id).get().then(function(d){cb(d.exists?Object.assign({id:d.id},d.data()):null);}).catch(function(){cb(null);});});}
 function dbAdd(col,d){loadFB(function(db){if(!db)return;db.collection(col).add(Object.assign({},d,{ts:firebase.firestore.FieldValue.serverTimestamp()})).catch(function(){});});}
 function dbUpd(col,id,d,cb){loadFB(function(db){if(!db){if(cb)cb(false);return;}db.collection(col).doc(id).update(d).then(function(){if(cb)cb(true);}).catch(function(){if(cb)cb(false);});});}
-function dbListen(col,f,op,v,cb){loadFB(function(db){if(!db){cb([]);return;}db.collection(col).where(f,op,v).limit(50).onSnapshot(function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));},function(){cb([]);});});}
-function dbListenIn(col,f,vs,cb){loadFB(function(db){if(!db){cb([]);return;}db.collection(col).where(f,'in',vs).limit(30).onSnapshot(function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));},function(){cb([]);});});}
+function dbListen(col,f,op,v,cb){
+  var unsub=null;
+  loadFB(function(db){
+    if(!db){cb([]);return;}
+    unsub=db.collection(col).where(f,op,v).orderBy('ts','desc').limit(50).onSnapshot(
+      function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));},
+      function(){
+        // If ordering by ts fails (no composite index), fall back to unordered
+        unsub=db.collection(col).where(f,op,v).limit(50).onSnapshot(
+          function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));},
+          function(){cb([]);}
+        );
+      }
+    );
+  });
+  // Return function that calls unsub when available
+  return function(){if(unsub)unsub();};
+}
+function dbListenIn(col,f,vs,cb){
+  var unsub=null;
+  loadFB(function(db){
+    if(!db){cb([]);return;}
+    unsub=db.collection(col).where(f,'in',vs).limit(30).onSnapshot(
+      function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));},
+      function(){cb([]);}
+    );
+  });
+  return function(){if(unsub)unsub();};
+}
 function dbAll(col,cb){loadFB(function(db){if(!db){cb([]);return;}db.collection(col).get().then(function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));}).catch(function(){cb([]);});});}
 
 function setNav(role,tab){
@@ -1037,7 +1062,13 @@ function showOrds(){
         tH+='<div style="display:flex;gap:9px;align-items:flex-start"><div style="display:flex;flex-direction:column;align-items:center;width:22px;flex-shrink:0"><div style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;background:'+(d?'#10b981':a?'#8b5cf6':'#1a1a22')+';color:'+(d?'#000':a?'#fff':'rgba(255,255,255,.2)')+';">'+(d?'&#x2713;':(SICO[key]||'&#x2022;'))+'</div>'+(last?'':'<div style="width:2px;height:12px;margin:2px 0;background:'+(d?'#10b981':'rgba(255,255,255,.1)')+'"></div>')+'</div><div style="padding-bottom:10px"><div style="font-size:12px;font-weight:700;color:'+(d?'#10b981':a?'#fff':'rgba(255,255,255,.3)')+'">'+( SLOC[key]||key)+'</div>'+(a?'<div style="font-size:10px;color:rgba(255,255,255,.4)">Now</div>':'')+'</div></div>';
       });
       var desc=o.type==='pickup'?(o.pickup_from||'')+'→'+(o.delivery_address||''):(o.items||[]).map(function(i){return i.name+' x'+i.quantity;}).join(', ');
-      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:9px"><div><div style="font-weight:700;font-size:14px">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Order')+' #'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.shopName||o.pickup_from||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="margin:10px 0 8px">'+tH+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:5px">'+desc+'</div><div style="font-weight:700;color:#10b981">KSh '+o.total+'</div>'+(o.rider_name?'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:9px;margin-top:7px">'
+      // Status message shown to customer
+      var statusMsg='';
+      if(o.status==='placed')statusMsg='<div style="font-size:12px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#f59e0b">&#x23F3; Waiting for shop to confirm your order...</div>';
+      else if(o.status==='confirmed')statusMsg='<div style="font-size:12px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#8b5cf6">&#x1F50D; Looking for a rider near you...</div>';
+      else if(o.status==='assigned')statusMsg='<div style="font-size:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#10b981">&#x1F6F5; Rider is on the way to pick up your order!</div>';
+      else if(o.status==='picked')statusMsg='<div style="font-size:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#10b981">&#x1F4E6; Order picked up — coming to you now!</div>';
+      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:9px"><div><div style="font-weight:700;font-size:14px">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Order')+' #'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.shopName||o.pickup_from||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div>'+statusMsg+'<div style="margin:10px 0 8px">'+tH+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:5px">'+desc+'</div><div style="font-weight:700;color:#10b981">KSh '+o.total+'</div>'+(o.rider_name?'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:9px;margin-top:7px">'
         +'<div style="font-size:12px;color:#8b5cf6;font-weight:700;margin-bottom:4px">&#x1F6F5; '+o.rider_name+'</div>'
         +'<div style="display:flex;gap:6px">'
         +'<a href="tel:'+o.rider_phone+'" style="flex:1;padding:7px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:7px;color:#10b981;text-align:center;font-size:11px;font-weight:700;text-decoration:none">&#x1F4DE; Call</a>'
@@ -1130,12 +1161,51 @@ function showSOrd(){
   SORD.forEach(function(o){
     var items=(o.items||[]).map(function(i){return i.name+' x'+i.quantity;}).join(', ')||o.item_description||'';
     h+='<div class="card" style="border-left:4px solid #10b981"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div><div style="font-weight:700">#'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.customer_name||'')+' · '+(o.customer_phone||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">'+items+'</div><div style="display:flex;gap:7px;margin-bottom:8px"><div style="flex:1;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.13);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px">YOU EARN</div><div style="font-weight:800;color:#10b981">KSh '+(o.subtotal||o.total||0)+'</div></div><div style="flex:1;background:#1a1a22;border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px">TOTAL</div><div style="font-weight:800">KSh '+(o.total||0)+'</div></div></div>';
-    if(o.status==='placed'){h+='<input id="mp'+o.id+'" type="text" placeholder="M-Pesa code e.g. RGH456XYZ" style="width:100%;background:#1a1a22;border:1.5px solid rgba(16,185,129,.22);border-radius:8px;padding:11px;font-size:14px;color:#fff;font-family:inherit;text-transform:uppercase;margin-bottom:8px;outline:none"><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button class="rb btn br" data-id="'+o.id+'" style="margin-top:0">&#x274C; Reject</button><button class="cb btn bg" data-id="'+o.id+'" style="margin-top:0">&#x2705; Confirm</button></div>';}
+    // Show delivery destination to shop
+    if(o.delivery_address){h+='<div style="background:#1a1a22;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px"><span style="color:rgba(255,255,255,.4)">&#x1F4CD; Deliver to: </span><strong>'+o.delivery_address+'</strong></div>';}
+    if(o.status==='placed'){
+      var isMpesa=o.payment_method==='mpesa';
+      var isCash=o.payment_method==='cash';
+      h+='<div style="background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:10px;margin-bottom:8px">';
+      h+='<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Confirm this order</div>';
+      if(isCash){
+        // Cash order - just confirm, no code needed
+        h+='<div style="font-size:12px;color:#f59e0b;margin-bottom:8px">&#x1F4B5; Cash payment - collect KSh '+(o.delivery_fee||70)+' on delivery</div>';
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
+        h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:12px">&#x274C; Reject</button>';
+        h+='<button class="cb btn bg" data-id="'+o.id+'" data-paytype="cash" style="margin-top:0;font-size:12px">&#x2705; Confirm Order</button>';
+        h+='</div>';
+      } else {
+        // M-Pesa - require confirmation code
+        h+='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">&#x1F4F1; Customer paid via M-Pesa. Enter the code to confirm:</div>';
+        h+='<input id="mp'+o.id+'" type="text" placeholder="M-Pesa code e.g. RGH456XYZ" style="width:100%;background:#111116;border:1.5px solid rgba(16,185,129,.22);border-radius:8px;padding:11px;font-size:14px;color:#fff;font-family:inherit;text-transform:uppercase;margin-bottom:8px;outline:none">';
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
+        h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:12px">&#x274C; Reject</button>';
+        h+='<button class="cb btn bg" data-id="'+o.id+'" data-paytype="mpesa" style="margin-top:0;font-size:12px">&#x2705; Confirm Order</button>';
+        h+='</div>';
+      }
+      h+='</div>';
+    }
     if(o.rider_name){h+='<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.14);border-radius:8px;padding:9px;font-size:12px;color:#8b5cf6;margin-top:6px">&#x1F6F5; '+o.rider_name+' · '+o.rider_phone+'</div>';}
     h+='</div>';
   });
   c.innerHTML=h;
-  c.querySelectorAll('.cb').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');var inp=document.getElementById('mp'+id);var code=inp?(inp.value||'').trim().toUpperCase():'';if(!code||code.length<5){toast('Enter M-Pesa code from SMS');return;}dbUpd('delivery_orders',id,{status:'confirmed',mpesa_code:code},function(ok){toast(ok?'Confirmed! Notifying riders':'Error');});});});
+  c.querySelectorAll('.cb').forEach(function(btn){btn.addEventListener('click',function(){
+    var id=this.getAttribute('data-id');
+    var paytype=this.getAttribute('data-paytype')||'mpesa';
+    var updateData={status:'confirmed'};
+    if(paytype==='cash'){
+      updateData.shop_cash_confirmed=true;
+    } else {
+      var inp=document.getElementById('mp'+id);
+      var code=inp?(inp.value||'').trim().toUpperCase():'';
+      if(!code||code.length<5){toast('Enter M-Pesa code from SMS');return;}
+      updateData.mpesa_code=code;
+    }
+    dbUpd('delivery_orders',id,updateData,function(ok){
+      toast(ok?'&#x2705; Order confirmed! Riders notified.':'Error confirming order');
+    });
+  });});
   c.querySelectorAll('.rb').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject this order?'))return;dbUpd('delivery_orders',this.getAttribute('data-id'),{status:'rejected'},function(){toast('Order rejected');});});});
 }
 function showSSales(){
@@ -1768,7 +1838,7 @@ function renderRBody(){
       +(RACT
         ?'<div style="padding:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:9px;text-align:center;font-size:12px;color:rgba(255,255,255,.3)">&#x1F6AB; Finish current delivery first</div>'
         :'<div style="display:flex;gap:8px">'
-          +'<button class="btn br" style="margin-top:0;flex:1;padding:13px;font-size:13px;font-weight:700">&#x2716; Decline</button>'
+          +'<button class="btn br dcj" data-id="'+job.id+'" style="margin-top:0;flex:1;padding:13px;font-size:13px;font-weight:700">&#x2716; Decline</button>'
           +'<button class="acj btn bg" data-id="'+job.id+'" style="margin-top:0;flex:2;padding:13px;font-size:14px;font-weight:800">&#x2714; Accept KSh '+rg+'</button>'
         +'</div>')
       +'</div>';
@@ -1777,6 +1847,11 @@ function renderRBody(){
   b.innerHTML=h;
   var advb=document.getElementById('advb');if(advb)advb.addEventListener('click',advJob);
   b.querySelectorAll('.acj').forEach(function(btn){btn.addEventListener('click',function(){accJob(this.getAttribute('data-id'));});});
+  b.querySelectorAll('.dcj').forEach(function(btn){btn.addEventListener('click',function(){
+    var jid=this.getAttribute('data-id');
+    RJOBS=RJOBS.filter(function(j){return j.id!==jid;});
+    renderRBody();
+  });});
 }
 function accJob(jobId){
   // Block accepting if already on a delivery
@@ -2511,7 +2586,7 @@ function renderCurrentView(){
 function boot(){
   // Ownership verification stamp - DO NOT REMOVE
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v22 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v23 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
