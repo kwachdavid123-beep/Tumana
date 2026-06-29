@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  TUMANA - Local Delivery Platform v23
+  TUMANA - Local Delivery Platform v24
   Copyright (c) 2026 David Kwach, Chemelil, Kenya
 -->
 <html lang="en">
@@ -167,7 +167,7 @@ body.light [style*="color:#4ade80"]{color:#16a34a!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v23 Jun 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v24 Jun 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -395,18 +395,11 @@ function dbListen(col,f,op,v,cb){
   var unsub=null;
   loadFB(function(db){
     if(!db){cb([]);return;}
-    unsub=db.collection(col).where(f,op,v).orderBy('ts','desc').limit(50).onSnapshot(
+    unsub=db.collection(col).where(f,op,v).limit(50).onSnapshot(
       function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));},
-      function(){
-        // If ordering by ts fails (no composite index), fall back to unordered
-        unsub=db.collection(col).where(f,op,v).limit(50).onSnapshot(
-          function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));},
-          function(){cb([]);}
-        );
-      }
+      function(e){console.log('dbListen error:',e.message);cb([]);}
     );
   });
-  // Return function that calls unsub when available
   return function(){if(unsub)unsub();};
 }
 function dbListenIn(col,f,vs,cb){
@@ -624,7 +617,30 @@ function showSheet(h){document.getElementById('sh').innerHTML=h;document.getElem
 function startApp(){
   if(!USER)return showRole();applyTheme();
   if(USER.role==='customer')startCust();
-  else if(USER.role==='rider')showJobs();
+  else if(USER.role==='rider'){
+    // Before showing jobs, check if rider has an active delivery
+    // (assigned or picked) that was in progress when app was last closed.
+    // Restore RACT so the active delivery appears correctly.
+    loadFB(function(db){
+      if(!db){showJobs();return;}
+      db.collection('delivery_orders')
+        .where('rider_phone','==',USER.phone)
+        .where('status','in',['assigned','picked'])
+        .limit(1)
+        .get()
+        .then(function(snap){
+          if(!snap.empty){
+            var d=snap.docs[0];
+            RACT=Object.assign({id:d.id},d.data());
+            // Mark rider as busy since they have an active job
+            dbSet('riders',USER.phone,{busy:true,online:true,name:USER.name,phone:USER.phone});
+            console.log('Restored active delivery:',RACT.id,'status:',RACT.status);
+          }
+          showJobs();
+        })
+        .catch(function(){showJobs();});
+    });
+  }
   else if(USER.role==='shop')startShop();
   else if(USER.role==='admin')showAOv();
   else showRole();
@@ -1751,18 +1767,26 @@ function showJobs(){
   var rn=(USER.name&&USER.name!==USER.phone?USER.name.split(' ')[0]:USER.phone);
   pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:18px;font-weight:700">Hey '+rn+'! &#x1F6F5;</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+' · Tumana Rider</div></div><button id="rout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:#1a1a22;border:1.5px solid rgba(255,255,255,.13);border-radius:12px;padding:12px 14px"><div><div style="font-weight:700;color:'+(RON?'#10b981':'rgba(255,255,255,.4)')+'">'+( RON?'&#x1F7E2; Online':'&#x1F534; Offline')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(RON?'Receiving jobs':'Toggle to earn')+'</div></div><div id="rtog" class="tog'+(RON?' on':'')+'"><div class="togth"></div></div></div></div><div style="display:flex;gap:8px;padding:10px 18px 0"><div class="sb2" style="flex:1"><div class="sv" style="color:#10b981">KSh '+REARN+'</div><div class="sl">Today</div></div><div class="sb2" style="flex:1"><div class="sv" style="color:#8b5cf6" id="jcnt">0</div><div class="sl">Available</div></div></div><div id="rbody" style="padding:10px 18px 100px"></div>';
   document.getElementById('rout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
-  document.getElementById('rtog').addEventListener('click',function(){RON=!RON;dbSet('riders',USER.phone,{online:RON,name:USER.name,phone:USER.phone,busy:!!RACT});toast(RON?'Online - receiving jobs':'Offline');if(RON)startJL();else{if(RUNSUB){RUNSUB();RUNSUB=null;}RJOBS=[];}showJobs();});
+  document.getElementById('rtog').addEventListener('click',function(){
+    RON=!RON;
+    var busyState=RON?(!!RACT):false;
+    dbSet('riders',USER.phone,{online:RON,name:USER.name,phone:USER.phone,busy:busyState});
+    toast(RON?'Online - receiving jobs':'Offline');
+    if(RON)startJL();else{if(RUNSUB){RUNSUB();RUNSUB=null;}RJOBS=[];}
+    showJobs();
+  });
   renderRBody();if(RON)startJL();startAL();
 }
 function startJL(){
   if(RUNSUB){RUNSUB();RUNSUB=null;}
-  // Mark rider as NOT busy when they start listening for jobs
-  dbSet('riders',USER.phone,{busy:false,online:true,name:USER.name,phone:USER.phone});
+  // Only set busy:false if rider does NOT have an active delivery right now.
+  // If RACT exists (restored from Firestore), rider is still busy — don't override.
+  if(!RACT){
+    dbSet('riders',USER.phone,{busy:false,online:true,name:USER.name,phone:USER.phone});
+  }
   RUNSUB=dbListenIn('delivery_orders','status',['confirmed'],function(jobs){
-    // Filter: only show jobs with no rider assigned yet
-    // If rider has an active delivery, suppress the job list entirely
     RJOBS = RACT ? [] : jobs.filter(function(j){return !j.rider_phone;});
-    var c=document.getElementById('jcnt');if(c)c.textContent=RJOBS.length;
+    var cnt=document.getElementById('jcnt');if(cnt)cnt.textContent=RJOBS.length;
     renderRBody();
   });
 }
@@ -2126,25 +2150,67 @@ function showAOrds(initFilter){
         +'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Shop')+' · '+(o.customer_name||'')+'</div>'
         +(o.delivery_address?'<div style="font-size:11px;color:rgba(255,255,255,.35)">&#x1F4CD; '+(o.delivery_address||'')+(o.delivery_description?' · '+o.delivery_description:'')+'</div>':'')
         +'</div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div>'
-        +'<div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.4)">'
+        +'<div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.4);margin-bottom:6px">'
         +'<span>KSh '+(o.total||0)+'</span>'
         +'<span>'+(o.rider_name?'&#x1F6F5; '+o.rider_name:'No rider')+'</span>'
         +'<span>'+(o.payment_method==='cash'?'&#x1F4B5; Cash':'&#x1F4F1; M-Pesa')+'</span>'
-        +'</div></div>';
+        +'</div>'
+        +((['assigned','picked'].indexOf(o.status)>=0)?'<div style="display:flex;gap:6px"><button class="ord-reset btn ba" data-id="'+o.id+'" style="margin-top:0;font-size:11px;padding:7px">&#x1F504; Reset to Available</button><button class="ord-rej btn br" data-id="'+o.id+'" style="margin-top:0;font-size:11px;padding:7px">&#x274C; Reject</button></div>':'')
+        +(o.status==='placed'?'<button class="ord-confirm btn bg" data-id="'+o.id+'" style="margin-top:4px;font-size:11px;padding:7px">&#x2705; Force Confirm (Admin)</button>':'')
+        +'</div>';
     }).join('');
   }
   dbAll('delivery_orders',function(orders){
     allOrds=orders.sort(function(a,b){return(b.ts&&b.ts.seconds||0)-(a.ts&&a.ts.seconds||0);});
-    renderOrds(allOrds.filter(filters[f]));
+    renderOrdsAndWire(allOrds.filter(filters[f]));
     var pendCount=allOrds.filter(filters.pending).length;
     if(pendCount&&document.getElementById('ord-pend')){
       document.getElementById('ord-pend').textContent='Pending ('+pendCount+')';
     }
   });
-  document.getElementById('ord-all').addEventListener('click',function(){setActive('all');renderOrds(allOrds.filter(filters.all));});
-  document.getElementById('ord-pend').addEventListener('click',function(){setActive('pending');renderOrds(allOrds.filter(filters.pending));});
-  document.getElementById('ord-active').addEventListener('click',function(){setActive('active');renderOrds(allOrds.filter(filters.active));});
-  document.getElementById('ord-done').addEventListener('click',function(){setActive('done');renderOrds(allOrds.filter(filters.done));});
+  function wireOrdButtons(){
+    document.getElementById('ab').querySelectorAll('.ord-reset').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=this.getAttribute('data-id');
+        if(!confirm('Reset this order? The current rider will be removed and order re-opens for any rider.'))return;
+        loadFB(function(db){
+          db.collection('delivery_orders').doc(id).update({
+            status:'confirmed',rider_phone:null,rider_name:null,assigned_at:null
+          }).then(function(){toast('&#x2705; Order reset — available for riders');renderOrds(allOrds.filter(filters[f]));})
+          .catch(function(){toast('Error resetting order');});
+        });
+      });
+    });
+    document.getElementById('ab').querySelectorAll('.ord-rej').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=this.getAttribute('data-id');
+        if(!confirm('Reject this order?'))return;
+        loadFB(function(db){
+          db.collection('delivery_orders').doc(id).update({status:'rejected'})
+          .then(function(){toast('Order rejected');renderOrds(allOrds.filter(filters[f]));})
+          .catch(function(){toast('Error');});
+        });
+      });
+    });
+    document.getElementById('ab').querySelectorAll('.ord-confirm').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=this.getAttribute('data-id');
+        if(!confirm('Force confirm this order? Riders will be notified.'))return;
+        loadFB(function(db){
+          db.collection('delivery_orders').doc(id).update({status:'confirmed'})
+          .then(function(){toast('&#x2705; Order confirmed — riders notified');renderOrds(allOrds.filter(filters[f]));})
+          .catch(function(){toast('Error');});
+        });
+      });
+    });
+  }
+
+  function renderOrdsAndWire(list){renderOrds(list);wireOrdButtons();}
+
+  document.getElementById('ord-all').addEventListener('click',function(){setActive('all');renderOrdsAndWire(allOrds.filter(filters.all));});
+  document.getElementById('ord-pend').addEventListener('click',function(){setActive('pending');renderOrdsAndWire(allOrds.filter(filters.pending));});
+  document.getElementById('ord-active').addEventListener('click',function(){setActive('active');renderOrdsAndWire(allOrds.filter(filters.active));});
+  document.getElementById('ord-done').addEventListener('click',function(){setActive('done');renderOrdsAndWire(allOrds.filter(filters.done));});
 }
 function showARiders(){
   setNav('admin','riders');
@@ -2165,7 +2231,22 @@ function showARiders(){
     ab.innerHTML=h;
     ab.querySelectorAll('.avr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:true}).then(function(){toast('Verified');showARiders();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.arr').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:false,online:false}).then(function(){toast('Rejected');showARiders();}).catch(function(){toast('Error');});});});});
-    ab.querySelectorAll('.adr').forEach(function(btn){btn.addEventListener('click',function(){var nm=this.getAttribute('data-name');if(!confirm('Delete '+nm+'?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).delete().then(function(){toast('Deleted');showARiders();}).catch(function(){toast('Error');});});});});
+    ab.querySelectorAll('.adr').forEach(function(btn){btn.addEventListener('click',function(){var nm=this.getAttribute('data-name');if(!confirm('Delete '+nm+'?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;var riderId=id;
+              db.collection('riders').doc(riderId).delete().then(function(){
+                // Reset any stuck assigned/picked orders back to confirmed
+                db.collection('delivery_orders')
+                  .where('rider_phone','==',riderId)
+                  .where('status','in',['assigned','picked'])
+                  .get().then(function(snap){
+                    if(snap.docs.length){
+                      var b=db.batch();
+                      snap.docs.forEach(function(d){b.update(d.ref,{status:'confirmed',rider_phone:null,rider_name:null});});
+                      b.commit().catch(function(){});
+                      toast('Deleted. '+snap.docs.length+' stuck order(s) reset for other riders.');
+                    } else {toast('Rider deleted');}
+                    showARiders();
+                  }).catch(function(){toast('Rider deleted');showARiders();});
+              }).catch(function(){toast('Error deleting rider');});});});});
     ab.querySelectorAll('.view-rider').forEach(function(btn){btn.addEventListener('click',function(){showRiderDetail(this.getAttribute('data-id'),this.getAttribute('data-name'));});});
   });
 }
@@ -2577,7 +2658,30 @@ function showExitConfirm(){
 function renderCurrentView(){
   if(USER){
     if(USER.role==='customer')showHome();
-    else if(USER.role==='rider')showJobs();
+    else if(USER.role==='rider'){
+    // Before showing jobs, check if rider has an active delivery
+    // (assigned or picked) that was in progress when app was last closed.
+    // Restore RACT so the active delivery appears correctly.
+    loadFB(function(db){
+      if(!db){showJobs();return;}
+      db.collection('delivery_orders')
+        .where('rider_phone','==',USER.phone)
+        .where('status','in',['assigned','picked'])
+        .limit(1)
+        .get()
+        .then(function(snap){
+          if(!snap.empty){
+            var d=snap.docs[0];
+            RACT=Object.assign({id:d.id},d.data());
+            // Mark rider as busy since they have an active job
+            dbSet('riders',USER.phone,{busy:true,online:true,name:USER.name,phone:USER.phone});
+            console.log('Restored active delivery:',RACT.id,'status:',RACT.status);
+          }
+          showJobs();
+        })
+        .catch(function(){showJobs();});
+    });
+  }
     else if(USER.role==='shop')renderShopDash();
     else if(USER.role==='admin')showAOv();
   } else {showRole();}
@@ -2586,7 +2690,7 @@ function renderCurrentView(){
 function boot(){
   // Ownership verification stamp - DO NOT REMOVE
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v23 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v24 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
