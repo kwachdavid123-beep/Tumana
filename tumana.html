@@ -167,7 +167,7 @@ body.light [style*="color:#4ade80"]{color:#16a34a!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v25 Jun 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v26 Jun 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -1796,7 +1796,16 @@ function startJL(){
 }
 function startAL(){
   if(RAUNSUB){RAUNSUB();RAUNSUB=null;}
-  RAUNSUB=dbListen('delivery_orders','rider_phone','==',USER.phone,function(orders){RACT=orders.filter(function(o){return PROG.indexOf(o.status)>=0;})[0]||null;renderRBody();});
+  // CRITICAL: only treat 'assigned' or 'picked' as an ACTIVE delivery.
+  // 'delivered' must NEVER match here — otherwise this live listener
+  // keeps re-setting RACT to the just-completed order every time
+  // Firestore fires the snapshot (including the very update that marks
+  // it delivered), making it look like the job never finished.
+  RAUNSUB=dbListen('delivery_orders','rider_phone','==',USER.phone,function(orders){
+    var stillActive=orders.filter(function(o){return o.status==='assigned'||o.status==='picked';})[0]||null;
+    RACT=stillActive;
+    renderRBody();
+  });
 }
 function renderRBody(){
   var b=document.getElementById('rbody');if(!b)return;
@@ -2007,6 +2016,8 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
     delivered_at:Date.now()
   },function(ok){
     if(!ok){toast('Connection error — try again');return;}
+    // Clean up the per-order real-time listener now that it's done
+    if(window._ractUnsub){window._ractUnsub();window._ractUnsub=null;}
     loadFB(function(db){
       if(db){
         try{
@@ -2032,7 +2043,8 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
 }
 function showEarn(){
   setTitle('RIDER','#8b5cf6');setNav('rider','earnings');
-  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="font-size:20px;font-weight:800;margin-bottom:2px">My Earnings</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div><div id="earn" style="padding:10px 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><div style="font-size:20px;font-weight:800">My Earnings</div><button id="eout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div><div id="earn" style="padding:10px 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  document.getElementById('eout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
   loadFB(function(db){
     if(!db){document.getElementById('earn').innerHTML=empty('&#x1F4B0;','Earnings','Connect to see history');return;}
     db.collection('riders').doc(USER.phone).get().then(function(r){
@@ -2720,7 +2732,7 @@ function renderCurrentView(){
 function boot(){
   // Ownership verification stamp - DO NOT REMOVE
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v25 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v26 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
