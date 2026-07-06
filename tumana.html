@@ -167,7 +167,7 @@ body.light [style*="color:#4ade80"]{color:#16a34a!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v26 Jun 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v30 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -299,7 +299,28 @@ function pg(){return document.getElementById('pg');}
 function setTitle(t,c){var e=document.getElementById('sbt');if(e){e.textContent=t;e.style.color=c||'#10b981';}}
 function su(){try{localStorage.setItem('tu',JSON.stringify(USER));}catch(e){}}
 function empty(ic,t,s){return '<div class="empty"><div class="ei">'+ic+'</div><div class="et">'+t+'</div><div class="es">'+s+'</div></div>';}
-function calcFee(km){return Math.round(50+(parseFloat(km)||.5)*20);}
+function calcFee(km){
+  // Base fee and per-km rate are admin-editable from the admin panel
+  // Stored in Firestore: platform_config/fees.base_fee, fees.per_km_rate
+  var base=window._ADMIN_BASE_FEE||50;
+  var rate=window._ADMIN_PER_KM||20;
+  return Math.round(base+(parseFloat(km)||.5)*rate);
+}
+// Load fee config from Firestore once on startup (after login)
+function loadFeeConfig(){
+  loadFB(function(db){
+    if(!db)return;
+    db.collection('platform_config').doc('fees').get().then(function(doc){
+      if(doc.exists){
+        var d=doc.data();
+        if(d.base_fee)window._ADMIN_BASE_FEE=d.base_fee;
+        if(d.per_km_rate)window._ADMIN_PER_KM=d.per_km_rate;
+        if(d.mpesa_till)window._ADMIN_TILL=d.mpesa_till;
+        console.log('Fee config loaded: base='+window._ADMIN_BASE_FEE+' rate='+window._ADMIN_PER_KM);
+      }
+    }).catch(function(){});
+  });
+}
 function showSh(h){document.getElementById('sh').innerHTML=h;document.getElementById('ov').classList.add('show');}
 function hideSh(){document.getElementById('ov').classList.remove('show');}
 var _ovEl=document.getElementById('ov');
@@ -465,7 +486,7 @@ function showRole(){
   setTitle('TUMANA','#10b981');document.getElementById('nav').style.display='none';renderRole();
 }
 function renderRole(){
-  var cards={customer:{ic:'&#x1F6CD;',col:'#10b981',lbl:'Customer',sub:'Order from shops or request pickup',perks:['Browse local shops','Request pickup anywhere','Live tracking','100% Free']},rider:{ic:'&#x1F6F5;',col:'#8b5cf6',lbl:'Rider',sub:'Earn money on deliveries daily',perks:['Accept deliveries','Earn 90% per delivery','Daily M-Pesa payouts','100% Free']},shop:{ic:'&#x1F3EA;',col:'#f59e0b',lbl:'Shop Owner',sub:'Manage shop and receive orders',perks:['Add and manage stock','Record sales and debts','Orders pop up instantly','100% Free']},admin:{ic:'&#x2699;',col:'#8b5cf6',lbl:'Admin',sub:'Platform management',perks:['View all orders','Manage riders and shops','Verify accounts','Revenue dashboard']}};
+  var cards={customer:{ic:'&#x1F6CD;',col:'#10b981',lbl:'Customer',sub:'Order from shops or request pickup',perks:['Browse local shops','Request pickup anywhere','Live tracking','100% Free']},rider:{ic:'&#x1F6F5;',col:'#8b5cf6',lbl:'Rider',sub:'Earn money on deliveries daily',perks:['Accept deliveries','Earn 100% per delivery','Daily M-Pesa payouts','100% Free']},shop:{ic:'&#x1F3EA;',col:'#f59e0b',lbl:'Shop Owner',sub:'Manage shop and receive orders',perks:['Add and manage stock','Record sales and debts','Orders pop up instantly','100% Free']},admin:{ic:'&#x2699;',col:'#8b5cf6',lbl:'Admin',sub:'Platform management',perks:['View all orders','Manage riders and shops','Verify accounts','Revenue dashboard']}};
   var card=cards[RTAB];
   var tabsH='<div class="rtabs">';
   ['customer','rider','shop'].forEach(function(t,i){
@@ -506,7 +527,7 @@ function renderAuth(){
     +'<div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:20px;line-height:1.5">'+sub+'</div>'
     +(!isL?'<div class="fld"><label>Full Name</label><input id="fn" type="text" placeholder="e.g. Jane Achieng" autocomplete="off"></div>':'')
     +'<div class="fld"><label>Phone Number</label><input id="fp" type="tel" placeholder="07XX XXX XXX" autocomplete="off"></div>'
-    +(!isL&&isS?'<div class="fld"><label>Shop Name</label><input id="fs" type="text" placeholder="e.g. Mama Jane Grocery" autocomplete="off"></div>':'')
+    +(!isL&&isS?'<div class="fld"><label>Shop Name</label><input id="fs" type="text" placeholder="e.g. Mama Jane Grocery" autocomplete="off"></div>':'')+(!isL&&AR.id==='rider'?'<div class="fld"><label>Your M-Pesa Number <span style=\\"color:#ef4444\\">*</span></label><input id="rider-mpesa-reg" type="tel" placeholder="07XX — customers pay delivery fee here" autocomplete="off"></div><div style="font-size:11px;color:rgba(255,255,255,.4);margin:-8px 0 12px;line-height:1.6">&#x26A0; Required. You cannot go Online without this. Customers send you delivery payment directly to this number.</div>':'')
     +(isL?'<div class="fld"><label>Your PIN</label><input id="fpin" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
          :'<div class="fld"><label>Create 4-Digit PIN</label><input id="fpin" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
          +'<div class="fld"><label>Confirm PIN</label><input id="fpin2" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>')
@@ -592,7 +613,12 @@ function renderAuth(){
           // Check if reset pending
           if(data.reset_pending){toast('Your PIN has been reset — check with admin');return;}
           db.collection('tumana_users').doc(udocId).update({pin_attempts:0,last_login:Date.now()});
-          USER={role:data.role||AR.id,name:data.name||phone,phone:phone,shopName:data.shopName||'',favourite_shops:data.favourite_shops||[],rating:data.rating||5.0,is_master:data.is_master||false,pin_hash:pinHash};
+          USER={role:data.role||AR.id,name:data.name||phone,phone:phone,shopName:data.shopName||'',favourite_shops:data.favourite_shops||[],rating:data.rating||5.0,is_master:data.is_master||false,pin_hash:pinHash,mpesa_phone:data.mpesa_phone||''};
+          // Also load mpesa from riders collection
+          if((data.role||AR.id)==='rider'){
+            window._riderMpesa=data.mpesa_phone||'';
+            if(window._riderMpesa)console.log('Rider M-Pesa loaded:',window._riderMpesa);
+          }
           su();startApp();
         }).catch(function(){toast('Error — check connection');});
       });
@@ -602,10 +628,22 @@ function renderAuth(){
         if(!db){toast('No connection — cannot create account');return;}
         db.collection('tumana_users').doc(udocId).get().then(function(doc){
           if(doc.exists&&doc.data().pin_hash){toast('You already have a '+AR.lbl+' account on this number — use Login instead');return;}
+          // Validate M-Pesa for riders
+          if(AR.id==='rider'){
+            var rmpesa=(document.getElementById('rider-mpesa-reg')&&document.getElementById('rider-mpesa-reg').value||'').trim();
+            if(!rmpesa||rmpesa.length<9){toast('Enter your M-Pesa phone number so customers can pay you');return;}
+          }
+          var riderMpesa=(AR.id==='rider'&&document.getElementById('rider-mpesa-reg'))?( document.getElementById('rider-mpesa-reg').value||'').trim():'';
           var userData={role:AR.id,name:name||phone,phone:phone,shopName:shop||'',favourite_shops:[],pin_hash:pinHash,rating:5.0,created_at:Date.now(),updated_at:Date.now(),pin_attempts:0};
+          if(AR.id==='rider')userData.mpesa_phone=riderMpesa;
           db.collection('tumana_users').doc(udocId).set(userData).then(function(){
             USER=Object.assign({},userData);su();
-            if(AR.id==='shop'){dbSet('shops',phone,{name:shop||name,owner_phone:phone,owner_name:name,delivery_enabled:false,distance_km:.5,rating:5.0,category:'General',location:'Chemelil',icon:'&#x1F3EA;'});}
+            if(AR.id==='rider'){
+              // Save M-Pesa to riders collection too so it loads on jobs screen
+              db.collection('riders').doc(phone).set({mpesa_phone:riderMpesa,name:name||phone,phone:phone},{merge:true}).catch(function(){});
+            }
+            if(AR.id==='shop'){var till=(document.getElementById('cs-till')&&document.getElementById('cs-till').value||'').trim()||phone;
+            dbSet('shops',phone,{name:shop||name,owner_phone:phone,owner_name:name,delivery_enabled:false,distance_km:.5,rating:5.0,category:'General',location:'Chemelil',icon:'&#x1F3EA;',mpesa_till:till});}
             toast('Account created!');startApp();
           }).catch(function(){toast('Error creating account');});
         }).catch(function(){toast('Error — check connection');});
@@ -616,8 +654,25 @@ function renderAuth(){
 function showSheet(h){document.getElementById('sh').innerHTML=h;document.getElementById('ov').classList.add('show');}
 function startApp(){
   if(!USER)return showRole();applyTheme();
+  loadFeeConfig(); // Load admin-editable delivery fee config from Firestore
   if(USER.role==='customer')startCust();
   else if(USER.role==='rider'){
+    // Prompt for M-Pesa if not saved (4C: prompt on first login)
+    var rMpesa=USER.mpesa_phone||window._riderMpesa||'';
+    if(!rMpesa||rMpesa.length<9){
+      // Load from riders collection (might exist from earlier)
+      loadFB(function(db){
+        if(!db){showRiderMpesaPrompt();return;}
+        db.collection('riders').doc(USER.phone).get().then(function(doc){
+          var saved=doc.exists&&doc.data().mpesa_phone||'';
+          if(saved&&saved.length>=9){
+            window._riderMpesa=saved;USER.mpesa_phone=saved;su();
+          } else {
+            showRiderMpesaPrompt();
+          }
+        }).catch(function(){showRiderMpesaPrompt();});
+      });
+    }
     // Before showing jobs, check if rider has an active delivery
     // (assigned or picked) that was in progress when app was last closed.
     // Restore RACT so the active delivery appears correctly.
@@ -844,26 +899,15 @@ function showCart(){
         +'<button id="cn" class="btn bo" style="margin-top:0">Cancel</button>'
         +'<button id="sn" class="btn bg" style="margin-top:0">Sent M-Pesa</button>'
         +'</div>'
-        +'<button id="cash-btn" class="btn ba" style="margin-top:0">&#x1F4B5; Cash on Delivery</button>';
+        +'<div style="padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:9px;text-align:center;font-size:12px;color:rgba(255,255,255,.35)">&#x1F4B5; Cash disabled — M-Pesa only for safety</div>';
       document.getElementById('cn').addEventListener('click',hideSh);
       // M-Pesa path
       document.getElementById('sn').addEventListener('click',function(){
         placeOrder('mpesa','');
       });
-      // Cash path
-      document.getElementById('cash-btn').addEventListener('click',function(){
-        showSh('<div class="hd"></div>'
-          +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4B5;</div>'
-          +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:8px">Cash on Delivery</div>'
-          +'<div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;margin-bottom:14px">'
-          +'<div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">&#x2022; Goods: pay <strong style="color:#f59e0b">KSh '+sub+'</strong> to shop in cash<br>&#x2022; Delivery: pay <strong style="color:#f59e0b">KSh '+df+'</strong> to rider on arrival<br>&#x2022; Rider will confirm cash received</div>'
-          +'</div>'
-          +'<button id="confirm-cash" class="btn ba">Place Cash Order</button>'
-          +'<button id="cancel-cash" class="btn bo" style="margin-top:6px">Cancel</button>'
-        );
-        document.getElementById('cancel-cash').addEventListener('click',hideSh);
-        document.getElementById('confirm-cash').addEventListener('click',function(){placeOrder('cash','');});
-      });
+      // Cash path disabled — M-Pesa only for rider safety
+      var cashBtnEl=document.getElementById('cash-btn');
+      if(cashBtnEl){cashBtnEl.addEventListener('click',function(){toast('Cash payments are disabled. Please use M-Pesa.');});}
     });
   });
   }
@@ -897,7 +941,20 @@ function placeOrder(payMethod,mpesaCode){
     hideSh();showOrds();toast('&#x23F3; Sending order...');
     db.collection('delivery_orders')
       .add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()}))
-      .then(function(){toast(payMethod==='cash'?'&#x1F4B5; Cash order placed!':'&#x2705; Order placed!');})
+      .then(function(){// Check if any riders are online - warn customer if not
+    loadFB(function(db){
+      if(!db)return;
+      db.collection('riders').where('online','==',true).where('verified','==',true).limit(1).get()
+        .then(function(snap){
+          if(snap.empty){
+            toast('&#x26A0; Order placed! No riders online right now — you will be notified when a rider picks up your job.');
+          } else {
+            toast('&#x2705; Order placed! A rider will be assigned shortly.');
+          }
+        }).catch(function(){
+          toast('&#x2705; Order placed! Track in My Orders.');
+        });
+    });})
       .catch(function(e){console.error('Order error:',e);CART=savedCart;toast('&#x26A0; Order failed. Try again.');showCart();});
   }
 
@@ -962,7 +1019,19 @@ function showPickup(){
     +'<span style="font-size:13px;color:rgba(255,255,255,.4)">Your fare</span>'
     +'<span id="fared" style="font-size:24px;font-weight:800;color:#10b981">KSh '+calcFee(1)+'</span></div>'
     +'<div id="fare-breakdown" style="font-size:11px;color:rgba(255,255,255,.4)">KSh 50 base + KSh 20/km · 1 km estimated</div>'
-    +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px">Pay via &#x1F4F1; <strong style="color:#10b981">'+MP+'</strong> · Ref: TUM'+USER.phone.slice(-4)+'</div>'
+    +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:12px;margin-bottom:14px">'
+    +'<div style="font-size:10px;font-weight:800;color:#10b981;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">How to Pay</div>'
+    +'<div style="background:#1a1a22;border-radius:9px;padding:10px;margin-bottom:8px">'
+    +'<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);margin-bottom:4px">STEP 1 — Goods payment (pay shop)</div>'
+    +'<div style="font-size:18px;font-weight:800;color:#fff">KSh \'+sub+\'</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:3px">Send M-Pesa to: <strong style="color:#10b981">\'+( CS&&CS.mpesa_till?CS.mpesa_till:window._ADMIN_TILL||MP)+\'</strong></div>'
+    +'<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:2px">Ref: TUM\'+USER.phone.slice(-4)+\'</div>'
+    +'</div>'
+    +'<div style="background:#1a1a22;border-radius:9px;padding:10px">'
+    +'<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);margin-bottom:4px">STEP 2 — Delivery payment (pay rider on arrival)</div>'
+    +'<div style="font-size:18px;font-weight:800;color:#8b5cf6">KSh \'+df+\'</div>'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px">Rider shows their M-Pesa when they arrive</div>'
+    +'</div>'
     +'</div>'
     +'<button id="reqb" class="btn bg" style="font-size:16px;padding:17px">&#x1F6F5; Request Rider</button>'
     +'</div>';
@@ -1137,14 +1206,15 @@ function startShop(){
 }
 function showCreateShop(){
   document.getElementById('nav').style.display='none';
-  pg().innerHTML='<div style="padding:40px 24px;text-align:center"><div style="font-size:64px;margin-bottom:16px">&#x1F3EA;</div><div style="font-size:20px;font-weight:800;margin-bottom:8px">Set Up Your Shop</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.7;margin-bottom:24px">Create your shop profile to receive delivery orders.</div><div class="fld" style="text-align:left"><label>Shop Name</label><input id="csn" type="text" placeholder="e.g. Mama Jane Grocery" value="'+(USER.shopName||'')+'"></div><div class="fld" style="text-align:left"><label>Category</label><select id="csc"><option>Grocery</option><option>Pharmacy</option><option>Vegetables</option><option>Butchery</option><option>Bakery</option><option>General Store</option></select></div><div class="fld" style="text-align:left"><label>Location</label><input id="csl" type="text" placeholder="e.g. Near Market, Stage Area"></div><div class="fld" style="text-align:left"><label>Location Description (optional)</label><input id="csld" type="text" placeholder="e.g. Opposite Market, next to Police on Kisumu Road"></div><button id="crtb" class="btn ba">Create My Shop</button><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:8px">100% Free - No commission</div></div>';
+  pg().innerHTML='<div style="padding:40px 24px;text-align:center"><div style="font-size:64px;margin-bottom:16px">&#x1F3EA;</div><div style="font-size:20px;font-weight:800;margin-bottom:8px">Set Up Your Shop</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.7;margin-bottom:24px">Create your shop profile to receive delivery orders.</div><div class="fld" style="text-align:left"><label>Shop Name</label><input id="csn" type="text" placeholder="e.g. Mama Jane Grocery" value="'+(USER.shopName||'')+'"></div><div class="fld" style="text-align:left"><label>Category</label><select id="csc"><option>Grocery</option><option>Pharmacy</option><option>Vegetables</option><option>Butchery</option><option>Bakery</option><option>General Store</option></select></div><div class="fld" style="text-align:left"><label>Location</label><input id="csl" type="text" placeholder="e.g. Near Market, Stage Area"></div><div class="fld" style="text-align:left"><label>Location Description (optional)</label><input id="csld" type="text" placeholder="e.g. Opposite Market, next to Police on Kisumu Road"></div><div class="fld" style="text-align:left"><label>M-Pesa Till / Phone (customers pay you here)</label><input id="cs-till" type="tel" placeholder="07XX or Till No" autocomplete="off"></div><button id="crtb" class="btn ba">Create My Shop</button><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:8px">100% Free - No commission</div></div>';
   document.getElementById('crtb').addEventListener('click',function(){
     var name=(document.getElementById('csn').value||'').trim();
     var cat=document.getElementById('csc').value;
     var loc=(document.getElementById('csl').value||'').trim();
     if(!name){toast('Enter shop name');return;}if(!loc){toast('Enter your location');return;}
     var locDesc=(document.getElementById('csld')&&document.getElementById('csld').value||'').trim();
-    dbSet('shops',USER.phone,{name:name,category:cat,location:loc,location_desc:locDesc,icon:'&#x1F3EA;',owner_phone:USER.phone,owner_name:USER.name,delivery_enabled:false,distance_km:.5,rating:5.0});
+    var cstill=(document.getElementById('cs-till')&&document.getElementById('cs-till').value||'').trim()||phone;
+    dbSet('shops',USER.phone,{name:name,category:cat,location:loc,location_desc:locDesc,icon:'&#x1F3EA;',owner_phone:USER.phone,owner_name:USER.name,delivery_enabled:false,distance_km:.5,rating:5.0,mpesa_till:cstill});
     USER.shopName=name;su();toast('Shop created!');SDON=false;renderShopDash();
   });
 }
@@ -1756,8 +1826,52 @@ function showResProd(id,cur){
 }
 function showSSet(){
   var el=document.getElementById('shc');if(!el)return;
-  el.innerHTML='<div class="sbox"><div class="sboxt">Delivery Status</div><div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.8">Status: <strong style="color:'+(SDON?'#10b981':'#ef4444')+'">'+(SDON?'ON':'OFF')+'</strong><br>Commission: <strong>0%</strong><br>Plan: <strong style="color:#10b981">FREE</strong></div></div><div class="sbox"><div class="sboxt">How Tumana Works</div><div style="font-size:12px;color:rgba(255,255,255,.4);line-height:1.9">&#x1F4E6; Add products in Stock tab<br>&#x1F4B0; Record sales in Sales tab<br>&#x1F4CB; Delivery orders pop up in Orders<br>&#x2705; You keep 100% of product sales<br>&#x1F6B4; Delivery fee: rider 90% + platform 10%</div></div><button id="ssout" class="btn bo" style="margin-top:8px">Logout</button>';
-  document.getElementById('ssout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
+  loadFB(function(db){
+    if(!db){renderSSet(null);}
+    else{db.collection('shops').doc(USER.phone).get().then(function(doc){renderSSet(doc.exists?doc.data():null);}).catch(function(){renderSSet(null);});}
+  });
+  function renderSSet(shop){
+    var till=(shop&&shop.mpesa_till)||USER.phone;
+    var sname=(shop&&shop.name)||USER.shopName||'My Shop';
+    el.innerHTML=
+      '<div class="sbox" style="border-color:rgba(16,185,129,.3)"><div class="sboxt" style="color:#10b981">&#x1F4F1; M-Pesa Payment Number</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:10px;line-height:1.6">Customers send payment here when ordering from your shop.</div>'
+      +'<div class="fld"><label>Your M-Pesa Till / Phone</label>'
+      +'<input id="shop-till-inp" type="tel" value="'+till+'" placeholder="07XX or Till No" style="font-size:18px;font-weight:700"></div>'
+      +'<button id="save-till-btn" class="btn bg" style="margin-top:0">&#x2705; Save M-Pesa Number</button>'
+      +'</div>'
+      +'<div class="sbox"><div class="sboxt">&#x1F3EA; Shop Name</div>'
+      +'<div class="fld"><label>Display Name</label><input id="shop-name-inp" type="text" value="'+sname+'" autocomplete="off"></div>'
+      +'<button id="save-name-btn" class="btn ba" style="margin-top:0">Save Name</button>'
+      +'</div>'
+      +'<div class="sbox"><div class="sboxt">How Tumana Works</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.4);line-height:1.9">&#x1F4E6; Stock tab &#x2192; add products<br>&#x1F4B0; Sales tab &#x2192; record sales<br>&#x1F4CB; Orders tab &#x2192; confirm/reject orders<br>&#x2705; 100% of product sales go to you<br>&#x1F6B4; Delivery fee goes 100% to rider<br>&#x1F4F1; M-Pesa: customer pays you directly above</div>'
+      +'</div>'
+      +'<button id="ssout" class="btn bo" style="margin-top:8px">Logout</button>';
+    document.getElementById('ssout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
+    document.getElementById('save-till-btn').addEventListener('click',function(){
+      var t=(document.getElementById('shop-till-inp').value||'').trim();
+      if(!t||t.length<6){toast('Enter a valid M-Pesa number or till');return;}
+      var btn=this;btn.textContent='Saving...';btn.disabled=true;
+      loadFB(function(db){if(!db){btn.textContent='Save M-Pesa Number';btn.disabled=false;return;}
+        db.collection('shops').doc(USER.phone).set({mpesa_till:t},{merge:true}).then(function(){
+          toast('&#x2705; M-Pesa saved: '+t);btn.textContent='&#x2705; Saved!';
+          setTimeout(function(){btn.textContent='&#x2705; Save M-Pesa Number';btn.disabled=false;},2000);
+        }).catch(function(){toast('Error saving');btn.textContent='Save M-Pesa Number';btn.disabled=false;});
+      });
+    });
+    document.getElementById('save-name-btn').addEventListener('click',function(){
+      var nm=(document.getElementById('shop-name-inp').value||'').trim();
+      if(!nm){toast('Enter shop name');return;}
+      var btn=this;btn.textContent='Saving...';btn.disabled=true;
+      loadFB(function(db){if(!db){btn.textContent='Save Name';btn.disabled=false;return;}
+        db.collection('shops').doc(USER.phone).set({name:nm},{merge:true}).then(function(){
+          USER.shopName=nm;su();toast('&#x2705; Name updated');btn.textContent='&#x2705; Saved!';
+          setTimeout(function(){btn.textContent='Save Name';btn.disabled=false;},2000);
+        }).catch(function(){toast('Error');btn.textContent='Save Name';btn.disabled=false;});
+      });
+    });
+  }
 }
 
 // Simplified 3-stage rider flow: Accept → Picked Up → Delivered
@@ -1771,10 +1885,18 @@ function showJobs(){
   pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:18px;font-weight:700">Hey '+rn+'! &#x1F6F5;</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+' · Tumana Rider</div></div><button id="rout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:#1a1a22;border:1.5px solid rgba(255,255,255,.13);border-radius:12px;padding:12px 14px"><div><div style="font-weight:700;color:'+(RON?'#10b981':'rgba(255,255,255,.4)')+'">'+( RON?'&#x1F7E2; Online':'&#x1F534; Offline')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(RON?'Receiving jobs':'Toggle to earn')+'</div></div><div id="rtog" class="tog'+(RON?' on':'')+'"><div class="togth"></div></div></div></div><div style="display:flex;gap:8px;padding:10px 18px 0"><div class="sb2" style="flex:1"><div class="sv" style="color:#10b981">KSh '+REARN+'</div><div class="sl">Today</div></div><div class="sb2" style="flex:1"><div class="sv" style="color:#8b5cf6" id="jcnt">'+(RACT?0:RJOBS.length)+'</div><div class="sl" id="jcnt-lbl">'+(RACT?'On Delivery':'Available')+'</div></div></div><div id="rbody" style="padding:10px 18px 100px"></div>';
   document.getElementById('rout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
   document.getElementById('rtog').addEventListener('click',function(){
+    if(!RON){
+      // Trying to go ONLINE — check M-Pesa is saved first
+      var savedMpesa=USER.mpesa_phone||(window._riderMpesa||'');
+      if(!savedMpesa||savedMpesa.length<9){
+        toast('Add your M-Pesa number in Earnings tab before going online');
+        return;
+      }
+    }
     RON=!RON;
     var busyState=RON?(!!RACT):false;
     dbSet('riders',USER.phone,{online:RON,name:USER.name,phone:USER.phone,busy:busyState});
-    toast(RON?'Online - receiving jobs':'Offline');
+    toast(RON?'Online — jobs incoming!':'Offline');
     if(RON)startJL();else{if(RUNSUB){RUNSUB();RUNSUB=null;}RJOBS=[];}
     showJobs();
   });
@@ -1897,7 +2019,8 @@ function accJob(jobId){
     return;
   }
   var job=null;RJOBS.forEach(function(j){if(j.id===jobId)job=j;});if(!job)return;
-  dbUpd('delivery_orders',jobId,{rider_phone:USER.phone,rider_name:USER.name,status:'assigned'},function(ok){
+  var rMpesaToSave=USER.mpesa_phone||window._riderMpesa||'';
+  dbUpd('delivery_orders',jobId,{rider_phone:USER.phone,rider_name:USER.name,rider_mpesa:rMpesaToSave,status:'assigned'},function(ok){
     if(!ok){toast('Error accepting - try again');return;}
     // Mark rider as busy in Firebase immediately — the Cloud Function
     // checks this before sending push notifications, so other jobs
@@ -1948,17 +2071,18 @@ function advJob(){
 function showCollectPayment(order){
   var df=order.delivery_fee||70;
   var riderEarn=df;
+  var riderMpesa=USER.mpesa_phone||window._riderMpesa||order.rider_mpesa||USER.phone;
   var custName=order.customer_name||'Customer';
   var custPhone=order.customer_phone||'';
   showSh('<div class="hd"></div>'
     +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4B0;</div>'
     +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:4px">Collect Delivery Fee</div>'
-    +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.5">Collect from <strong style="color:#fff">'+custName+'</strong></div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.5">From <strong style="color:#fff">'+custName+'</strong></div>'
     +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.18);border-radius:12px;padding:14px;margin-bottom:16px">'
-    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your earnings</span><span style="font-size:20px;font-weight:800;color:#10b981">KSh '+riderEarn+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your M-Pesa</span><span style="font-weight:700;color:#fff">'+USER.phone+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your earnings</span><span style="font-size:22px;font-weight:800;color:#10b981">KSh '+riderEarn+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your M-Pesa</span><span style="font-weight:800;color:#10b981;font-size:16px">'+riderMpesa+'</span></div>'
     +'</div>'
-    +'<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px">How is customer paying?</div>'
+    +'<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px">How is customer paying delivery?</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
     +'<button id="pay-mpesa" class="btn bg" style="margin-top:0;padding:14px">&#x1F4F1; M-Pesa</button>'
     +'<button id="pay-cash" class="btn ba" style="margin-top:0;padding:14px">&#x1F4B5; Cash</button>'
@@ -1967,39 +2091,40 @@ function showCollectPayment(order){
   );
   document.getElementById('pay-cancel').addEventListener('click',hideSh);
 
-  // M-PESA: customer sends to rider number, rider confirms code
+  // M-PESA: customer sends delivery fee to RIDER's M-Pesa number
   document.getElementById('pay-mpesa').addEventListener('click',function(){
     document.getElementById('sh').innerHTML='<div class="hd"></div>'
       +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4F1;</div>'
       +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:4px">M-Pesa Payment</div>'
-      +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;line-height:1.5;margin-bottom:14px">Tell customer to send to your number</div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;line-height:1.5;margin-bottom:14px">Tell customer to send delivery fee to YOUR number</div>'
       +'<div style="background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.2);border-radius:12px;padding:14px;margin-bottom:14px;text-align:center">'
-      +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:4px">SEND KSh '+riderEarn+' TO</div>'
-      +'<div style="font-size:26px;font-weight:800;color:#10b981">'+USER.phone+'</div>'
-      +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">Ref: TUM-Delivery</div>'
+      +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Customer pays DELIVERY FEE to you</div>'
+      +'<div style="font-size:28px;font-weight:800;color:#10b981;letter-spacing:2px">'+riderMpesa+'</div>'
+      +'<div style="font-size:20px;font-weight:800;color:#fff;margin-top:6px">KSh '+riderEarn+'</div>'
+      +'<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">Ref: TUM-Delivery</div>'
       +'</div>'
-      +'<div class="fld"><label>Enter M-Pesa Confirmation Code</label><input id="rider-mpesa-code" type="text" placeholder="e.g. RGH456XYZ" style="text-transform:uppercase;letter-spacing:2px;font-size:16px;text-align:center" autocomplete="off"></div>'
-      +'<button id="confirm-mpesa-pay" class="btn bg">Confirm Payment Received</button>'
+      +'<div class="fld"><label>Enter M-Pesa Confirmation Code you receive</label><input id="rider-mpesa-code" type="text" placeholder="e.g. RGH456XYZ" style="text-transform:uppercase;letter-spacing:2px;font-size:16px;text-align:center" autocomplete="off"></div>'
+      +'<button id="confirm-mpesa-pay" class="btn bg">&#x2705; Confirm Payment Received</button>'
       +'<button id="back-pay" class="btn bo" style="margin-top:6px">Back</button>';
     document.getElementById('back-pay').addEventListener('click',function(){showCollectPayment(order);});
     document.getElementById('confirm-mpesa-pay').addEventListener('click',function(){
       var code=(document.getElementById('rider-mpesa-code').value||'').trim().toUpperCase();
-      if(!code||code.length<5){toast('Enter M-Pesa code from your SMS');return;}
+      if(!code||code.length<5){toast('Enter M-Pesa confirmation code from your SMS');return;}
       completeDelivery(order,riderEarn,'mpesa',code);
     });
   });
 
-  // CASH: rider confirms cash received
+  // CASH: rider confirms cash received — allowed for riders to complete delivery
   document.getElementById('pay-cash').addEventListener('click',function(){
     document.getElementById('sh').innerHTML='<div class="hd"></div>'
       +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4B5;</div>'
       +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:8px">Cash Payment</div>'
       +'<div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center">'
-      +'<div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:6px">Collect from customer</div>'
-      +'<div style="font-size:28px;font-weight:800;color:#f59e0b">KSh '+riderEarn+'</div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:6px">Collect delivery fee in cash from customer</div>'
+      +'<div style="font-size:30px;font-weight:800;color:#f59e0b">KSh '+riderEarn+'</div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.4);margin-top:6px">From: <strong style="color:#fff">'+custName+'</strong></div>'
       +'</div>'
-      +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.6">Confirm you have received <strong style="color:#f59e0b">KSh '+riderEarn+'</strong> cash from <strong style="color:#fff">'+custName+'</strong></div>'
-      +'<button id="confirm-cash-pay" class="btn ba">&#x2714; Cash Received - Complete Delivery</button>'
+      +'<button id="confirm-cash-pay" class="btn ba" style="padding:16px;font-size:15px">&#x2714; Cash Received — Complete Delivery</button>'
       +'<button id="back-cash" class="btn bo" style="margin-top:6px">Back</button>';
     document.getElementById('back-cash').addEventListener('click',function(){showCollectPayment(order);});
     document.getElementById('confirm-cash-pay').addEventListener('click',function(){
@@ -2008,43 +2133,29 @@ function showCollectPayment(order){
   });
 }
 
-function completeDelivery(order,riderEarn,payMethod,mpesaCode){
-  dbUpd('delivery_orders',order.id,{
-    status:'delivered',
-    rider_payment_method:payMethod,
-    rider_mpesa_code:mpesaCode||'',
-    delivered_at:Date.now()
-  },function(ok){
-    if(!ok){toast('Connection error — try again');return;}
-    // Clean up the per-order real-time listener now that it's done
-    if(window._ractUnsub){window._ractUnsub();window._ractUnsub=null;}
-    loadFB(function(db){
-      if(db){
-        try{
-          // Update earnings AND mark rider as no longer busy
-          // so new jobs start appearing again
-          db.collection('riders').doc(USER.phone).update({
-            total_earnings:firebase.firestore.FieldValue.increment(riderEarn),
-            orders_completed:firebase.firestore.FieldValue.increment(1),
-            pending_payout:firebase.firestore.FieldValue.increment(riderEarn),
-            busy:false
-          }).catch(function(){});
-        }catch(ex){}
-      }
-    });
-    REARN+=riderEarn;
-    RACT=null;
-    hideSh();
-    toast('Delivery complete! KSh '+riderEarn+' earned');
-    // Re-subscribe to job list now that rider is free
-    if(RON) startJL();
-    renderRBody();
-  });
-}
 function showEarn(){
   setTitle('RIDER','#8b5cf6');setNav('rider','earnings');
-  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><div style="font-size:20px;font-weight:800">My Earnings</div><button id="eout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div><div id="earn" style="padding:10px 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  var rMpesaCurrent=USER.mpesa_phone||window._riderMpesa||'';
+  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><div style="font-size:20px;font-weight:800">My Earnings</div><button id="eout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div>'
+    +'<div style="padding:10px 18px 0">'
+    // M-Pesa number card - prominent at top
+    +'<div style="background:'+(rMpesaCurrent?'rgba(16,185,129,.06)':'rgba(239,68,68,.06)')+';border:1.5px solid '+(rMpesaCurrent?'rgba(16,185,129,.25)':'rgba(239,68,68,.4)')+';border-radius:13px;padding:13px;margin-bottom:10px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    +'<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:'+(rMpesaCurrent?'#10b981':'#ef4444')+'">&#x1F4F1; '+(rMpesaCurrent?'Customers Pay This Number':'M-Pesa Not Set — Cannot Go Online')+'</div>'
+    +'<button id="edit-mpesa-btn" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,.6);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">Edit</button>'
+    +'</div>'
+    +(rMpesaCurrent
+      ?'<div style="font-size:22px;font-weight:800;letter-spacing:2px;color:#10b981">'+rMpesaCurrent+'</div>'
+       +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px">Customers send delivery fee directly to you</div>'
+      :'<div style="font-size:13px;color:#ef4444;margin-top:4px">Tap Edit to add your M-Pesa number and start receiving payments</div>'
+    )
+    +'</div>'
+    +'</div>'
+    +'<div id="earn" style="padding:6px 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
   document.getElementById('eout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
+  document.getElementById('edit-mpesa-btn').addEventListener('click',function(){
+    showRiderMpesaPrompt();
+  });
   loadFB(function(db){
     if(!db){document.getElementById('earn').innerHTML=empty('&#x1F4B0;','Earnings','Connect to see history');return;}
     db.collection('riders').doc(USER.phone).get().then(function(r){
@@ -2104,9 +2215,20 @@ function showAOv(){
         +'<div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Rider Payouts</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div>'
         +'</div>'
         +(USER&&(USER.is_master===true||USER.is_master==='true')?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">Add trusted sub-admins below.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button><button id="rst-req-btn" class="btn bo" style="margin-top:6px">PIN Reset Requests</button></div>':'')
+        +'<div id="fee-config-box" class="sbox" style="cursor:pointer;border-color:rgba(245,158,11,.3);margin-top:12px">'
+        +'<div class="sboxt" style="color:#f59e0b">&#x2699;&#xFE0F; Platform Settings (tap to edit)</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">'
+        +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Base fee: <strong style="color:#fff">KSh '+(window._ADMIN_BASE_FEE||50)+'</strong></div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Per km: <strong style="color:#fff">KSh '+(window._ADMIN_PER_KM||20)+'</strong></div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Till/Phone: <strong style="color:#10b981">'+(window._ADMIN_TILL||MP)+'</strong></div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Tap to change &#x270F;</div>'
+        +'</div></div>'
         +'<button id="aout" class="btn bo">Logout</button>';
 
       document.getElementById('aout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
+      // ── Fee Config Editor ──────────────────────────────────
+      var feeBox=document.getElementById('fee-config-box');
+      if(feeBox){feeBox.addEventListener('click',showFeeEditor);}
       var mamBtn=document.getElementById('mam-btn');
       if(mamBtn)mamBtn.addEventListener('click',function(){if(USER&&(USER.is_master===true||USER.is_master==='true'))showAdminUsers();else toast('Master admin only');});
       var rstBtn=document.getElementById('rst-req-btn');
@@ -2591,6 +2713,94 @@ function showItemSearch(query){
   });
 }
 
+// ── RIDER M-PESA PROMPT (shown on first login without M-Pesa saved) ──
+function showRiderMpesaPrompt(){
+  showSh('<div class="hd"></div>'
+    +'<div style="text-align:center;padding:8px 0 4px">'
+    +'<div style="font-size:38px;margin-bottom:8px">&#x1F4F1;</div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:6px">Add Your M-Pesa Number</div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.4);line-height:1.7;margin-bottom:16px">Customers pay delivery fee directly to this number when you complete deliveries. You cannot go online without it.</div>'
+    +'</div>'
+    +'<div class="fld"><label>Your M-Pesa Phone Number</label>'
+    +'<input id="rmp-inp" type="tel" placeholder="07XX XXX XXX" style="font-size:20px;font-weight:700;text-align:center;letter-spacing:2px"></div>'
+    +'<button id="rmp-save" class="btn bg">Save & Start Earning</button>'
+    +'<button id="rmp-skip" class="btn bo" style="margin-top:6px">Remind Me Later (cannot go Online)</button>'
+  );
+  document.getElementById('rmp-skip').addEventListener('click',hideSh);
+  document.getElementById('rmp-save').addEventListener('click',function(){
+    var mp=(document.getElementById('rmp-inp').value||'').trim();
+    if(!mp||mp.length<9){toast('Enter a valid M-Pesa number');return;}
+    var btn=this;btn.textContent='Saving...';btn.disabled=true;
+    loadFB(function(db){
+      if(!db){btn.textContent='Save';btn.disabled=false;return;}
+      // Save to both users and riders collections
+      db.batch?null:null;
+      db.collection('tumana_users').doc(USER.phone+'_rider').update({mpesa_phone:mp}).catch(function(){});
+      db.collection('riders').doc(USER.phone).set({mpesa_phone:mp,name:USER.name,phone:USER.phone},{merge:true})
+        .then(function(){
+          USER.mpesa_phone=mp;window._riderMpesa=mp;su();
+          hideSh();
+          toast('M-Pesa saved! You can now go Online.');
+        }).catch(function(){toast('Error saving. Try in Earnings tab.');btn.textContent='Save';btn.disabled=false;});
+    });
+  });
+}
+
+// ── ADMIN FEE EDITOR ─────────────────────────────────────────────────
+function showFeeEditor(){
+  var base=window._ADMIN_BASE_FEE||50;
+  var rate=window._ADMIN_PER_KM||20;
+  var till=window._ADMIN_TILL||MP;
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x2699;&#xFE0F; Platform Settings</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Changes apply to all new orders immediately</div>'
+    +'<div class="fld"><label>Base Delivery Fee (KSh)</label>'
+    +'<input id="fee-base" type="number" value="'+base+'" placeholder="50" min="20" max="500"></div>'
+    +'<div class="fld"><label>Per KM Rate (KSh)</label>'
+    +'<input id="fee-km" type="number" value="'+rate+'" placeholder="20" min="5" max="100"></div>'
+    +'<div class="fld"><label>M-Pesa Till / Phone Number</label>'
+    +'<input id="fee-till" type="tel" value="'+till+'" placeholder="07XX or Till No" autocomplete="off"></div>'
+    +'<div style="background:#1a1a22;border-radius:10px;padding:12px;margin-bottom:12px">'
+    +'<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Fee Preview</div>'
+    +'<div id="fee-preview" style="font-size:14px;color:#10b981">KSh 50 base + KSh 20 × 1km = KSh 70</div>'
+    +'</div>'
+    +'<button id="save-fees-btn" class="btn bg">Save Settings</button>'
+    +'<button id="cancel-fees-btn" class="btn bo">Cancel</button>'
+  );
+  function updatePreview(){
+    var b=parseInt(document.getElementById('fee-base').value)||50;
+    var k=parseInt(document.getElementById('fee-km').value)||20;
+    var p=document.getElementById('fee-preview');
+    if(p)p.textContent='KSh '+b+' base + KSh '+k+' × 1km = KSh '+(b+k)+' (1km example)';
+  }
+  ['fee-base','fee-km'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.addEventListener('input',updatePreview);
+  });
+  document.getElementById('cancel-fees-btn').addEventListener('click',hideSh);
+  document.getElementById('save-fees-btn').addEventListener('click',function(){
+    var b=parseInt(document.getElementById('fee-base').value)||50;
+    var k=parseInt(document.getElementById('fee-km').value)||20;
+    var t=(document.getElementById('fee-till').value||'').trim();
+    if(b<20){toast('Base fee too low (min KSh 20)');return;}
+    if(k<5){toast('Per km rate too low (min KSh 5)');return;}
+    if(!t){toast('Enter M-Pesa till or phone number');return;}
+    var btn=document.getElementById('save-fees-btn');
+    btn.textContent='Saving...';btn.disabled=true;
+    loadFB(function(db){
+      if(!db){toast('No connection');btn.textContent='Save Settings';btn.disabled=false;return;}
+      db.collection('platform_config').doc('fees').set({
+        base_fee:b,per_km_rate:k,mpesa_till:t,updated_at:Date.now(),updated_by:USER.phone
+      }).then(function(){
+        window._ADMIN_BASE_FEE=b;window._ADMIN_PER_KM=k;window._ADMIN_TILL=t;
+        window.MP=t; // also update the local MP variable
+        toast('✅ Settings saved! Base KSh '+b+', KSh '+k+'/km, Till: '+t);
+        hideSh();
+        showAOv(); // refresh admin overview
+      }).catch(function(){toast('Error saving');btn.textContent='Save Settings';btn.disabled=false;});
+    });
+  });
+}
+
 // ── SUPPRESS PWA INSTALL PROMPT / URL-share popup ─────────────────
 // The browser shows an "install app" / "add to home screen" banner
 // by default in the Android notification area when visiting a PWA.
@@ -2698,6 +2908,22 @@ function renderCurrentView(){
   if(USER){
     if(USER.role==='customer')showHome();
     else if(USER.role==='rider'){
+    // Prompt for M-Pesa if not saved (4C: prompt on first login)
+    var rMpesa=USER.mpesa_phone||window._riderMpesa||'';
+    if(!rMpesa||rMpesa.length<9){
+      // Load from riders collection (might exist from earlier)
+      loadFB(function(db){
+        if(!db){showRiderMpesaPrompt();return;}
+        db.collection('riders').doc(USER.phone).get().then(function(doc){
+          var saved=doc.exists&&doc.data().mpesa_phone||'';
+          if(saved&&saved.length>=9){
+            window._riderMpesa=saved;USER.mpesa_phone=saved;su();
+          } else {
+            showRiderMpesaPrompt();
+          }
+        }).catch(function(){showRiderMpesaPrompt();});
+      });
+    }
     // Before showing jobs, check if rider has an active delivery
     // (assigned or picked) that was in progress when app was last closed.
     // Restore RACT so the active delivery appears correctly.
@@ -2732,7 +2958,7 @@ function renderCurrentView(){
 function boot(){
   // Ownership verification stamp - DO NOT REMOVE
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v26 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v30 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
