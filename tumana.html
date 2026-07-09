@@ -167,7 +167,7 @@ body.light [style*="color:#4ade80"]{color:#16a34a!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v30 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v31 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 </div>
@@ -1904,15 +1904,41 @@ function showJobs(){
 }
 function startJL(){
   if(RUNSUB){RUNSUB();RUNSUB=null;}
-  // Only set busy:false if rider does NOT have an active delivery right now.
-  // If RACT exists (restored from Firestore), rider is still busy — don't override.
   if(!RACT){
     dbSet('riders',USER.phone,{busy:false,online:true,name:USER.name,phone:USER.phone});
   }
+  var prevJobCount=RJOBS.length;
   RUNSUB=dbListenIn('delivery_orders','status',['confirmed'],function(jobs){
-    RJOBS = RACT ? [] : jobs.filter(function(j){return !j.rider_phone;});
+    var newJobs=RACT?[]:jobs.filter(function(j){return !j.rider_phone;});
+    // Vibrate + alert when NEW job appears (count went up)
+    if(!RACT && newJobs.length > prevJobCount){
+      // Vibrate phone: 3 short pulses
+      if(navigator.vibrate)navigator.vibrate([300,100,300,100,300]);
+      // Play a short beep using Web Audio API (no external file needed)
+      try{
+        var ctx=new(window.AudioContext||window.webkitAudioContext)();
+        [0,0.3,0.6].forEach(function(t){
+          var o=ctx.createOscillator();
+          var g=ctx.createGain();
+          o.connect(g);g.connect(ctx.destination);
+          o.frequency.value=880;
+          g.gain.setValueAtTime(0.4,ctx.currentTime+t);
+          g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.25);
+          o.start(ctx.currentTime+t);
+          o.stop(ctx.currentTime+t+0.25);
+        });
+      }catch(e){}
+      // Flash the jobs counter badge
+      var jcnt=document.getElementById('jcnt');
+      if(jcnt){jcnt.style.animation='none';
+        setTimeout(function(){jcnt.style.color='#ef4444';jcnt.style.transform='scale(1.4)';},10);
+        setTimeout(function(){jcnt.style.color='#8b5cf6';jcnt.style.transform='';},800);
+      }
+    }
+    prevJobCount=newJobs.length;
+    RJOBS=newJobs;
     var cnt=document.getElementById('jcnt');if(cnt)cnt.textContent=RACT?0:RJOBS.length;
-    var lbl=document.getElementById('jcnt-lbl');if(lbl)lbl.textContent=RACT?'On Delivery':'Available';
+    var lbl=document.getElementById('jcnt-lbl');if(lbl)lbl.textContent=RACT?'ON DELIVERY':'AVAILABLE';
     renderRBody();
   });
 }
@@ -2130,6 +2156,55 @@ function showCollectPayment(order){
     document.getElementById('confirm-cash-pay').addEventListener('click',function(){
       completeDelivery(order,riderEarn,'cash','');
     });
+  });
+}
+
+// ── COMPLETE DELIVERY ────────────────────────────────────────────────
+function completeDelivery(order,riderEarn,payMethod,mpesaCode){
+  if(!order||!order.id){toast('Error: order data missing. Tap Back and try again.');return;}
+  // Show loading on whichever confirm button was tapped
+  var btn=document.getElementById('confirm-cash-pay')||document.getElementById('confirm-mpesa-pay');
+  if(btn){btn.textContent='Completing...';btn.disabled=true;}
+
+  // Clean up per-order real-time listener
+  if(window._ractUnsub){try{window._ractUnsub();}catch(e){}window._ractUnsub=null;}
+
+  var updateData={
+    status:'delivered',
+    rider_payment_method:payMethod,
+    rider_mpesa_code:mpesaCode||'',
+    delivered_at:Date.now()
+  };
+
+  loadFB(function(db){
+    if(!db){
+      if(btn){btn.textContent='No connection — tap again';btn.disabled=false;}
+      toast('No connection. Check your data and try again.');
+      return;
+    }
+    db.collection('delivery_orders').doc(order.id).update(updateData)
+      .then(function(){
+        // Update rider earnings and mark not busy
+        db.collection('riders').doc(USER.phone).set({
+          total_earnings:firebase.firestore.FieldValue.increment(riderEarn),
+          orders_completed:firebase.firestore.FieldValue.increment(1),
+          pending_payout:firebase.firestore.FieldValue.increment(riderEarn),
+          busy:false
+        },{merge:true}).catch(function(){});
+
+        REARN=(REARN||0)+riderEarn;
+        RACT=null;
+        hideSh();
+        toast('Delivery complete! KSh '+riderEarn+' earned');
+        // Re-subscribe to new jobs now that rider is free
+        if(RON)startJL();
+        renderRBody();
+      })
+      .catch(function(e){
+        console.error('completeDelivery error:',e);
+        if(btn){btn.textContent='Error — tap to retry';btn.disabled=false;}
+        toast('Error completing delivery: '+(e.message||'check connection')+'  — tap button again');
+      });
   });
 }
 
@@ -2958,7 +3033,7 @@ function renderCurrentView(){
 function boot(){
   // Ownership verification stamp - DO NOT REMOVE
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v30 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v31 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
