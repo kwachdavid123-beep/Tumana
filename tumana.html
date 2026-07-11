@@ -13,7 +13,15 @@
 <meta name="apple-mobile-web-app-title" content="Tumana Delivery">
 <meta property="og:title" content="Tumana Delivery">
 <meta property="og:description" content="Chemelil Local Delivery">
+<!-- Speed: pre-connect to Firebase CDN so scripts load faster on 3G -->
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<link rel="dns-prefetch" href="https://www.gstatic.com">
+<link rel="dns-prefetch" href="https://firebase.googleapis.com">
 <link rel="manifest" href="/Tumana/manifest.json">
+<link rel="preload" href="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js" as="script" crossorigin>
+<link rel="preload" href="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js" as="script" crossorigin>
 <link rel="apple-touch-icon" href="/Tumana/tumana-logo.png">
 <link rel="icon" type="image/png" href="/Tumana/tumana-logo.png">
 <title>Tumana Delivery - Chemelil</title>
@@ -165,22 +173,29 @@ body.light [style*="color:#4ade80"]{color:#16a34a!important}
 <body>
 
 <div id="loading">
-  <img src="/Tumana/tumana-splash.png" alt="Tumana" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" onerror="this.style.display='none'">
+  <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" decoding="async" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v31 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v32 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
+<script>
+// Show helpful message if app takes >8 seconds to load (slow 3G)
+setTimeout(function(){
+  var err=document.getElementById('boot-err');
+  var app=document.getElementById('app');
+  if(err&&(!app||app.style.display==='none')){
+    err.style.display='block';
+    err.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection detected.<br>Please wait or check your data.</div>';
+  }
+},8000);
+</script>'''
 </div>
 
 <script>
 
-// ── ONE-TIME ZOMBIE SW CLEANUP ── runs before EVERYTHING else.
-// Uses a URL marker (not localStorage) so this can NEVER loop forever,
-// even if storage is blocked, partitioned, or behaves unexpectedly
-// inside an installed APK/TWA webview.
 (function(){
   var alreadyCleared = window.location.search.indexOf('_cleared=1') >= 0;
-  if (alreadyCleared) return; // guaranteed: this branch never reloads again
+  if (alreadyCleared) return; 
 
   if ('serviceWorker' in navigator) {
     Promise.all([
@@ -268,10 +283,7 @@ var FBC={apiKey:'AIzaSyB_C61rcssdlvqbyUK_QcHkl4HxbwcQBOI',authDomain:'chawkpro1.
 
 function applyTheme(){
   var l=TH==='light',g=TH==='green';
-  // THIS is what actually activates every "body.light ..." CSS rule in the
-  // stylesheet — without this class being toggled, none of those rules
-  // (cards, tabs, forms, buttons, badges) ever apply, no matter how
-  // correct the CSS itself is.
+
   document.body.classList.toggle('light', l);
   document.body.classList.toggle('green', g);
   document.body.style.background=l?'#f0faf5':g?'#041209':'#08080c';
@@ -300,13 +312,12 @@ function setTitle(t,c){var e=document.getElementById('sbt');if(e){e.textContent=
 function su(){try{localStorage.setItem('tu',JSON.stringify(USER));}catch(e){}}
 function empty(ic,t,s){return '<div class="empty"><div class="ei">'+ic+'</div><div class="et">'+t+'</div><div class="es">'+s+'</div></div>';}
 function calcFee(km){
-  // Base fee and per-km rate are admin-editable from the admin panel
-  // Stored in Firestore: platform_config/fees.base_fee, fees.per_km_rate
+
   var base=window._ADMIN_BASE_FEE||50;
   var rate=window._ADMIN_PER_KM||20;
   return Math.round(base+(parseFloat(km)||.5)*rate);
 }
-// Load fee config from Firestore once on startup (after login)
+
 function loadFeeConfig(){
   loadFB(function(db){
     if(!db)return;
@@ -337,14 +348,10 @@ function loadFB(cb){
   if(_db){cb(_db);return;}
   _fbQ.push(cb);if(_fbL)return;_fbL=true;
   function ls(src,next,bg){var s=document.createElement('script');s.src=src;s.onload=next;s.onerror=bg?function(){}:function(){_fbQ.forEach(function(f){f(null);});_fbQ=[];};document.head.appendChild(s);}
-  // STEP 1: Load app SDK (required first)
+  
   ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js',function(){
     try{if(!firebase.apps.length)firebase.initializeApp(FBC);}catch(e){}
-    // STEP 2: Load firestore only — this is the critical path for login/data.
-    // Functions + Messaging are NOT loaded here anymore (they used to load
-    // in parallel on every single boot, adding 2 extra network requests
-    // before the user even logs in). They now load lazily, on-demand,
-    // only when actually needed — see loadFBExtras() below.
+
     ls('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js',function(){
       try{_db=firebase.firestore();}catch(e){_db=null;}
       _fbQ.forEach(function(f){f(_db);});_fbQ=[];
@@ -352,10 +359,6 @@ function loadFB(cb){
   });
 }
 
-// ── LAZY-LOADED EXTRAS: Cloud Functions + Push Messaging ──────────
-// Only fetched the first time callFn() or initFCM() is actually needed
-// (e.g. after a successful login, or when calling a cloud function) —
-// not on every cold app launch. Cuts initial load time noticeably.
 var _fbExtrasLoading=false, _fbExtrasQ=[];
 function loadFBExtras(cb){
   if(_fn){cb();return;}
@@ -372,7 +375,7 @@ function loadFBExtras(cb){
     });
   });
 }
-// ── CLOUD FUNCTIONS ────────────────────────────────────────
+
 function callFn(name,data,cb){
   loadFBExtras(function(){
     if(!_fn){if(cb)cb({ok:false,error:'Functions not loaded'});return;}
@@ -381,26 +384,23 @@ function callFn(name,data,cb){
   });
 }
 
-// ── FCM PUSH NOTIFICATIONS ──────────────────────────────────
 var FCM_TOKEN=null;
 function initFCM(){
   try{
     var msg=firebase.messaging();
-    // Request permission
-    // Delay permission request by 8 seconds after login
-    // so it doesn't pop up immediately like an intrusive browser dialog
+
     setTimeout(function(){
       if(typeof Notification==='undefined')return;
       if(Notification.permission==='granted'){
         doGetToken(msg);
       } else if(Notification.permission!=='denied'){
-        // Show a friendly in-app prompt first (implemented in showNotifPrompt)
+        
         showNotifPrompt(function(allowed){
           if(allowed) Notification.requestPermission().then(function(p){if(p==='granted')doGetToken(msg);});
         });
       }
     }, 8000);
-    // Handle foreground messages
+    
     msg.onMessage(function(payload){
       var n=payload.notification||{};
       toast((n.title?n.title+': ':'')+( n.body||'New notification'));
@@ -477,7 +477,7 @@ var MPRODS={s1:[{id:'p1',name:'Maziwa 500ml',selling_price:60,emoji:'&#x1F95B;'}
 var STEPS={shop:['placed','confirmed','assigned','picked','delivered'],pickup:['confirmed','assigned','picked','delivered']};
 var SLBL={placed:'Waiting',confirmed:'Confirmed',assigned:'Rider Assigned',picked:'Picked Up',delivered:'Delivered',rejected:'Rejected'};
 var SCLS={placed:'bpl',confirmed:'bco',assigned:'bas',picked:'bpi',delivered:'bde',rejected:'brj',
-          // Legacy status fallbacks for old orders
+          
           heading:'bas',transit:'btr'};
 var SICO={placed:'&#x23F3;',confirmed:'&#x2705;',assigned:'&#x1F6F5;',picked:'&#x1F4E6;',delivered:'&#x1F389;'};
 var SLOC={placed:'Order Placed',confirmed:'Shop Confirmed - Finding Rider',assigned:'Rider On The Way!',picked:'Item Picked Up - Coming!',delivered:'Delivered! &#x2705;',rejected:'Order Rejected'};
@@ -502,17 +502,26 @@ function renderRole(){
     +'<div><div style="font-size:16px;font-weight:700;margin-bottom:2px">'+card.lbl+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+card.sub+'</div></div></div>'
     +perksH
     +'<div style="margin-top:10px;text-align:right;font-size:13px;font-weight:700;color:'+card.col+'">Get started &#x2192;</div>'
-    +'</div><div id="adm-link" style="text-align:center;padding:14px 0 4px;cursor:pointer"><span style="font-size:11px;color:rgba(255,255,255,.08);letter-spacing:3px">&#x2022; &#x2022; &#x2022;</span></div></div>';
+    +'</div><div id="adm-link" style="text-align:center;padding:18px 0 4px;cursor:default;user-select:none"><span id="adm-dots" style="font-size:11px;color:rgba(255,255,255,.06);letter-spacing:3px">&#x2022; &#x2022; &#x2022;</span></div></div>';
   pg().querySelectorAll('.rtab').forEach(function(el){el.addEventListener('click',function(){RTAB=this.getAttribute('data-tab');renderRole();});});
-  // Logo tap removed - using 3-dot method instead
+  
   document.getElementById('role-card').addEventListener('click',function(){AR={id:RTAB,col:cards[RTAB].col,ic:cards[RTAB].ic,lbl:cards[RTAB].lbl};AM='login';renderAuth();});
-  // Hidden 3-dot admin access
-  var admLink=document.getElementById('adm-link');
-  if(admLink){
-    admLink.addEventListener('click',function(){
-      AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};
-      AM='login';
-      renderAuth();
+  
+  // Triple-tap secret to reveal admin login — invisible to regular users
+  var admDots=document.getElementById('adm-dots');
+  if(admDots){
+    var tapCount=0,tapTimer=null;
+    admDots.addEventListener('click',function(){
+      tapCount++;
+      clearTimeout(tapTimer);
+      if(tapCount>=3){
+        tapCount=0;
+        AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};
+        AM='login';
+        renderAuth();
+      } else {
+        tapTimer=setTimeout(function(){tapCount=0;},700);
+      }
     });
   }
 }
@@ -563,14 +572,17 @@ function renderAuth(){
       var pin2=(document.getElementById('fpin2').value||'').trim();
       if(pin!==pin2){toast('PINs do not match');return;}
     }
-    // Auto-detect master admin
+    
     var normP=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
-    if(normP===SADMIN&&AR.id!=='admin'){AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};}
+    if(normP===SADMIN&&AR.id==='admin'&&!isL){
+      // Admin phone registering as admin — allowed
+    } else if(normP===SADMIN&&AR.id!=='admin'){
+      // Admin phone logging in as customer/rider/shop — treat as normal user, no redirect
+    }
     if(!isL&&!name&&AR.id!=='admin'){toast('Enter your name');return;}
-    // Simple PIN hash (not cryptographic but sufficient for local use)
+    
     var pinHash=btoa(phone+':'+pin+':tumana2026');
-    // One phone number can hold a SEPARATE profile per role (customer/rider/shop).
-    // Each role's account is stored under its own document key: phone_role
+
     var udocId=phone+'_'+AR.id;
     if(AR.id==='admin'){
       var normPhone=normP;
@@ -592,10 +604,10 @@ function renderAuth(){
       return;
     }
     if(isL){
-      // LOGIN: verify PIN from Firebase for THIS role's profile
+      
       loadFB(function(db){
         if(!db){
-          // Offline fallback: check localStorage
+          
           var saved=null;try{saved=JSON.parse(localStorage.getItem('tu'));}catch(e){}
           if(saved&&saved.phone===phone&&saved.role===AR.id&&saved.pin_hash===pinHash){USER=saved;startApp();}
           else{toast('Wrong PIN or phone number');return;}
@@ -610,11 +622,11 @@ function renderAuth(){
             if(attempts>=5){toast('Too many wrong PINs — contact admin');return;}
             toast('Wrong PIN ('+(5-attempts)+' tries left)');return;
           }
-          // Check if reset pending
+          
           if(data.reset_pending){toast('Your PIN has been reset — check with admin');return;}
           db.collection('tumana_users').doc(udocId).update({pin_attempts:0,last_login:Date.now()});
           USER={role:data.role||AR.id,name:data.name||phone,phone:phone,shopName:data.shopName||'',favourite_shops:data.favourite_shops||[],rating:data.rating||5.0,is_master:data.is_master||false,pin_hash:pinHash,mpesa_phone:data.mpesa_phone||''};
-          // Also load mpesa from riders collection
+          
           if((data.role||AR.id)==='rider'){
             window._riderMpesa=data.mpesa_phone||'';
             if(window._riderMpesa)console.log('Rider M-Pesa loaded:',window._riderMpesa);
@@ -623,12 +635,12 @@ function renderAuth(){
         }).catch(function(){toast('Error — check connection');});
       });
     } else {
-      // REGISTER: save to Firebase under this role's own profile slot
+      
       loadFB(function(db){
         if(!db){toast('No connection — cannot create account');return;}
         db.collection('tumana_users').doc(udocId).get().then(function(doc){
           if(doc.exists&&doc.data().pin_hash){toast('You already have a '+AR.lbl+' account on this number — use Login instead');return;}
-          // Validate M-Pesa for riders
+          
           if(AR.id==='rider'){
             var rmpesa=(document.getElementById('rider-mpesa-reg')&&document.getElementById('rider-mpesa-reg').value||'').trim();
             if(!rmpesa||rmpesa.length<9){toast('Enter your M-Pesa phone number so customers can pay you');return;}
@@ -639,7 +651,7 @@ function renderAuth(){
           db.collection('tumana_users').doc(udocId).set(userData).then(function(){
             USER=Object.assign({},userData);su();
             if(AR.id==='rider'){
-              // Save M-Pesa to riders collection too so it loads on jobs screen
+              
               db.collection('riders').doc(phone).set({mpesa_phone:riderMpesa,name:name||phone,phone:phone},{merge:true}).catch(function(){});
             }
             if(AR.id==='shop'){var till=(document.getElementById('cs-till')&&document.getElementById('cs-till').value||'').trim()||phone;
@@ -654,13 +666,13 @@ function renderAuth(){
 function showSheet(h){document.getElementById('sh').innerHTML=h;document.getElementById('ov').classList.add('show');}
 function startApp(){
   if(!USER)return showRole();applyTheme();
-  loadFeeConfig(); // Load admin-editable delivery fee config from Firestore
+  loadFeeConfig(); 
   if(USER.role==='customer')startCust();
   else if(USER.role==='rider'){
-    // Prompt for M-Pesa if not saved (4C: prompt on first login)
+    
     var rMpesa=USER.mpesa_phone||window._riderMpesa||'';
     if(!rMpesa||rMpesa.length<9){
-      // Load from riders collection (might exist from earlier)
+      
       loadFB(function(db){
         if(!db){showRiderMpesaPrompt();return;}
         db.collection('riders').doc(USER.phone).get().then(function(doc){
@@ -673,9 +685,7 @@ function startApp(){
         }).catch(function(){showRiderMpesaPrompt();});
       });
     }
-    // Before showing jobs, check if rider has an active delivery
-    // (assigned or picked) that was in progress when app was last closed.
-    // Restore RACT so the active delivery appears correctly.
+
     loadFB(function(db){
       if(!db){showJobs();return;}
       db.collection('delivery_orders')
@@ -687,7 +697,7 @@ function startApp(){
           if(!snap.empty){
             var d=snap.docs[0];
             RACT=Object.assign({id:d.id},d.data());
-            // Map old 7-stage statuses to our simplified 3-stage flow
+            
             var statusMap={'heading':'assigned','picked':'picked','transit':'picked','assigned':'assigned'};
             if(statusMap[RACT.status])RACT.status=statusMap[RACT.status];
             else if(['assigned','picked'].indexOf(RACT.status)<0)RACT.status='picked';
@@ -702,9 +712,7 @@ function startApp(){
   else if(USER.role==='shop')startShop();
   else if(USER.role==='admin')showAOv();
   else showRole();
-  // Set up push notifications in the BACKGROUND, after the screen has
-  // already rendered — this keeps login feeling instant instead of
-  // waiting on 2 extra Firebase script downloads first.
+
   if(USER.phone){
     loadFBExtras(function(){
       initFCM();
@@ -754,7 +762,7 @@ function showHome(){
   if(itemSBtn){itemSBtn.addEventListener('click',function(){showItemSearch(document.getElementById('sh-search').value||'');});}
   document.getElementById('sh-search').addEventListener('keydown',function(e){if(e.key==='Enter'&&this.value.trim())showItemSearch(this.value.trim());});
   pg().querySelectorAll('.sg').forEach(function(el){el.addEventListener('click',function(){showProds(this.getAttribute('data-id'));});});
-  // Search + filter
+  
   var allShopsHtml=shH;
   document.getElementById('sh-search').addEventListener('input',function(){
     var q=this.value.toLowerCase();
@@ -853,7 +861,7 @@ function showCart(){
   pg().querySelectorAll('.cim').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);CART[i].qty--;if(CART[i].qty<=0)CART.splice(i,1);showCart();});});
   pg().querySelectorAll('.cip').forEach(function(b){b.addEventListener('click',function(){CART[parseInt(this.dataset.i)].qty++;showCart();});});
   document.getElementById('plb').addEventListener('click',function(){
-    // Step 1: Show delivery location form
+    
     showSh('<div class="hd"></div>'
       +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4CD; Delivery Location</div>'
       +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Tell rider exactly where to bring your order</div>'
@@ -864,7 +872,7 @@ function showCart(){
       +'<button id="del-cancel" class="btn bo" style="margin-top:6px">Cancel</button>'
     );
     document.getElementById('del-cancel').addEventListener('click',hideSh);
-    // GPS
+    
     document.getElementById('del-gps-btn').addEventListener('click',function(){
       var btn=this;btn.textContent='Detecting...';
       if(!navigator.geolocation){toast('GPS not available');return;}
@@ -876,14 +884,14 @@ function showCart(){
         toast('Location captured!');
       },function(){toast('Cannot get GPS — enter address manually');btn.textContent='&#x1F4CD; Use GPS Location';},{enableHighAccuracy:true,timeout:8000});
     });
-    // Next: show payment
+    
     document.getElementById('del-next').addEventListener('click',function(){
       var addr=(document.getElementById('del-addr').value||'').trim();
       var land=(document.getElementById('del-land').value||'').trim();
       if(!addr&&!land&&!window._ordLat){toast('Enter your address or use GPS');return;}
       var fullAddr=[addr,land].filter(Boolean).join(' — ');
       window._deliveryAddr=fullAddr||'GPS Location';
-      // Step 2: Payment options
+      
       document.getElementById('sh').innerHTML='<div class="hd"></div>'
         +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4B3; Pay for Goods</div>'
         +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:4px">Deliver to: <strong style="color:#10b981">'+( window._deliveryAddr||'')+'</strong></div>'
@@ -901,17 +909,17 @@ function showCart(){
         +'</div>'
         +'<div style="padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:9px;text-align:center;font-size:12px;color:rgba(255,255,255,.35)">&#x1F4B5; Cash disabled — M-Pesa only for safety</div>';
       document.getElementById('cn').addEventListener('click',hideSh);
-      // M-Pesa path
+      
       document.getElementById('sn').addEventListener('click',function(){
         placeOrder('mpesa','');
       });
-      // Cash path disabled — M-Pesa only for rider safety
+      
       var cashBtnEl=document.getElementById('cash-btn');
       if(cashBtnEl){cashBtnEl.addEventListener('click',function(){toast('Cash payments are disabled. Please use M-Pesa.');});}
     });
   });
   }
-// ── TOP-LEVEL placeOrder: self-contained, no closure deps ───────────
+
 function placeOrder(payMethod,mpesaCode){
   if(!CART.length){toast('Cart is empty');return;}
   var shop=CS||{};
@@ -941,7 +949,7 @@ function placeOrder(payMethod,mpesaCode){
     hideSh();showOrds();toast('&#x23F3; Sending order...');
     db.collection('delivery_orders')
       .add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()}))
-      .then(function(){// Check if any riders are online - warn customer if not
+      .then(function(){
     loadFB(function(db){
       if(!db)return;
       db.collection('riders').where('online','==',true).where('verified','==',true).limit(1).get()
@@ -960,13 +968,13 @@ function placeOrder(payMethod,mpesaCode){
 
   loadFB(function(db){
     if(!db){toast('No connection — cannot place order');return;}
-    // Try duplicate check (needs composite index — safe to skip if it fails)
+    
     db.collection('delivery_orders')
       .where('customer_phone','==',USER.phone)
       .where('status','in',['placed','confirmed'])
       .get()
       .then(function(snap){
-        // Check if any of the results are from the same shop
+        
         var dup=snap.docs.some(function(d){return d.data().shop_id===shopId;});
         if(dup){
           hideSh();
@@ -977,7 +985,7 @@ function placeOrder(payMethod,mpesaCode){
         doPlace(db);
       })
       .catch(function(){
-        // Composite index missing — place order without duplicate check
+        
         doPlace(db);
       });
   });
@@ -995,7 +1003,7 @@ function showPickup(){
     +'<div style="font-size:20px;font-weight:800;margin-bottom:2px">&#x1F4CD; Where to?</div>'
     +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Price updates automatically with GPS</div></div>'
     +'<div style="padding:14px 18px 100px">'
-    // ── PICKUP ──────────────────────────────────────────────────
+    
     +'<div style="background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px;margin-bottom:8px">'
     +'<div style="display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:50%;background:#10b981;flex-shrink:0"></div>'
     +'<div style="flex:1"><div style="font-size:10px;font-weight:700;color:#10b981;margin-bottom:3px">PICKUP FROM</div>'
@@ -1003,7 +1011,7 @@ function showPickup(){
     +'<button id="gps-pickup-btn" style="margin-top:9px;width:100%;padding:10px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:9px;color:#10b981;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F4CD; Use My GPS as Pickup Point</button>'
     +'<div id="gps-pickup-status" style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-top:5px"></div>'
     +'</div>'
-    // ── DROPOFF ─────────────────────────────────────────────────
+    
     +'<div style="background:#111116;border:1.5px solid rgba(239,68,68,.3);border-radius:13px;padding:13px;margin-bottom:10px">'
     +'<div style="display:flex;gap:10px;align-items:center"><div style="width:12px;height:12px;border-radius:3px;background:#ef4444;flex-shrink:0"></div>'
     +'<div style="flex:1"><div style="font-size:10px;font-weight:700;color:#ef4444;margin-bottom:3px">DROP OFF AT</div>'
@@ -1011,9 +1019,9 @@ function showPickup(){
     +'<button id="gps-drop-btn" style="margin-top:9px;width:100%;padding:10px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:9px;color:#ef4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F4CD; Use My GPS as Drop-off Point</button>'
     +'<div id="gps-drop-status" style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-top:5px"></div>'
     +'</div>'
-    // ── QUICK LOCATIONS ─────────────────────────────────────────
+    
     +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">'+locsH+'</div>'
-    // ── FARE DISPLAY ────────────────────────────────────────────
+    
     +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px;margin-bottom:14px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
     +'<span style="font-size:13px;color:rgba(255,255,255,.4)">Your fare</span>'
@@ -1036,14 +1044,12 @@ function showPickup(){
     +'<button id="reqb" class="btn bg" style="font-size:16px;padding:17px">&#x1F6F5; Request Rider</button>'
     +'</div>';
 
-  // ── Quick location chips → fill PICKUP field ─────────────────
   pg().querySelectorAll('.lp').forEach(function(el){
     el.addEventListener('click',function(){
       document.getElementById('pfr').value=this.getAttribute('data-loc');
     });
   });
 
-  // ── Haversine distance between two GPS points ────────────────
   function haversineKm(lat1,lng1,lat2,lng2){
     var R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
     var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
@@ -1052,10 +1058,10 @@ function showPickup(){
 
   function updateFare(){
     var km=PUDIST;
-    // If we have both GPS points, use real distance
+    
     if(window._gpsLat&&window._gpsLng&&window._dropLat&&window._dropLng){
       km=Math.max(.2,haversineKm(window._gpsLat,window._gpsLng,window._dropLat,window._dropLng));
-      km=Math.round(km*10)/10; // round to 1 decimal
+      km=Math.round(km*10)/10; 
     }
     PUDIST=km;PUFEE=calcFee(km);
     var fd=document.getElementById('fared');var fb=document.getElementById('fare-breakdown');
@@ -1075,7 +1081,6 @@ function showPickup(){
     },{enableHighAccuracy:true,timeout:10000});
   }
 
-  // GPS for PICKUP
   document.getElementById('gps-pickup-btn').addEventListener('click',function(){
     getGPS(function(lat,lng){
       window._gpsLat=lat;window._gpsLng=lng;
@@ -1085,7 +1090,6 @@ function showPickup(){
     },'gps-pickup-status');
   });
 
-  // GPS for DROPOFF
   document.getElementById('gps-drop-btn').addEventListener('click',function(){
     getGPS(function(lat,lng){
       window._dropLat=lat;window._dropLng=lng;
@@ -1095,7 +1099,6 @@ function showPickup(){
     },'gps-drop-status');
   });
 
-  // ── Request Rider ─────────────────────────────────────────────
   document.getElementById('reqb').addEventListener('click',function(){
     var from=(document.getElementById('pfr').value||'').trim();
     var to=(document.getElementById('pto').value||'').trim();
@@ -1113,8 +1116,7 @@ function showPickup(){
       total:PUFEE,
       rider_earnings:PUFEE,
       platform_earnings:0,
-      // Pickup orders go straight to 'confirmed' — no shop approval needed
-      // This makes them immediately visible to available riders
+
       status:'confirmed',
       rider_phone:null,
       rider_name:null
@@ -1150,7 +1152,7 @@ function showOrds(){
         tH+='<div style="display:flex;gap:9px;align-items:flex-start"><div style="display:flex;flex-direction:column;align-items:center;width:22px;flex-shrink:0"><div style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;background:'+(d?'#10b981':a?'#8b5cf6':'#1a1a22')+';color:'+(d?'#000':a?'#fff':'rgba(255,255,255,.2)')+';">'+(d?'&#x2713;':(SICO[key]||'&#x2022;'))+'</div>'+(last?'':'<div style="width:2px;height:12px;margin:2px 0;background:'+(d?'#10b981':'rgba(255,255,255,.1)')+'"></div>')+'</div><div style="padding-bottom:10px"><div style="font-size:12px;font-weight:700;color:'+(d?'#10b981':a?'#fff':'rgba(255,255,255,.3)')+'">'+( SLOC[key]||key)+'</div>'+(a?'<div style="font-size:10px;color:rgba(255,255,255,.4)">Now</div>':'')+'</div></div>';
       });
       var desc=o.type==='pickup'?(o.pickup_from||'')+'→'+(o.delivery_address||''):(o.items||[]).map(function(i){return i.name+' x'+i.quantity;}).join(', ');
-      // Status message shown to customer
+      
       var statusMsg='';
       if(o.status==='placed')statusMsg='<div style="font-size:12px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#f59e0b">&#x23F3; Waiting for shop to confirm your order...</div>';
       else if(o.status==='confirmed')statusMsg='<div style="font-size:12px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#8b5cf6">&#x1F50D; Looking for a rider near you...</div>';
@@ -1167,7 +1169,7 @@ function showOrds(){
       +'</div>';
     });
     list.innerHTML=h;
-    // Rating handlers
+    
     list.querySelectorAll('.rate-stars').forEach(function(row){
       row.querySelectorAll('.star-btn').forEach(function(star){
         star.addEventListener('mouseenter',function(){
@@ -1194,10 +1196,14 @@ function showOrds(){
 function showMe(){
   setTitle('TUMANA','#10b981');setNav('customer','me');
   var letter=(USER.name||'?').charAt(0).toUpperCase();
-  pg().innerHTML='<div style="padding:16px 18px 100px"><div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.05));border:1.5px solid rgba(16,185,129,.15);border-radius:14px;padding:18px;margin-bottom:14px;text-align:center"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 10px;font-weight:800;color:#000">'+letter+'</div><div style="font-size:18px;font-weight:700;margin-bottom:4px">'+USER.name+'</div><div style="font-size:13px;color:rgba(255,255,255,.4)">'+USER.phone+'</div></div><div class="sbox"><div class="sboxt">Theme</div><div style="display:flex;gap:8px"><button id="td" class="btn bo" style="margin-top:0">&#x1F319; Dark</button><button id="tl" class="btn bo" style="margin-top:0">&#x2600; Light</button><button id="tg" class="btn bo" style="margin-top:0">&#x1F33F; Green</button></div></div><div class="sbox"><div class="sboxt">Account</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:12px">Customer · '+USER.phone+'</div><button id="meout" class="btn bo">Logout</button></div></div>';
+  pg().innerHTML='<div style="padding:16px 18px 100px"><div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.05));border:1.5px solid rgba(16,185,129,.15);border-radius:14px;padding:18px;margin-bottom:14px;text-align:center"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 10px;font-weight:800;color:#000">'+letter+'</div><div style="font-size:18px;font-weight:700;margin-bottom:4px">'+USER.name+'</div><div style="font-size:13px;color:rgba(255,255,255,.4)">'+USER.phone+'</div></div>'
+    +'<button id="share-btn" class="btn bg" style="margin-bottom:12px;font-size:15px">&#x1F4E4; Share Tumana with Friends</button>'
+    +'<div class="sbox"><div class="sboxt">Theme</div><div style="display:flex;gap:8px"><button id="td" class="btn bo" style="margin-top:0">&#x1F319; Dark</button><button id="tl" class="btn bo" style="margin-top:0">&#x2600; Light</button><button id="tg" class="btn bo" style="margin-top:0">&#x1F33F; Green</button></div></div>'
+    +'<div class="sbox"><div class="sboxt">Account</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:12px">Customer · '+USER.phone+'</div><button id="meout" class="btn bo">Logout</button></div></div>';
   ['d','l','g'].forEach(function(k){var t={d:'dark',l:'light',g:'green'}[k];document.getElementById('t'+k).addEventListener('click',function(){TH=t;localStorage.setItem('th',t);applyTheme();showMe();});});
   document.getElementById('t'+({dark:'d',light:'l',green:'g'}[TH])).style.borderColor='#10b981';
   document.getElementById('meout').addEventListener('click',function(){if(confirm('Log out?'))logout();});
+  document.getElementById('share-btn').addEventListener('click',shareTumana);
 }
 
 function startShop(){
@@ -1250,7 +1256,7 @@ function showSOrd(){
   SORD.forEach(function(o){
     var items=(o.items||[]).map(function(i){return i.name+' x'+i.quantity;}).join(', ')||o.item_description||'';
     h+='<div class="card" style="border-left:4px solid #10b981"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div><div style="font-weight:700">#'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.customer_name||'')+' · '+(o.customer_phone||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">'+items+'</div><div style="display:flex;gap:7px;margin-bottom:8px"><div style="flex:1;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.13);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px">YOU EARN</div><div style="font-weight:800;color:#10b981">KSh '+(o.subtotal||o.total||0)+'</div></div><div style="flex:1;background:#1a1a22;border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px">TOTAL</div><div style="font-weight:800">KSh '+(o.total||0)+'</div></div></div>';
-    // Show delivery destination to shop
+    
     if(o.delivery_address){h+='<div style="background:#1a1a22;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px"><span style="color:rgba(255,255,255,.4)">&#x1F4CD; Deliver to: </span><strong>'+o.delivery_address+'</strong></div>';}
     if(o.status==='placed'){
       var isMpesa=o.payment_method==='mpesa';
@@ -1258,14 +1264,14 @@ function showSOrd(){
       h+='<div style="background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:10px;margin-bottom:8px">';
       h+='<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Confirm this order</div>';
       if(isCash){
-        // Cash order - just confirm, no code needed
+        
         h+='<div style="font-size:12px;color:#f59e0b;margin-bottom:8px">&#x1F4B5; Cash payment - collect KSh '+(o.delivery_fee||70)+' on delivery</div>';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
         h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:12px">&#x274C; Reject</button>';
         h+='<button class="cb btn bg" data-id="'+o.id+'" data-paytype="cash" style="margin-top:0;font-size:12px">&#x2705; Confirm Order</button>';
         h+='</div>';
       } else {
-        // M-Pesa - require confirmation code
+        
         h+='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">&#x1F4F1; Customer paid via M-Pesa. Enter the code to confirm:</div>';
         h+='<input id="mp'+o.id+'" type="text" placeholder="M-Pesa code e.g. RGH456XYZ" style="width:100%;background:#111116;border:1.5px solid rgba(16,185,129,.22);border-radius:8px;padding:11px;font-size:14px;color:#fff;font-family:inherit;text-transform:uppercase;margin-bottom:8px;outline:none">';
         h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
@@ -1302,7 +1308,6 @@ function showSSales(){
   var view=window._sv||'sales';
   var isSales=view==='sales', isDebt=view==='debts', isHistory=view==='history';
 
-  // ── Tab bar ─────────────────────────────────────────────
   var tabH='<div style="display:flex;gap:5px;margin-bottom:12px">'
     +'<button id="svs" style="flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid '+(isSales?'#10b981':'rgba(255,255,255,.13)')+';background:'+(isSales?'rgba(16,185,129,.1)':'transparent')+';color:'+(isSales?'#10b981':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">&#x1F4B0; Sales</button>'
     +'<button id="svd" style="flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid '+(isDebt?'#ef4444':'rgba(255,255,255,.13)')+';background:'+(isDebt?'rgba(239,68,68,.08)':'transparent')+';color:'+(isDebt?'#ef4444':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">&#x26A0; Debts</button>'
@@ -1313,20 +1318,17 @@ function showSSales(){
     +'<button id="recb" class="btn ba" style="margin-bottom:12px;margin-top:0">+ Record Sale</button>'
     +'<div id="svdata"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
 
-  // Attach tab listeners immediately after render
   document.getElementById('svs').addEventListener('click',function(){window._sv='sales';showSSales();});
   document.getElementById('svd').addEventListener('click',function(){window._sv='debts';showSSales();});
   document.getElementById('svh').addEventListener('click',function(){window._sv='history';showSSales();});
   document.getElementById('recb').addEventListener('click',showRecSale);
 
-  // ── Load data ────────────────────────────────────────────
   loadFB(function(db){
     if(!db){document.getElementById('svdata').innerHTML=empty('&#x1F4B0;','No connection','Connect to load sales data');return;}
     db.collection('shops').doc(USER.phone).collection('sales').limit(200).get().then(function(s){
       var allS=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}).sort(function(a,b){return(b.created_at||0)-(a.created_at||0);});
       var svd=document.getElementById('svdata');if(!svd)return;
 
-      // ── SALES TAB ────────────────────────────────────────
       if(isSales){
         var paid=allS.filter(function(x){return !x.is_debt;});
         var today=new Date().toDateString();
@@ -1359,7 +1361,6 @@ function showSSales(){
         svd.innerHTML=statsH+lH;
       }
 
-      // ── DEBTS TAB ────────────────────────────────────────
       else if(isDebt){
         var debts=allS.filter(function(x){return x.is_debt&&!x.debt_paid;});
         var dPaid=allS.filter(function(x){return x.is_debt&&x.debt_paid;});
@@ -1380,7 +1381,7 @@ function showSSales(){
               +'</div></div></div>';
           });
         }
-        // Show recently paid debts
+        
         if(dPaid.length){
           dH+='<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px">Recently Paid</div>';
           dPaid.slice(0,5).forEach(function(d){
@@ -1401,25 +1402,23 @@ function showSSales(){
         });
       }
 
-      // ── HISTORY TAB (CHAWKPRO-style) ─────────────────────
       else if(isHistory){
         var paid2=allS.filter(function(x){return !x.is_debt;});
         var allCost2=paid2.reduce(function(s,x){return s+(x.cost||0);},0);
         var allRev=paid2.reduce(function(s,x){return s+(x.total||0);},0);
         var allProfit2=allRev-allCost2;
-        // This week
+        
         var weekAgo=Date.now()-7*24*3600*1000;
         var weekS=paid2.filter(function(x){return(x.created_at||0)>weekAgo;});
         var weekRev=weekS.reduce(function(s,x){return s+(x.total||0);},0);
         var weekCost=weekS.reduce(function(s,x){return s+(x.cost||0);},0);
         var weekProfit=weekRev-weekCost;
-        // This month
+        
         var now=new Date(); var monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
         var monthS=paid2.filter(function(x){return(x.created_at||0)>monthStart;});
         var monthRev=monthS.reduce(function(s,x){return s+(x.total||0);},0);
         var monthProfit=monthRev-monthS.reduce(function(s,x){return s+(x.cost||0);},0);
 
-        // Summary cards
         var summH='<div style="margin-bottom:14px">'
           +'<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Summary</div>'
           +'<div class="g2"><div class="sb2"><div class="sv" style="color:#10b981;font-size:16px">KSh '+weekRev.toLocaleString()+'</div><div class="sl">This Week Sales</div></div><div class="sb2"><div class="sv" style="color:#4ade80;font-size:16px">KSh '+weekProfit.toLocaleString()+'</div><div class="sl">This Week Profit</div></div></div>'
@@ -1427,7 +1426,6 @@ function showSSales(){
           +'<div class="sb2" style="text-align:center;margin-bottom:0"><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:4px">All Time</div><div style="display:flex;justify-content:space-around"><div><div style="font-size:18px;font-weight:800;color:#10b981">KSh '+allRev.toLocaleString()+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Revenue</div></div><div><div style="font-size:18px;font-weight:800;color:#4ade80">KSh '+allProfit2.toLocaleString()+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Profit</div></div><div><div style="font-size:18px;font-weight:800;color:#fbbf24">'+paid2.length+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Sales</div></div></div></div>'
           +'</div>';
 
-        // Daily breakdown
         var days={};
         paid2.forEach(function(x){
           var d=new Date(x.created_at||0);
@@ -1458,7 +1456,6 @@ function showSSales(){
             +'</div>';
         });
 
-        // Product performance
         var prods={};
         paid2.forEach(function(x){
           var n=x.product_name||'Unknown';
@@ -1477,7 +1474,6 @@ function showSSales(){
             +(p.profit>0?'<div style="font-size:10px;color:#4ade80">+KSh '+p.profit+' profit</div>':'')+'</div></div>';
         });
 
-        // WhatsApp summary share
         var waText='*TUMANA Daily Summary - '+new Date().toLocaleDateString('en-KE')+'*\n\n'
           +'Today Sales: KSh '+paid2.filter(function(x){return new Date(x.created_at||0).toDateString()===new Date().toDateString();}).reduce(function(s,x){return s+(x.total||0);},0).toLocaleString()+'\n'
           +'This Week: KSh '+weekRev.toLocaleString()+' (Profit: KSh '+weekProfit.toLocaleString()+')\n'
@@ -1495,7 +1491,7 @@ function showSSales(){
 }
 function showRecSale(){
   window._saleCart=window._saleCart||[];
-  // Load stock once, then render form
+  
   loadFB(function(db){
     if(!db){renderSaleCart([]);return;}
     db.collection('shops').doc(USER.phone).collection('stock').get().then(function(s){
@@ -1508,7 +1504,6 @@ function showRecSale(){
 function renderSaleCart(stockItems){
   window._recStock=stockItems;
 
-  // Build stock picker options
   var optsH='<option value="">-- Pick item to add --</option>';
   stockItems.forEach(function(it){
     optsH+='<option value="'+it.id+'">'+(it.emoji||'')+(it.emoji?' ':'')+it.name+' (KSh '+it.selling_price+' · '+(it.quantity||0)+' left)</option>';
@@ -1545,7 +1540,7 @@ function renderSaleCart(stockItems){
     document.getElementById('sc-rows').innerHTML=cartRows();
     document.getElementById('sc-total').textContent='KSh '+tot.toLocaleString();
     if(hasProfit){var pe=document.getElementById('sc-profit');if(pe){pe.textContent='Profit: KSh '+prof.toLocaleString();pe.style.display='';}}
-    // Rewire qty buttons
+    
     document.getElementById('sc-rows').querySelectorAll('.sc-m').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);sc[i].qty=Math.max(1,sc[i].qty-1);rebuildSh();});});
     document.getElementById('sc-rows').querySelectorAll('.sc-p').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);sc[i].qty++;rebuildSh();});});
     document.getElementById('sc-rows').querySelectorAll('.sc-del').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);sc.splice(i,1);rebuildSh();});});
@@ -1554,7 +1549,6 @@ function renderSaleCart(stockItems){
   showSh('<div class="hd"></div>'
     +'<div style="font-size:18px;font-weight:800;margin-bottom:14px">&#x1F4B0; Record Sale</div>'
 
-    // ── Item picker ────────────────────────────────────────
     +'<div class="fld"><label>Add Item</label>'
     +(stockItems.length?'<select id="rcp-sel">'+optsH+'</select>'
       :'<input id="rcp-sel-c" type="text" placeholder="Item name (no stock loaded)">')
@@ -1569,7 +1563,6 @@ function renderSaleCart(stockItems){
     +'</div>'
     +'<button id="add-item-btn" class="btn bg" style="margin-bottom:14px;padding:11px">+ Add to Sale</button>'
 
-    // ── Cart ───────────────────────────────────────────────
     +'<div style="background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:12px;margin-bottom:12px">'
     +'<div style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Items in this Sale</div>'
     +'<div id="sc-rows">'+cartRows()+'</div>'
@@ -1579,7 +1572,6 @@ function renderSaleCart(stockItems){
     +'<span id="sc-total" style="font-size:22px;font-weight:800;color:#10b981">KSh '+cartTotal().toLocaleString()+'</span>'
     +'</div></div>'
 
-    // ── Customer + payment ─────────────────────────────────
     +'<div class="fld"><label>Customer Name</label><input id="rcc" type="text" placeholder="e.g. Mama Jane (optional)" autocomplete="off"></div>'
     +'<div class="fld"><label>Customer Phone (for debt)</label><input id="rcph" type="tel" placeholder="07XX (optional)"></div>'
     +'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:1.5px">Payment</div>'
@@ -1592,7 +1584,6 @@ function renderSaleCart(stockItems){
     +'<button id="csb" class="btn bo">Cancel</button>'
   );
 
-  // ── Wire up stock picker ─────────────────────────────────
   var selEl=document.getElementById('rcp-sel');
   if(selEl){
     selEl.addEventListener('change',function(){
@@ -1609,7 +1600,6 @@ function renderSaleCart(stockItems){
     });
   }
 
-  // ── Add item to cart ─────────────────────────────────────
   document.getElementById('add-item-btn').addEventListener('click',function(){
     var sel=document.getElementById('rcp-sel');
     var selVal=sel?sel.value:'__custom';
@@ -1626,11 +1616,11 @@ function renderSaleCart(stockItems){
     var cost=parseFloat((document.getElementById('rcp-cost')&&document.getElementById('rcp-cost').value)||0)||0;
     var qty=parseInt((document.getElementById('rcp-qty')&&document.getElementById('rcp-qty').value)||1)||1;
     if(!price){toast('Enter selling price');return;}
-    // Check if same item already in cart - increase qty
+    
     var existing=window._saleCart.filter(function(x){return x.stockId===stockId&&x.name===name;})[0];
     if(existing){existing.qty+=qty;}
     else{window._saleCart.push({name:name,emoji:emoji,price:price,cost:cost,qty:qty,stockId:stockId});}
-    // Reset picker
+    
     if(sel){sel.value='';document.getElementById('custom-row').style.display='none';}
     document.getElementById('rcp-price').value='';
     document.getElementById('rcp-cost').value='';
@@ -1639,10 +1629,8 @@ function renderSaleCart(stockItems){
     rebuildSh();
   });
 
-  // Initial rewire of cart buttons
   rebuildSh();
 
-  // ── Payment method ────────────────────────────────────────
   var pt='cash';
   function setPT(t){
     pt=t;var cols={cash:'#10b981',mpesa:'#3b82f6',debt:'#ef4444'};
@@ -1659,7 +1647,6 @@ function renderSaleCart(stockItems){
 
   document.getElementById('csb').addEventListener('click',function(){window._saleCart=[];hideSh();});
 
-  // ── Save sale ─────────────────────────────────────────────
   document.getElementById('ssb').addEventListener('click',function(){
     if(!window._saleCart.length){toast('Add at least one item');return;}
     var cust=(document.getElementById('rcc').value||'Walk-in').trim();
@@ -1671,7 +1658,7 @@ function renderSaleCart(stockItems){
     loadFB(function(db){
       if(!db){toast('No connection');btn.textContent='Save Sale';btn.disabled=false;return;}
       var batch=db.batch();
-      // Save each cart item as a sale record
+      
       window._saleCart.forEach(function(it){
         var ref=db.collection('shops').doc(USER.phone).collection('sales').doc();
         batch.set(ref,{
@@ -1681,7 +1668,7 @@ function renderSaleCart(stockItems){
           customer_phone:phone,created_at:Date.now(),shop_phone:USER.phone,
           stock_id:it.stockId||null,sale_group:Date.now()
         });
-        // Decrement stock
+        
         if(it.stockId){
           var src=stockItems.filter(function(x){return x.id===it.stockId;})[0];
           if(src){
@@ -1743,7 +1730,7 @@ function showAddProd(){
     +'<button id="capb" class="btn bo">Cancel</button>'
   );
   document.getElementById('capb').addEventListener('click',hideSh);
-  // Photo pick
+  
   var photoData=null;
   var preview=document.getElementById('ap-photo-preview');
   var photoInput=document.getElementById('apphoto');
@@ -1752,7 +1739,7 @@ function showAddProd(){
     var file=this.files[0];if(!file)return;
     var reader=new FileReader();
     reader.onload=function(e){
-      photoData=e.target.result; // base64
+      photoData=e.target.result; 
       preview.innerHTML='<img src="'+photoData+'" style="width:100%;height:100%;object-fit:cover;border-radius:9px">';
     };
     reader.readAsDataURL(file);
@@ -1771,7 +1758,7 @@ function showAddProd(){
     loadFB(function(db){
       if(!db){toast('No connection');btn.textContent='Save Product';btn.disabled=false;return;}
       var data={name:n,description:desc,selling_price:s,cost_price:cc,quantity:q,emoji:e,created_at:Date.now()};
-      if(photoData)data.photo=photoData; // store compressed base64
+      if(photoData)data.photo=photoData; 
       db.collection('shops').doc(USER.phone).collection('stock').add(data).then(function(){
         toast('Added: '+n);hideSh();showSStock();
       }).catch(function(){toast('Error saving');btn.textContent='Save Product';btn.disabled=false;});
@@ -1874,7 +1861,6 @@ function showSSet(){
   }
 }
 
-// Simplified 3-stage rider flow: Accept → Picked Up → Delivered
 var NST={assigned:'picked',picked:'delivered'};
 var NLB={assigned:'&#x1F4E6; Picked Up from Shop',picked:'&#x2705; Mark Delivered'};
 var PROG=['assigned','picked','delivered'];
@@ -1886,7 +1872,7 @@ function showJobs(){
   document.getElementById('rout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
   document.getElementById('rtog').addEventListener('click',function(){
     if(!RON){
-      // Trying to go ONLINE — check M-Pesa is saved first
+      
       var savedMpesa=USER.mpesa_phone||(window._riderMpesa||'');
       if(!savedMpesa||savedMpesa.length<9){
         toast('Add your M-Pesa number in Earnings tab before going online');
@@ -1910,11 +1896,11 @@ function startJL(){
   var prevJobCount=RJOBS.length;
   RUNSUB=dbListenIn('delivery_orders','status',['confirmed'],function(jobs){
     var newJobs=RACT?[]:jobs.filter(function(j){return !j.rider_phone;});
-    // Vibrate + alert when NEW job appears (count went up)
+    
     if(!RACT && newJobs.length > prevJobCount){
-      // Vibrate phone: 3 short pulses
+      
       if(navigator.vibrate)navigator.vibrate([300,100,300,100,300]);
-      // Play a short beep using Web Audio API (no external file needed)
+      
       try{
         var ctx=new(window.AudioContext||window.webkitAudioContext)();
         [0,0.3,0.6].forEach(function(t){
@@ -1928,7 +1914,7 @@ function startJL(){
           o.stop(ctx.currentTime+t+0.25);
         });
       }catch(e){}
-      // Flash the jobs counter badge
+      
       var jcnt=document.getElementById('jcnt');
       if(jcnt){jcnt.style.animation='none';
         setTimeout(function(){jcnt.style.color='#ef4444';jcnt.style.transform='scale(1.4)';},10);
@@ -1944,11 +1930,7 @@ function startJL(){
 }
 function startAL(){
   if(RAUNSUB){RAUNSUB();RAUNSUB=null;}
-  // CRITICAL: only treat 'assigned' or 'picked' as an ACTIVE delivery.
-  // 'delivered' must NEVER match here — otherwise this live listener
-  // keeps re-setting RACT to the just-completed order every time
-  // Firestore fires the snapshot (including the very update that marks
-  // it delivered), making it look like the job never finished.
+
   RAUNSUB=dbListen('delivery_orders','rider_phone','==',USER.phone,function(orders){
     var stillActive=orders.filter(function(o){return o.status==='assigned'||o.status==='picked';})[0]||null;
     RACT=stillActive;
@@ -1969,7 +1951,7 @@ function renderRBody(){
       +'<div style="font-weight:800;font-size:15px">#'+a.id.slice(-6).toUpperCase()+'</div>'
       +'<div style="font-weight:800;color:#10b981;font-size:22px">KSh '+(a.delivery_fee||70)+'</div>'
       +'</div>'+dots
-      // Route: green circle = pickup, red square = drop-off
+      
       +'<div style="background:#1a1a22;border-radius:10px;padding:11px;margin-bottom:10px">'
       +'<div style="display:flex;gap:9px;align-items:flex-start;margin-bottom:9px">'
       +'<div style="width:12px;height:12px;border-radius:50%;background:#10b981;margin-top:3px;flex-shrink:0"></div>'
@@ -1983,7 +1965,7 @@ function renderRBody(){
       +'<div style="font-size:12px;color:rgba(255,255,255,.55);margin-top:2px">'+(a.delivery_address||'No address provided')+'</div>'
       +(a.customer_phone?'<a href="tel:'+a.customer_phone+'" style="display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:6px 11px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:8px;color:#10b981;font-size:12px;font-weight:700;text-decoration:none">&#x1F4DE; Call '+a.customer_phone+'</a>':'')
       +'</div></div></div>'
-      // Navigation links
+      
       +'<div style="display:flex;gap:7px;margin-bottom:10px">'
       +(a.delivery_lat
         ?'<a href="https://www.google.com/maps/dir/?api=1&destination='+a.delivery_lat+','+a.delivery_lng+'" target="_blank" style="flex:1;padding:10px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);border-radius:9px;color:#3b82f6;text-align:center;font-size:12px;font-weight:700;text-decoration:none">&#x1F5FA; Maps</a>'
@@ -2000,14 +1982,14 @@ function renderRBody(){
     RJOBS.forEach(function(job){
       var rg=Math.round((job.delivery_fee||70)*.9);
       h+='<div class="card" style="border:1.5px solid rgba(139,92,246,.3);margin-bottom:10px">'
-      // Job header
+      
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
       +'<div><div style="font-weight:700;font-size:14px">'+(job.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Delivery')+' #'+job.id.slice(-6).toUpperCase()+'</div>'
       +'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+job.customer_name+'</div></div>'
       +'<div style="text-align:right"><div style="font-size:22px;font-weight:800;color:#10b981">KSh '+rg+'</div>'
       +'<div style="font-size:10px;color:rgba(255,255,255,.35)">'+(job.distance||'?')+'km</div></div>'
       +'</div>'
-      // Route - green dot = pickup, red square = drop off
+      
       +'<div style="background:#1a1a22;border-radius:10px;padding:10px;margin-bottom:10px">'
       +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
       +'<div style="width:11px;height:11px;border-radius:50%;background:#10b981;flex-shrink:0"></div>'
@@ -2019,7 +2001,7 @@ function renderRBody(){
       +'<div style="font-size:13px;font-weight:700">'+(job.customer_name||'Customer')+'</div>'
       +'<div style="font-size:11px;color:rgba(255,255,255,.5)">'+(job.delivery_address||'Address not provided')+'</div></div></div>'
       +'</div>'
-      // Accept / Decline
+      
       +(RACT
         ?'<div style="padding:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:9px;text-align:center;font-size:12px;color:rgba(255,255,255,.3)">&#x1F6AB; Finish current delivery first</div>'
         :'<div style="display:flex;gap:8px">'
@@ -2039,7 +2021,7 @@ function renderRBody(){
   });});
 }
 function accJob(jobId){
-  // Block accepting if already on a delivery
+  
   if(RACT){
     toast('Complete your current delivery first');
     return;
@@ -2048,22 +2030,19 @@ function accJob(jobId){
   var rMpesaToSave=USER.mpesa_phone||window._riderMpesa||'';
   dbUpd('delivery_orders',jobId,{rider_phone:USER.phone,rider_name:USER.name,rider_mpesa:rMpesaToSave,status:'assigned'},function(ok){
     if(!ok){toast('Error accepting - try again');return;}
-    // Mark rider as busy in Firebase immediately — the Cloud Function
-    // checks this before sending push notifications, so other jobs
-    // won't ping this rider until completeDelivery() sets busy:false.
+
     dbSet('riders',USER.phone,{busy:true,online:true,name:USER.name,phone:USER.phone});
     RACT=Object.assign({},job,{status:'assigned',rider_phone:USER.phone,rider_name:USER.name});
-    RJOBS=[]; // clear local job list immediately
+    RJOBS=[]; 
     toast('Accepted! Head to '+(job.type==='pickup'?job.pickup_from:job.shopName||'the shop'));
-    // Real-time listener on this specific order so status auto-syncs
-    // (e.g. if admin resets it, rider's RACT auto-clears)
+
     if(window._ractUnsub)window._ractUnsub();
     loadFB(function(db){
       window._ractUnsub=db.collection('delivery_orders').doc(RACT.id).onSnapshot(function(doc){
         if(!doc.exists||!RACT||doc.id!==RACT.id)return;
         var d=doc.data();
         if(d.status==='confirmed'||d.status==='rejected'){
-          // Order was reset/cancelled by admin/shop
+          
           RACT=null;if(window._ractUnsub){window._ractUnsub();window._ractUnsub=null;}
           dbSet('riders',USER.phone,{busy:false});
           toast('Order was reset or cancelled by shop/admin');
@@ -2078,13 +2057,12 @@ function accJob(jobId){
 function advJob(){
   if(!RACT)return;
   var ns=NST[RACT.status];
-  // If status isn't in NST (old/stuck status from before simplification),
-  // don't silently fail — treat it as ready for payment collection.
+
   if(!ns){
     showCollectPayment(RACT);
     return;
   }
-  // Special case: about to mark as delivered = collect payment first
+  
   if(ns==='delivered'){
     showCollectPayment(RACT);
     return;
@@ -2117,7 +2095,6 @@ function showCollectPayment(order){
   );
   document.getElementById('pay-cancel').addEventListener('click',hideSh);
 
-  // M-PESA: customer sends delivery fee to RIDER's M-Pesa number
   document.getElementById('pay-mpesa').addEventListener('click',function(){
     document.getElementById('sh').innerHTML='<div class="hd"></div>'
       +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4F1;</div>'
@@ -2140,7 +2117,6 @@ function showCollectPayment(order){
     });
   });
 
-  // CASH: rider confirms cash received — allowed for riders to complete delivery
   document.getElementById('pay-cash').addEventListener('click',function(){
     document.getElementById('sh').innerHTML='<div class="hd"></div>'
       +'<div style="font-size:36px;text-align:center;margin-bottom:8px">&#x1F4B5;</div>'
@@ -2159,14 +2135,12 @@ function showCollectPayment(order){
   });
 }
 
-// ── COMPLETE DELIVERY ────────────────────────────────────────────────
 function completeDelivery(order,riderEarn,payMethod,mpesaCode){
   if(!order||!order.id){toast('Error: order data missing. Tap Back and try again.');return;}
-  // Show loading on whichever confirm button was tapped
+  
   var btn=document.getElementById('confirm-cash-pay')||document.getElementById('confirm-mpesa-pay');
   if(btn){btn.textContent='Completing...';btn.disabled=true;}
 
-  // Clean up per-order real-time listener
   if(window._ractUnsub){try{window._ractUnsub();}catch(e){}window._ractUnsub=null;}
 
   var updateData={
@@ -2184,7 +2158,7 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
     }
     db.collection('delivery_orders').doc(order.id).update(updateData)
       .then(function(){
-        // Update rider earnings and mark not busy
+        
         db.collection('riders').doc(USER.phone).set({
           total_earnings:firebase.firestore.FieldValue.increment(riderEarn),
           orders_completed:firebase.firestore.FieldValue.increment(1),
@@ -2196,7 +2170,7 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
         RACT=null;
         hideSh();
         toast('Delivery complete! KSh '+riderEarn+' earned');
-        // Re-subscribe to new jobs now that rider is free
+        
         if(RON)startJL();
         renderRBody();
       })
@@ -2213,7 +2187,7 @@ function showEarn(){
   var rMpesaCurrent=USER.mpesa_phone||window._riderMpesa||'';
   pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><div style="font-size:20px;font-weight:800">My Earnings</div><button id="eout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div>'
     +'<div style="padding:10px 18px 0">'
-    // M-Pesa number card - prominent at top
+    
     +'<div style="background:'+(rMpesaCurrent?'rgba(16,185,129,.06)':'rgba(239,68,68,.06)')+';border:1.5px solid '+(rMpesaCurrent?'rgba(16,185,129,.25)':'rgba(239,68,68,.4)')+';border-radius:13px;padding:13px;margin-bottom:10px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     +'<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:'+(rMpesaCurrent?'#10b981':'#ef4444')+'">&#x1F4F1; '+(rMpesaCurrent?'Customers Pay This Number':'M-Pesa Not Set — Cannot Go Online')+'</div>'
@@ -2260,7 +2234,6 @@ function showAOv(){
       var onR=r[2].docs.filter(function(d){return d.data().online;}).length;
       var actS=r[3].docs.filter(function(d){return d.data().delivery_enabled;}).length;
 
-      // User breakdown by role
       var allUsers=r[1].docs.map(function(d){return d.data();});
       var custCount=allUsers.filter(function(u){return u.role==='customer';}).length;
       var shopUserCount=allUsers.filter(function(u){return u.role==='shop';}).length;
@@ -2301,7 +2274,7 @@ function showAOv(){
         +'<button id="aout" class="btn bo">Logout</button>';
 
       document.getElementById('aout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
-      // ── Fee Config Editor ──────────────────────────────────
+      
       var feeBox=document.getElementById('fee-config-box');
       if(feeBox){feeBox.addEventListener('click',showFeeEditor);}
       var mamBtn=document.getElementById('mam-btn');
@@ -2309,7 +2282,6 @@ function showAOv(){
       var rstBtn=document.getElementById('rst-req-btn');
       if(rstBtn)rstBtn.addEventListener('click',showPinResets);
 
-      // Wire up clickable stat boxes
       ab.querySelectorAll('.stat-click').forEach(function(box){
         box.addEventListener('click',function(){
           var act=this.getAttribute('data-act');
@@ -2469,7 +2441,7 @@ function showARiders(){
     ab.querySelectorAll('.arr').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:false,online:false}).then(function(){toast('Rejected');showARiders();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.adr').forEach(function(btn){btn.addEventListener('click',function(){var nm=this.getAttribute('data-name');if(!confirm('Delete '+nm+'?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;var riderId=id;
               db.collection('riders').doc(riderId).delete().then(function(){
-                // Reset any stuck assigned/picked orders back to confirmed
+                
                 db.collection('delivery_orders')
                   .where('rider_phone','==',riderId)
                   .where('status','in',['assigned','picked'])
@@ -2735,13 +2707,13 @@ function showItemSearch(query){
   loadFB(function(db){
     if(!db){document.getElementById('search-results').innerHTML=empty('&#x1F50D;','Connect to search','');return;}
     var q=query.toLowerCase();
-    // Search across ALL shops stock using collectionGroup
+    
     db.collectionGroup('stock').get().then(function(snap){
       var results=[];
       snap.docs.forEach(function(doc){
         var p=Object.assign({id:doc.id},doc.data());
         var shopPhone=doc.ref.parent.parent.id;
-        // Match on name or description
+        
         var nameMatch=(p.name||'').toLowerCase().indexOf(q)>=0;
         var descMatch=(p.description||'').toLowerCase().indexOf(q)>=0;
         if((nameMatch||descMatch)&&(p.quantity||0)>0&&(p.selling_price||0)>0){
@@ -2749,7 +2721,7 @@ function showItemSearch(query){
           results.push(p);
         }
       });
-      // Also search by shop name
+      
       var shopMatches=SHOPS.filter(function(s){return(s.name||'').toLowerCase().indexOf(q)>=0||(s.category||'').toLowerCase().indexOf(q)>=0;});
 
       var sr=document.getElementById('search-results');if(!sr)return;
@@ -2778,7 +2750,7 @@ function showItemSearch(query){
         h=empty('&#x1F50D;','Nothing found for "'+query+'"','Try a different name or browse shops');
       }
       sr.innerHTML=h;
-      // Click item → go to that shop
+      
       sr.querySelectorAll('[data-shop]').forEach(function(el){el.addEventListener('click',function(){showProds(this.getAttribute('data-shop'));});});
       sr.querySelectorAll('.sg').forEach(function(el){el.addEventListener('click',function(){showProds(this.getAttribute('data-id'));});});
     }).catch(function(){
@@ -2788,7 +2760,6 @@ function showItemSearch(query){
   });
 }
 
-// ── RIDER M-PESA PROMPT (shown on first login without M-Pesa saved) ──
 function showRiderMpesaPrompt(){
   showSh('<div class="hd"></div>'
     +'<div style="text-align:center;padding:8px 0 4px">'
@@ -2808,7 +2779,7 @@ function showRiderMpesaPrompt(){
     var btn=this;btn.textContent='Saving...';btn.disabled=true;
     loadFB(function(db){
       if(!db){btn.textContent='Save';btn.disabled=false;return;}
-      // Save to both users and riders collections
+      
       db.batch?null:null;
       db.collection('tumana_users').doc(USER.phone+'_rider').update({mpesa_phone:mp}).catch(function(){});
       db.collection('riders').doc(USER.phone).set({mpesa_phone:mp,name:USER.name,phone:USER.phone},{merge:true})
@@ -2821,7 +2792,6 @@ function showRiderMpesaPrompt(){
   });
 }
 
-// ── ADMIN FEE EDITOR ─────────────────────────────────────────────────
 function showFeeEditor(){
   var base=window._ADMIN_BASE_FEE||50;
   var rate=window._ADMIN_PER_KM||20;
@@ -2867,35 +2837,25 @@ function showFeeEditor(){
         base_fee:b,per_km_rate:k,mpesa_till:t,updated_at:Date.now(),updated_by:USER.phone
       }).then(function(){
         window._ADMIN_BASE_FEE=b;window._ADMIN_PER_KM=k;window._ADMIN_TILL=t;
-        window.MP=t; // also update the local MP variable
+        window.MP=t; 
         toast('✅ Settings saved! Base KSh '+b+', KSh '+k+'/km, Till: '+t);
         hideSh();
-        showAOv(); // refresh admin overview
+        showAOv(); 
       }).catch(function(){toast('Error saving');btn.textContent='Save Settings';btn.disabled=false;});
     });
   });
 }
 
-// ── SUPPRESS PWA INSTALL PROMPT / URL-share popup ─────────────────
-// The browser shows an "install app" / "add to home screen" banner
-// by default in the Android notification area when visiting a PWA.
-// Capture and suppress the event so it never auto-shows.
-// (User can still install via Chrome's ⋮ menu → Add to Home Screen)
-// Suppress Chrome PWA install / share-link banner from appearing
-// in the notification bar or at the bottom of the screen automatically.
-// The user can still install via Chrome ⋮ → Add to Home Screen.
 window.addEventListener('beforeinstallprompt',function(e){
   e.preventDefault();
   window._installPrompt=e;
   return false;
 });
-// Suppress "App available" app banner on Android
+
 window.addEventListener('appinstalled',function(e){
   window._installPrompt=null;
 });
 
-// ── SERVICE WORKER — register immediately, independent of Firebase ──
-// This makes offline mode work even before any Firebase script loads.
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('/Tumana/sw.js').then(function(reg){
     console.log('SW registered:', reg.scope);
@@ -2918,7 +2878,7 @@ function doGetToken(msg){
 }
 
 function showNotifPrompt(cb){
-  // Only show once per install
+  
   try{if(localStorage.getItem('notif_asked')==='1'){cb(false);return;}localStorage.setItem('notif_asked','1');}catch(e){}
   showSh('<div class="hd"></div>'
     +'<div style="text-align:center;padding:16px 0 8px">'
@@ -2933,7 +2893,6 @@ function showNotifPrompt(cb){
   document.getElementById('notif-no').addEventListener('click',function(){hideSh();cb(false);});
 }
 
-// ── OFFLINE STATUS BANNER ───────────────────────────────────────────
 function updateOnlineStatus(){
   var existing=document.getElementById('offline-banner');
   if(!navigator.onLine){
@@ -2949,12 +2908,11 @@ function updateOnlineStatus(){
 window.addEventListener('online',updateOnlineStatus);
 window.addEventListener('offline',updateOnlineStatus);
 
-// ── BACK BUTTON: ask before exiting the app ─────────────────────────
 var _exitConfirmed=false;
 window.history.pushState(null,'',window.location.href);
 window.addEventListener('popstate',function(){
-  if(_exitConfirmed) return; // already confirmed, let it close naturally
-  // Re-trap this back press, then ask the user
+  if(_exitConfirmed) return; 
+  
   window.history.pushState(null,'',window.location.href);
   showExitConfirm();
 });
@@ -2983,10 +2941,10 @@ function renderCurrentView(){
   if(USER){
     if(USER.role==='customer')showHome();
     else if(USER.role==='rider'){
-    // Prompt for M-Pesa if not saved (4C: prompt on first login)
+    
     var rMpesa=USER.mpesa_phone||window._riderMpesa||'';
     if(!rMpesa||rMpesa.length<9){
-      // Load from riders collection (might exist from earlier)
+      
       loadFB(function(db){
         if(!db){showRiderMpesaPrompt();return;}
         db.collection('riders').doc(USER.phone).get().then(function(doc){
@@ -2999,9 +2957,7 @@ function renderCurrentView(){
         }).catch(function(){showRiderMpesaPrompt();});
       });
     }
-    // Before showing jobs, check if rider has an active delivery
-    // (assigned or picked) that was in progress when app was last closed.
-    // Restore RACT so the active delivery appears correctly.
+
     loadFB(function(db){
       if(!db){showJobs();return;}
       db.collection('delivery_orders')
@@ -3013,7 +2969,7 @@ function renderCurrentView(){
           if(!snap.empty){
             var d=snap.docs[0];
             RACT=Object.assign({id:d.id},d.data());
-            // Map old 7-stage statuses to our simplified 3-stage flow
+            
             var statusMap={'heading':'assigned','picked':'picked','transit':'picked','assigned':'assigned'};
             if(statusMap[RACT.status])RACT.status=statusMap[RACT.status];
             else if(['assigned','picked'].indexOf(RACT.status)<0)RACT.status='picked';
@@ -3031,16 +2987,16 @@ function renderCurrentView(){
 }
 
 function boot(){
-  // Ownership verification stamp - DO NOT REMOVE
+  
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v31 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v32 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
   }catch(e){try{localStorage.removeItem('tu');}catch(ex){}}
   applyTheme();
   updateOnlineStatus();
-  // Preload Firebase in background so login is instant when user taps it
+  
   loadFB(function(){});
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='flex';
