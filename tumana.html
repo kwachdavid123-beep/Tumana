@@ -175,7 +175,7 @@ body.light [style*="color:#4ade80"]{color:#16a34a!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" decoding="async" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v32 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v33 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 <script>
@@ -1193,6 +1193,21 @@ function showOrds(){
     });
   });
 }
+function shareTumana(){
+  var shareData={
+    title:'Tumana Delivery — Chemelil',
+    text:'Nilikutumia app ya delivery ya Chemelil! Unaweza order groceries, chakula, dawa na zaidi. Delivery KSh 50 tu. Jaribu sasa!\n\n',
+    url:'https://kwachdavid123-beep.github.io/Tumana/tumana.html'
+  };
+  if(navigator.share){
+    navigator.share(shareData).catch(function(){});
+  } else {
+    // Fallback: open WhatsApp with pre-filled message
+    var msg=encodeURIComponent(shareData.text+shareData.url);
+    window.open('https://wa.me/?text='+msg,'_blank');
+  }
+}
+
 function showMe(){
   setTitle('TUMANA','#10b981');setNav('customer','me');
   var letter=(USER.name||'?').charAt(0).toUpperCase();
@@ -2185,9 +2200,8 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
 function showEarn(){
   setTitle('RIDER','#8b5cf6');setNav('rider','earnings');
   var rMpesaCurrent=USER.mpesa_phone||window._riderMpesa||'';
-  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><div style="font-size:20px;font-weight:800">My Earnings</div><button id="eout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div>'
+  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#0d0820,#08080c);padding:18px 18px 0"><div style="font-size:20px;font-weight:800;margin-bottom:2px">My Earnings</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Daily M-Pesa payouts</div></div>'
     +'<div style="padding:10px 18px 0">'
-    
     +'<div style="background:'+(rMpesaCurrent?'rgba(16,185,129,.06)':'rgba(239,68,68,.06)')+';border:1.5px solid '+(rMpesaCurrent?'rgba(16,185,129,.25)':'rgba(239,68,68,.4)')+';border-radius:13px;padding:13px;margin-bottom:10px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     +'<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:'+(rMpesaCurrent?'#10b981':'#ef4444')+'">&#x1F4F1; '+(rMpesaCurrent?'Customers Pay This Number':'M-Pesa Not Set — Cannot Go Online')+'</div>'
@@ -2200,11 +2214,12 @@ function showEarn(){
     )
     +'</div>'
     +'</div>'
-    +'<div id="earn" style="padding:6px 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
-  document.getElementById('eout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
-  document.getElementById('edit-mpesa-btn').addEventListener('click',function(){
-    showRiderMpesaPrompt();
-  });
+    +'<div id="earn" style="padding:6px 18px 20px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>'
+    +'<div style="padding:0 18px 100px"><button id="eout" class="btn br" style="font-size:15px;padding:15px;font-weight:800">&#x1F6AA; Logout</button></div>';
+
+  document.getElementById('eout').addEventListener('click',function(){if(confirm('Logout from Tumana?'))logout();});
+  document.getElementById('edit-mpesa-btn').addEventListener('click',function(){showRiderMpesaPrompt();});
+
   loadFB(function(db){
     if(!db){document.getElementById('earn').innerHTML=empty('&#x1F4B0;','Earnings','Connect to see history');return;}
     db.collection('riders').doc(USER.phone).get().then(function(r){
@@ -2989,7 +3004,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v32 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v33 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
