@@ -175,7 +175,7 @@ body.light [style*="color:#4ade80"]{color:#16a34a!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" decoding="async" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v33 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v34 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
 <script>
@@ -474,7 +474,7 @@ function navGo(r,t){
 
 var MSHOPS=[{id:'s1',name:'Mama Jane Grocery',category:'Grocery',distance_km:.5,rating:4.8,icon:'&#x1F6D2;',location:'Chemelil Center',delivery_enabled:true,verified:true},{id:'s2',name:'Chemelil Pharmacy',category:'Pharmacy',distance_km:.8,rating:4.9,icon:'&#x1F48A;',location:'Near Hospital',delivery_enabled:true,verified:true},{id:'s3',name:'Fresh Mboga',category:'Vegetables',distance_km:.3,rating:4.7,icon:'&#x1F96C;',location:'Market',delivery_enabled:true,verified:true}];
 var MPRODS={s1:[{id:'p1',name:'Maziwa 500ml',selling_price:60,emoji:'&#x1F95B;'},{id:'p2',name:'Mkate Brown',selling_price:55,emoji:'&#x1F35E;'}],s2:[{id:'p5',name:'Panadol',selling_price:50,emoji:'&#x1F48A;'}],s3:[{id:'p7',name:'Tomatoes 1kg',selling_price:80,emoji:'&#x1F345;'},{id:'p8',name:'Sukuma Wiki',selling_price:30,emoji:'&#x1F96C;'}]};
-var STEPS={shop:['placed','confirmed','assigned','picked','delivered'],pickup:['confirmed','assigned','picked','delivered']};
+var STEPS={shop:['placed','shop_accepted','confirmed','assigned','picked','delivered'],pickup:['confirmed','assigned','picked','delivered']};
 var SLBL={placed:'Waiting',confirmed:'Confirmed',assigned:'Rider Assigned',picked:'Picked Up',delivered:'Delivered',rejected:'Rejected'};
 var SCLS={placed:'bpl',confirmed:'bco',assigned:'bas',picked:'bpi',delivered:'bde',rejected:'brj',
           
@@ -1170,6 +1170,31 @@ function showOrds(){
     });
     list.innerHTML=h;
     
+    // Wire customer M-Pesa payment button (appears when shop_accepted)
+    list.querySelectorAll('.cust-pay-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var oid=this.getAttribute('data-id');
+        var inp=document.getElementById('cust-mpesa-'+oid);
+        var code=inp?(inp.value||'').trim().toUpperCase():'';
+        if(!code||code.length<5){toast('Enter your M-Pesa confirmation code');return;}
+        var b=this;b.textContent='Confirming...';b.disabled=true;
+        // Update order to confirmed — shop sees the code + riders get notified
+        loadFB(function(db){
+          if(!db){b.textContent='Submit M-Pesa Payment';b.disabled=false;toast('No connection');return;}
+          db.collection('delivery_orders').doc(oid).update({
+            status:'confirmed',
+            customer_mpesa_code:code,
+            customer_paid_at:Date.now()
+          }).then(function(){
+            toast('Payment confirmed! Looking for a rider now...');
+          }).catch(function(){
+            b.textContent='Submit M-Pesa Payment';b.disabled=false;
+            toast('Error — check connection and try again');
+          });
+        });
+      });
+    });
+
     list.querySelectorAll('.rate-stars').forEach(function(row){
       row.querySelectorAll('.star-btn').forEach(function(star){
         star.addEventListener('mouseenter',function(){
@@ -1274,46 +1299,47 @@ function showSOrd(){
     
     if(o.delivery_address){h+='<div style="background:#1a1a22;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px"><span style="color:rgba(255,255,255,.4)">&#x1F4CD; Deliver to: </span><strong>'+o.delivery_address+'</strong></div>';}
     if(o.status==='placed'){
-      var isMpesa=o.payment_method==='mpesa';
-      var isCash=o.payment_method==='cash';
-      h+='<div style="background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:10px;margin-bottom:8px">';
-      h+='<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Confirm this order</div>';
-      if(isCash){
-        
-        h+='<div style="font-size:12px;color:#f59e0b;margin-bottom:8px">&#x1F4B5; Cash payment - collect KSh '+(o.delivery_fee||70)+' on delivery</div>';
-        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
-        h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:12px">&#x274C; Reject</button>';
-        h+='<button class="cb btn bg" data-id="'+o.id+'" data-paytype="cash" style="margin-top:0;font-size:12px">&#x2705; Confirm Order</button>';
-        h+='</div>';
-      } else {
-        
-        h+='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">&#x1F4F1; Customer paid via M-Pesa. Enter the code to confirm:</div>';
-        h+='<input id="mp'+o.id+'" type="text" placeholder="M-Pesa code e.g. RGH456XYZ" style="width:100%;background:#111116;border:1.5px solid rgba(16,185,129,.22);border-radius:8px;padding:11px;font-size:14px;color:#fff;font-family:inherit;text-transform:uppercase;margin-bottom:8px;outline:none">';
-        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
-        h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:12px">&#x274C; Reject</button>';
-        h+='<button class="cb btn bg" data-id="'+o.id+'" data-paytype="mpesa" style="margin-top:0;font-size:12px">&#x2705; Confirm Order</button>';
-        h+='</div>';
-      }
+      h+='<div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.2);border-radius:10px;padding:12px;margin-bottom:8px">';
+      h+='<div style="font-size:11px;font-weight:800;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">New Order — Accept or Reject?</div>';
+      h+='<div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.7;margin-bottom:10px">Review the order. If you accept, the customer will be prompted to pay via M-Pesa before the order is confirmed.</div>';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
+      h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:13px;padding:12px">&#x274C; Reject</button>';
+      h+='<button class="ab btn bg" data-id="'+o.id+'" style="margin-top:0;font-size:13px;padding:12px">&#x2714; Accept Order</button>';
+      h+='</div></div>';
+    } else if(o.status==='shop_accepted'){
+      h+='<div style="background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:12px;margin-bottom:8px">';
+      h+='<div style="font-size:11px;font-weight:800;color:#10b981;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">&#x23F3; Waiting for Customer Payment</div>';
+      h+='<div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.7;margin-bottom:10px">Customer has been prompted to pay M-Pesa. Once they submit their code, the order will be confirmed automatically and riders notified.</div>';
+      h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">Your till: <strong style="color:#10b981">'+(USER.mpesa_till||USER.phone)+'</strong></div>';
       h+='</div>';
     }
     if(o.rider_name){h+='<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.14);border-radius:8px;padding:9px;font-size:12px;color:#8b5cf6;margin-top:6px">&#x1F6F5; '+o.rider_name+' · '+o.rider_phone+'</div>';}
     h+='</div>';
   });
   c.innerHTML=h;
-  c.querySelectorAll('.cb').forEach(function(btn){btn.addEventListener('click',function(){
+  // Accept button: sets status to shop_accepted → customer gets pay prompt
+  c.querySelectorAll('.ab').forEach(function(btn){btn.addEventListener('click',function(){
     var id=this.getAttribute('data-id');
-    var paytype=this.getAttribute('data-paytype')||'mpesa';
-    var updateData={status:'confirmed'};
-    if(paytype==='cash'){
-      updateData.shop_cash_confirmed=true;
-    } else {
-      var inp=document.getElementById('mp'+id);
-      var code=inp?(inp.value||'').trim().toUpperCase():'';
-      if(!code||code.length<5){toast('Enter M-Pesa code from SMS');return;}
-      updateData.mpesa_code=code;
-    }
-    dbUpd('delivery_orders',id,updateData,function(ok){
-      toast(ok?'&#x2705; Order confirmed! Riders notified.':'Error confirming order');
+    var b=this;b.textContent='Accepting...';b.disabled=true;
+    // Load shop's M-Pesa till to embed in order (so customer sees correct number)
+    loadFB(function(db){
+      if(!db){b.textContent='Accept Order';b.disabled=false;return;}
+      db.collection('shops').doc(USER.phone).get().then(function(snap){
+        var shopTill=(snap.exists&&snap.data().mpesa_till)||USER.phone;
+        db.collection('delivery_orders').doc(id).update({
+          status:'shop_accepted',
+          shop_accepted_at:Date.now(),
+          shop_phone:USER.phone,
+          shop_mpesa:shopTill
+        }).then(function(){
+          toast('&#x2705; Order accepted! Customer is being prompted to pay.');
+        }).catch(function(){b.textContent='Accept Order';b.disabled=false;toast('Error');});
+      }).catch(function(){
+        // If shop doc fails, still accept with phone as fallback
+        db.collection('delivery_orders').doc(id).update({
+          status:'shop_accepted',shop_accepted_at:Date.now(),shop_phone:USER.phone,shop_mpesa:USER.phone
+        }).then(function(){toast('&#x2705; Accepted!');}).catch(function(){b.textContent='Accept Order';b.disabled=false;});
+      });
     });
   });});
   c.querySelectorAll('.rb').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject this order?'))return;dbUpd('delivery_orders',this.getAttribute('data-id'),{status:'rejected'},function(){toast('Order rejected');});});});
@@ -3004,7 +3030,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v33 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v34 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
