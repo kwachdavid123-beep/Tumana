@@ -618,10 +618,19 @@ function startApp(){
   if(!USER)return showRole();applyTheme();
   loadFeeConfig(); 
   if(USER.role==='customer')startCust();
-  else if(USER.role==='rider'){
-    
-    var rMpesa=USER.mpesa_phone||window._riderMpesa||'';
-    if(!rMpesa||rMpesa.length<9){
+    else if(USER.role==='rider'){
+    // Sync verified+M-Pesa from riders collection (admin may have verified since last login)
+    loadFB(function(db){
+      if(!db)return;
+      db.collection('riders').doc(USER.phone).get().then(function(doc){
+        if(!doc.exists)return;
+        var rd=doc.data();var changed=false;
+        if(rd.verified===true&&USER.verified!==true){USER.verified=true;changed=true;}
+        if(rd.mpesa_phone&&!USER.mpesa_phone){USER.mpesa_phone=rd.mpesa_phone;window._riderMpesa=rd.mpesa_phone;changed=true;}
+        if(changed)su();
+      }).catch(function(){});
+    });
+    var rMpesa=USER.mpesa_phone||window._riderMpesa||'';if(!rMpesa||rMpesa.length<9){
       
       loadFB(function(db){
         if(!db){showRiderMpesaPrompt();return;}
@@ -1178,7 +1187,7 @@ function showCreateShop(){
 function renderShopDash(){
   setNav('shop','orders');
   var sn=USER.shopName||USER.name;
-  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#1a1200,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:17px;font-weight:700">'+sn+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+'</div></div><button id="shout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.12);border-radius:10px;padding:10px 12px"><div><div style="font-weight:700;font-size:13px;color:'+(SDON?'#10b981':'rgba(255,255,255,.4)')+'">'+( SDON?'&#x1F7E2; Accepting Orders':'&#x1F534; Delivery Off')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(SDON?'Customers can see your shop':'Toggle to receive orders')+'</div></div><div id="dtog" class="tog'+(SDON?' on':'')+'"><div class="togth"></div></div></div></div><div class="stabs"><div class="stab on" data-st="orders">&#x1F4CB; Orders</div><div class="stab" data-st="sales">&#x1F4B0; Sales</div><div class="stab" data-st="stock">&#x1F4E6; Stock</div><div class="stab" data-st="settings">&#x2699;</div></div><div id="shc" style="overflow-y:auto;padding:10px 18px 100px"></div>';
+  pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#1a1200,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:17px;font-weight:700">'+sn+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+'</div></div><button id="shout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.12);border-radius:10px;padding:10px 12px"><div><div style="font-weight:700;font-size:13px;color:'+(SDON?'#10b981':'rgba(255,255,255,.4)')+'">'+( SDON?'&#x1F7E2; Accepting Orders':'&#x1F534; Delivery Off')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(SDON?'Customers can see your shop':'Toggle to receive orders')+'</div></div><div id="dtog" class="tog'+(SDON?' on':'')+'"><div class="togth"></div></div></div></div><div class="stabs"><div class="stab on" data-st="orders">&#x1F4CB; Orders</div><div class="stab" data-st="sales">&#x1F4B0; Sales</div><div class="stab" data-st="stock">&#x1F4E6; Stock</div><div class="stab" data-st="insights">&#x1F4CA; Biz</div><div class="stab" data-st="settings">&#x2699;</div></div>v></div><div id="shc" style="overflow-y:auto;padding:10px 18px 100px"></div>';
   document.getElementById('shout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
   document.getElementById('dtog').addEventListener('click',function(){
     SDON=!SDON;dbSet('shops',USER.phone,{delivery_enabled:SDON,name:USER.shopName||USER.name,owner_phone:USER.phone,location:'Chemelil',category:'General',icon:'&#x1F3EA;',distance_km:.5,rating:5.0});
@@ -1761,6 +1770,81 @@ function showResProd(id,cur){
   showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:6px">Add Stock</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:16px">Current: '+cur+'</div><div class="fld"><label>Add Quantity</label><input id="rqty" type="number" placeholder="10" autocomplete="off"></div><button id="srpb" class="btn bg">Add Stock</button><button id="crpb" class="btn bo">Cancel</button>');
   document.getElementById('crpb').addEventListener('click',hideSh);
   document.getElementById('srpb').addEventListener('click',function(){var add=parseInt(document.getElementById('rqty').value)||0;if(!add){toast('Enter quantity');return;}loadFB(function(db){if(!db){toast('No connection');return;}db.collection('shops').doc(USER.phone).collection('stock').doc(id).update({quantity:cur+add}).then(function(){toast('Stock updated: '+(cur+add));hideSh();showSStock();}).catch(function(){toast('Error');});});});
+}
+function showSInsights(){
+  var el=document.getElementById('shc');if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div>';
+  loadFB(function(db){
+    if(!db){el.innerHTML='<div style="text-align:center;padding:30px;color:rgba(255,255,255,.4)">Connect to view insights</div>';return;}
+    Promise.all([
+      db.collection('shops').doc(USER.phone).collection('sales').limit(500).get(),
+      db.collection('shops').doc(USER.phone).collection('stock').get()
+    ]).then(function(res){
+      var allS=res[0].docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      var stock=res[1].docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      var paid=allS.filter(function(x){return !x.is_debt;});
+      var today=new Date().toDateString();
+      var todayS=paid.filter(function(x){return new Date(x.created_at||0).toDateString()===today;});
+      var todayRev=todayS.reduce(function(s,x){return s+(x.total||0);},0);
+      var todayCost=todayS.reduce(function(s,x){return s+(x.cost||0);},0);
+      var allRev=paid.reduce(function(s,x){return s+(x.total||0);},0);
+      var allCost=paid.reduce(function(s,x){return s+(x.cost||0);},0);
+      var stockSell=stock.reduce(function(s,i){return s+(i.selling_price||0)*(i.quantity||0);},0);
+      var stockCost=stock.reduce(function(s,i){return s+(i.cost_price||0)*(i.quantity||0);},0);
+      var prods={};
+      paid.forEach(function(x){var n=x.product_name||'Unknown';if(!prods[n])prods[n]={rev:0,count:0,profit:0};prods[n].rev+=(x.total||0);prods[n].count++;prods[n].profit+=(x.total||0)-(x.cost||0);});
+      var topProds=Object.keys(prods).map(function(k){return{name:k,data:prods[k]};}).sort(function(a,b){return b.data.count-a.data.count;});
+      var lowStock=stock.filter(function(i){return(i.quantity||0)>0&&(i.quantity||0)<=5;}).sort(function(a,b){return(a.quantity||0)-(b.quantity||0);});
+      var outOfStock=stock.filter(function(i){return(i.quantity||0)===0;});
+      var days7=[];
+      for(var di=6;di>=0;di--){var dd=new Date();dd.setDate(dd.getDate()-di);days7.push({label:dd.toLocaleDateString('en-KE',{weekday:'short',day:'numeric'}),date:dd.toDateString(),rev:0});}
+      paid.forEach(function(x){var ds=new Date(x.created_at||0).toDateString();days7.forEach(function(d){if(d.date===ds)d.rev+=(x.total||0);});});
+      var maxRev=Math.max.apply(null,days7.map(function(d){return d.rev;}))||1;
+      var h='';
+      h+='<div class="g2" style="margin-bottom:10px"><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:16px">KSh '+(todayRev).toLocaleString()+'</div><div class="sl">Today Sales</div></div><div class="sb2"><div class="sv" style="color:#10b981;font-size:16px">KSh '+(todayRev-todayCost).toLocaleString()+'</div><div class="sl">Today Profit</div></div></div>';
+      h+='<div class="g2" style="margin-bottom:10px"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:16px">KSh '+allRev.toLocaleString()+'</div><div class="sl">Total Revenue</div></div><div class="sb2"><div class="sv" style="color:#4ade80;font-size:16px">KSh '+(allRev-allCost).toLocaleString()+'</div><div class="sl">Total Profit</div></div></div>';
+      h+='<div class="sbox" style="margin-bottom:10px"><div class="sboxt">&#x1F4E6; Stock Value</div>';
+      h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="color:rgba(255,255,255,.4);font-size:13px">Selling value</span><span style="font-weight:800;color:#10b981">KSh '+stockSell.toLocaleString()+'</span></div>';
+      h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="color:rgba(255,255,255,.4);font-size:13px">Cost value</span><span style="font-weight:700;color:rgba(255,255,255,.6)">KSh '+stockCost.toLocaleString()+'</span></div>';
+      h+='<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Potential profit</span><span style="font-weight:800;color:#4ade80">KSh '+(stockSell-stockCost).toLocaleString()+'</span></div></div>';
+      h+='<div class="sbox" style="margin-bottom:10px"><div class="sboxt">&#x1F4CA; Last 7 Days Sales</div>';
+      h+='<div style="display:flex;align-items:flex-end;gap:3px;height:90px;margin-bottom:8px">';
+      days7.forEach(function(d){
+        var pct=d.rev>0?Math.max(8,Math.round(d.rev/maxRev*100)):4;
+        var isToday=d.date===today;
+        h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">';
+        h+='<div style="font-size:8px;color:rgba(255,255,255,.45);font-weight:700;text-align:center">'+(d.rev>0?d.rev:'')+'</div>';
+        h+='<div style="width:100%;background:'+(isToday?'#10b981':'rgba(16,185,129,.3)')+';border-radius:3px 3px 0 0;height:'+pct+'%"></div>';
+        h+='<div style="font-size:8px;color:rgba(255,255,255,.3);text-align:center">'+d.label+'</div></div>';
+      });
+      h+='</div></div>';
+      if(topProds.length){
+        h+='<div class="sbox" style="margin-bottom:10px"><div class="sboxt">&#x1F525; What Sells Most</div>';
+        topProds.slice(0,6).forEach(function(p,i){
+          h+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">';
+          h+='<div style="font-size:17px;font-weight:900;color:rgba(255,255,255,'+(i<3?'.6':'.25')+')">#'+(i+1)+'</div>';
+          h+='<div style="flex:1"><div style="font-weight:700;font-size:13px">'+p.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+p.data.count+' sold</div></div>';
+          h+='<div style="text-align:right"><div style="font-weight:800;color:#10b981">KSh '+p.data.rev.toLocaleString()+'</div>';
+          if(p.data.profit>0)h+='<div style="font-size:10px;color:#4ade80">+KSh '+p.data.profit+'</div>';
+          h+='</div></div>';
+        });
+        h+='</div>';
+      }
+      if(lowStock.length||outOfStock.length){
+        h+='<div class="sbox" style="border-color:rgba(239,68,68,.25);margin-bottom:10px"><div class="sboxt" style="color:#ef4444">&#x26A0; Stock Alerts</div>';
+        if(outOfStock.length){
+          h+='<div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:6px">OUT OF STOCK ('+outOfStock.length+')</div>';
+          outOfStock.slice(0,5).forEach(function(i){h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)"><div style="font-size:13px;font-weight:700">'+(i.emoji||'📦')+' '+i.name+'</div><span style="font-size:11px;font-weight:800;color:#ef4444;background:rgba(239,68,68,.1);padding:3px 8px;border-radius:6px">0 left</span></div>';});
+        }
+        if(lowStock.length){
+          h+='<div style="font-size:11px;font-weight:700;color:#f59e0b;margin:'+(outOfStock.length?'10px':'0')+' 0 6px">LOW STOCK ('+lowStock.length+')</div>';
+          lowStock.slice(0,5).forEach(function(i){h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)"><div style="font-size:13px;font-weight:700">'+(i.emoji||'📦')+' '+i.name+'</div><span style="font-size:11px;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.1);padding:3px 8px;border-radius:6px">'+i.quantity+' left</span></div>';});
+        }
+        h+='</div>';
+      }
+      el.innerHTML=h;
+    }).catch(function(){el.innerHTML='<div style="text-align:center;padding:30px;color:rgba(255,255,255,.4)">Error loading insights. Check connection.</div>';});
+  });
 }
 function showSSet(){
   var el=document.getElementById('shc');if(!el)return;
@@ -2442,7 +2526,16 @@ function showARiders(){
         +'</div>'
     });
     ab.innerHTML=h;
-    ab.querySelectorAll('.avr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');var b=this;b.textContent='Verifying...';b.disabled=true;loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:true,verify_notified:false,verified_at:Date.now()}).then(function(){toast('Rider verified! They will be notified next login.');showARiders();}).catch(function(){toast('Error');b.textContent='Verify';b.disabled=false;});});});});
+    ab.querySelectorAll('.avr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');var b=this;b.textContent='Verifying...';b.disabled=true;loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:true,verify_notified:false,verified_at:Date.now()}).then(function(){
+                  // Also update tumana_users so USER.verified is correct on login
+                  db.collection('tumana_users').doc(id+'_rider').update({verified:true}).catch(function(){
+                    // Try alternative doc ID patterns
+                    db.collection('tumana_users').where('phone','==',id).where('role','==','rider').limit(1).get().then(function(snap){
+                      snap.docs.forEach(function(d){d.ref.update({verified:true}).catch(function(){});});
+                    }).catch(function(){});
+                  });
+                  toast('Rider verified!');showARiders();
+                }).catch(function(){toast('Error');b.textContent='Verify';b.disabled=false;});});});});
     ab.querySelectorAll('.arr').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:false,online:false}).then(function(){toast('Rejected');showARiders();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.adr').forEach(function(btn){btn.addEventListener('click',function(){var nm=this.getAttribute('data-name');if(!confirm('Delete '+nm+'?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;var riderId=id;
               db.collection('riders').doc(riderId).delete().then(function(){
