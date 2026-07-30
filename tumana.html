@@ -393,7 +393,7 @@ function setNav(role,tab){
   var defs={
     customer:[['home','&#x1F3E0;','Shops'],['pickup','&#x1F6F5;','Pickup'],['cart','&#x1F6D2;','Cart'],['orders','&#x1F4E6;','Orders'],['me','&#x1F464;','Me']],
     rider:[['jobs','&#x1F6F5;','Jobs'],['earnings','&#x1F4B0;','Earn']],
-    shop:[['orders','&#x1F4CB;','Orders'],['sales','&#x1F4B0;','Sales'],['stock','&#x1F4E6;','Stock'],['settings','&#x2699;','More']],
+    shop:[['orders','&#x1F4CB;','Orders'],['sales','&#x1F4B0;','Sales'],['stock','&#x1F4E6;','Stock'],['insights','&#x1F4CA;','Biz'],['settings','&#x2699;','More']],
     admin:[['overview','&#x1F4CA;','Overview'],['orders','&#x1F4CB;','Orders'],['riders','&#x1F6F5;','Riders'],['shops','&#x1F3EA;','Shops'],['revenue','&#x1F4B0;','Revenue']]
   };
   var tabs=defs[role]||defs.customer;
@@ -418,7 +418,7 @@ function setNav(role,tab){
 function navGo(r,t){
   if(r==='customer'){if(t==='home')showHome();else if(t==='pickup')showPickup();else if(t==='cart')showCart();else if(t==='orders')showOrds();else showMe();}
   else if(r==='rider'){if(t==='jobs')showJobs();else showEarn();}
-  else if(r==='shop'){if(t==='orders')showSOrd();else if(t==='sales')showSSales();else if(t==='stock')showSStock();else showSSet();}
+  else if(r==='shop'){if(t==='orders')showSOrd();else if(t==='sales')showSSales();else if(t==='stock')showSStock();else if(t==='insights')showSInsights();else showSSet();}
   else if(r==='admin'){if(t==='overview')showAOv();else if(t==='orders')showAOrds();else if(t==='riders')showARiders();else if(t==='shops')showAShops();else showARev();}
 }
 
@@ -575,7 +575,7 @@ function renderAuth(){
           
           if(data.reset_pending){toast('Your PIN has been reset — check with admin');return;}
           db.collection('tumana_users').doc(udocId).update({pin_attempts:0,last_login:Date.now()});
-          USER={role:data.role||AR.id,name:data.name||phone,phone:phone,shopName:data.shopName||'',favourite_shops:data.favourite_shops||[],rating:data.rating||5.0,is_master:data.is_master||false,pin_hash:pinHash,mpesa_phone:data.mpesa_phone||''};
+          USER={role:data.role||AR.id,name:data.name||phone,phone:phone,shopName:data.shopName||'',favourite_shops:data.favourite_shops||[],rating:data.rating||5.0,is_master:data.is_master||false,pin_hash:pinHash,mpesa_phone:data.mpesa_phone||'',verified:data.verified||false};
           
           if((data.role||AR.id)==='rider'){
             window._riderMpesa=data.mpesa_phone||'';
@@ -1144,7 +1144,22 @@ function showMe(){
 
 function startShop(){
   setTitle('SHOP','#f59e0b');
-  dbGet('shops',USER.phone,function(shop){if(shop){SDON=shop.delivery_enabled||false;renderShopDash();}else showCreateShop();});
+  dbGet('shops',USER.phone,function(shop){
+    if(shop){
+      SDON=shop.delivery_enabled||false;
+      if(shop.verified===true&&shop.verify_notified===false){
+        loadFB(function(db){if(db)db.collection('shops').doc(USER.phone).update({verify_notified:true}).catch(function(){});});
+        setTimeout(function(){
+          showSh('<div class="hd"></div><div style="text-align:center;padding:12px 0"><div style="font-size:48px;margin-bottom:8px">&#x2705;</div><div style="font-size:20px;font-weight:800;margin-bottom:6px;color:#10b981">Shop Verified!</div><div style="font-size:14px;color:rgba(255,255,255,.55);line-height:1.7;margin-bottom:16px">Your shop is now live on Tumana. Add products in Stock tab to start receiving orders.</div></div><button class="btn bg" onclick="hideSh()">&#x1F680; Start Selling</button>');
+        },600);
+      } else if(shop.verified===false){
+        toast('Your shop was rejected. Contact 0799878872 for help.');
+      } else if(shop.verified!==true){
+        toast('Pending admin verification. Set up your stock while you wait.');
+      }
+      renderShopDash();
+    } else {showCreateShop();}
+  });
 }
 function showCreateShop(){
   document.getElementById('nav').style.display='none';
@@ -1173,7 +1188,7 @@ function renderShopDash(){
     el.addEventListener('click',function(){
       document.querySelectorAll('.stab').forEach(function(s){s.classList.remove('on');});
       this.classList.add('on');var t=this.getAttribute('data-st');
-      if(t==='orders')showSOrd();else if(t==='sales')showSSales();else if(t==='stock')showSStock();else showSSet();
+      if(t==='orders')showSOrd();else if(t==='sales')showSSales();else if(t==='stock')showSStock();else if(t==='insights')showSInsights();else showSSet();
     });
   });
   loadSOrd();
@@ -1828,7 +1843,10 @@ function showJobs(){
   document.getElementById('rout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
   document.getElementById('rtog').addEventListener('click',function(){
     if(!RON){
-      
+      if(USER.verified!==true){
+        toast('Account pending admin verification. You will be notified when approved.');
+        return;
+      }
       var savedMpesa=USER.mpesa_phone||(window._riderMpesa||'');
       if(!savedMpesa||savedMpesa.length<9){
         toast('Add your M-Pesa number in Earnings tab before going online');
@@ -2039,7 +2057,10 @@ function showCollectPayment(order){
     +'<div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:4px">Collect Delivery Fee</div>'
     +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.5">From <strong style="color:#fff">'+custName+'</strong></div>'
     +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.18);border-radius:12px;padding:14px;margin-bottom:16px">'
-    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your earnings</span><span style="font-size:22px;font-weight:800;color:#10b981">KSh '+riderEarn+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Delivery fee</span><span style="font-size:18px;font-weight:700;color:rgba(255,255,255,.6)">KSh '+riderEarn+'</span></div>'
+    +((window._RIDER_CUT&&window._RIDER_CUT>0)?'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform cut ('+window._RIDER_CUT+'%)</span><span style="font-size:13px;font-weight:700;color:#ef4444">- KSh '+Math.round(riderEarn*(window._RIDER_CUT||0)/100)+'</span></div>':'')
+    +'<div style="height:1px;background:rgba(255,255,255,.08);margin:6px 0"></div>'
+    +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:#10b981;font-size:13px;font-weight:700">Your earnings</span><span style="font-size:22px;font-weight:800;color:#10b981">KSh '+(riderEarn-Math.round(riderEarn*(window._RIDER_CUT||0)/100))+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your M-Pesa</span><span style="font-weight:800;color:#10b981;font-size:16px">'+riderMpesa+'</span></div>'
     +'</div>'
     +'<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px">How is customer paying delivery?</div>'
@@ -2099,11 +2120,16 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
 
   if(window._ractUnsub){try{window._ractUnsub();}catch(e){}window._ractUnsub=null;}
 
+  var cutPct=window._RIDER_CUT||0;
+  var platformCut=Math.round(riderEarn*cutPct/100);
+  var riderNet=riderEarn-platformCut;
   var updateData={
     status:'delivered',
     rider_payment_method:payMethod,
     rider_mpesa_code:mpesaCode||'',
-    delivered_at:Date.now()
+    delivered_at:Date.now(),
+    platform_cut:platformCut,
+    rider_net_earnings:riderNet
   };
 
   loadFB(function(db){
@@ -2378,22 +2404,45 @@ function showAOrds(initFilter){
 }
 function showARiders(){
   setNav('admin','riders');
-  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">All Riders</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Verify real riders</div></div><div id="ab" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">All Riders</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Unverified shown first</div></div><div id="ab" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
   dbAll('riders',function(riders){
     var ab=document.getElementById('ab');if(!ab)return;
     if(!riders.length){ab.innerHTML=empty('&#x1F6F5;','No riders','Riders appear when they register');return;}
+    // Sort: unverified/pending first, then verified, then rejected
+    riders.sort(function(a,b){
+      var order={undefined:0,null:0,pending:0,false:2,true:1};
+      var av=a.verified===true?1:a.verified===false?2:0;
+      var bv=b.verified===true?1:b.verified===false?2:0;
+      return av-bv;
+    });
+    var pending=riders.filter(function(r){return r.verified!==true&&r.verified!==false;});
     var h='';
+    if(pending.length){h+='<div style="font-size:10px;font-weight:800;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">&#x26A0; '+pending.length+' Awaiting Verification</div>';}
     riders.forEach(function(r){
       var clr=r.verified===true?'#10b981':r.verified===false?'#ef4444':'#f59e0b';
-      var badge=r.verified===true?'Verified':r.verified===false?'Rejected':'Pending';
-      h+='<div class="card" style="border-left:3px solid '+clr+';margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div><div style="font-weight:700">'+(r.name||r.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(r.phone||r.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(r.orders_completed||0)+' del · KSh '+(r.total_earnings||0)+'</div><div style="font-size:11px;color:'+(r.online?'#10b981':'rgba(255,255,255,.3)')+'">'+( r.online?'Online':'Offline')+'</div></div><span class="badge" style="background:rgba(0,0,0,.15);color:'+clr+'">'+badge+'</span></div><div style="display:flex;gap:6px">'
+      var badge=r.verified===true?'&#x2705; Verified':r.verified===false?'&#x274C; Rejected':'&#x23F3; Pending';
+      var isPending=r.verified!==true&&r.verified!==false;
+      h+='<div class="card" style="border-left:3px solid '+clr+';margin-bottom:10px'+(isPending?';box-shadow:0 0 0 1px rgba(245,158,11,.25)':'')+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px"><div>'
+        +'<div style="font-weight:800;font-size:15px">'+(r.name||r.id)+'</div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px">&#x1F4DE; '+(r.phone||r.id)+'</div>'
+        +(r.mpesa_phone?'<div style="font-size:12px;color:#10b981;margin-top:2px">&#x1F4F1; M-Pesa: '+r.mpesa_phone+'</div>':'<div style="font-size:11px;color:#ef4444;margin-top:2px">&#x26A0; No M-Pesa saved</div>')
+        +'<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:2px">Registered: '+(r.created_at?new Date(r.created_at).toLocaleDateString():'Unknown')+'</div>'
+        +'<div style="display:flex;gap:8px;margin-top:4px">'
+        +'<span style="font-size:11px;color:'+(r.online?'#10b981':'rgba(255,255,255,.3)')+'">&#x25CF; '+(r.online?'Online':'Offline')+'</span>'
+        +'<span style="font-size:11px;color:rgba(255,255,255,.4)">'+(r.orders_completed||0)+' deliveries · KSh '+(r.total_earnings||0)+'</span>'
+        +'</div></div>'
+        +'<span class="badge" style="background:rgba(0,0,0,.15);color:'+clr+'">'+badge+'</span></div>'
+        +'<div style="display:flex;gap:6px">'
         +(r.verified!==true?'<button class="avr btn bg" data-id="'+r.id+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Verify</button>':'')
         +(r.verified!==false?'<button class="arr btn br" data-id="'+r.id+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Reject</button>':'')
         +'<button class="adr btn br" data-id="'+r.id+'" data-name="'+(r.name||r.id)+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Delete</button>'
-        +'</div><button class="view-rider btn bo" data-id="'+r.id+'" data-name="'+(r.name||r.id)+'" style="margin-top:6px;width:100%;font-size:11px;padding:7px">&#x1F4CB; View Details</button></div>';
+        +'</div>'
+        +'<button class="view-rider btn bo" data-id="'+r.id+'" data-name="'+(r.name||r.id)+'" style="margin-top:6px;width:100%;font-size:11px;padding:7px">&#x1F4CB; View Details</button>'
+        +'</div>'
     });
     ab.innerHTML=h;
-    ab.querySelectorAll('.avr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:true}).then(function(){toast('Verified');showARiders();}).catch(function(){toast('Error');});});});});
+    ab.querySelectorAll('.avr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');var b=this;b.textContent='Verifying...';b.disabled=true;loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:true,verify_notified:false,verified_at:Date.now()}).then(function(){toast('Rider verified! They will be notified next login.');showARiders();}).catch(function(){toast('Error');b.textContent='Verify';b.disabled=false;});});});});
     ab.querySelectorAll('.arr').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('riders').doc(id).update({verified:false,online:false}).then(function(){toast('Rejected');showARiders();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.adr').forEach(function(btn){btn.addEventListener('click',function(){var nm=this.getAttribute('data-name');if(!confirm('Delete '+nm+'?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;var riderId=id;
               db.collection('riders').doc(riderId).delete().then(function(){
@@ -2420,18 +2469,24 @@ function showAShops(){
   dbAll('shops',function(shops){
     var ab=document.getElementById('ab');if(!ab)return;
     if(!shops.length){ab.innerHTML=empty('&#x1F3EA;','No shops','Shops appear when owners register');return;}
+    // Unverified/pending first, then verified, then rejected
+    shops.sort(function(a,b){var av=a.verified===true?1:a.verified===false?2:0;var bv=b.verified===true?1:b.verified===false?2:0;return av-bv;});
+    var pending=shops.filter(function(s){return s.verified!==true&&s.verified!==false;});
     var h='';
+    if(pending.length){h+='<div style="font-size:10px;font-weight:800;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">&#x26A0; '+pending.length+' Awaiting Verification</div>';}
     shops.forEach(function(s){
       var clr=s.verified===true?'#10b981':s.verified===false?'#ef4444':'#f59e0b';
-      var badge=s.verified===true?'Verified':s.verified===false?'Rejected':'Pending';
-      h+='<div class="card" style="border-left:3px solid '+clr+';margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div style="display:flex;gap:10px;align-items:center"><div style="width:44px;height:44px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#1a1a22;display:flex;align-items:center;justify-content:center;font-size:24px">'+(s.icon_photo?'<img src="'+s.icon_photo+'" style="width:44px;height:44px;object-fit:cover">':s.icon||'&#x1F3EA;')+'</div><div><div style="font-weight:700">'+(s.name||s.id)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(s.category||'')+' · '+(s.location||'Chemelil')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(s.owner_phone||s.id)+'</div></div></div><span class="badge" style="background:rgba(0,0,0,.15);color:'+clr+'">'+badge+'</span></div><div style="display:flex;gap:6px">'
+      var badge=s.verified===true?'&#x2705; Verified':s.verified===false?'&#x274C; Rejected':'&#x23F3; Pending';
+      var isPending=s.verified!==true&&s.verified!==false;
+      var subPaid=s.subscription_paid===true;
+      h+='<div class="card" style="border-left:3px solid '+clr+';margin-bottom:10px'+(isPending?';box-shadow:0 0 0 1px rgba(245,158,11,.25)':'')+'"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px"><div style="display:flex;gap:10px;align-items:center"><div style="width:48px;height:48px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#1a1a22;display:flex;align-items:center;justify-content:center;font-size:24px">'+(s.icon_photo?'<img src="'+s.icon_photo+'" style="width:48px;height:48px;object-fit:cover">':s.icon||'&#x1F3EA;')+'</div><div><div style="font-weight:800;font-size:15px">'+(s.name||s.id)+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+(s.category||'General')+' · '+(s.location||'Chemelil')+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">&#x1F4DE; '+(s.owner_phone||s.id)+'</div>'+(s.mpesa_till?'<div style="font-size:11px;color:#10b981">&#x1F4F1; '+s.mpesa_till+'</div>':'<div style="font-size:11px;color:#ef4444">&#x26A0; No M-Pesa set</div>')+'<div style="font-size:11px;color:rgba(255,255,255,.35)">Registered: '+(s.created_at?new Date(s.created_at).toLocaleDateString():'Unknown')+'</div><div style="font-size:11px;color:'+(subPaid?'#10b981':'#f59e0b')+';margin-top:2px">Subscription: '+(subPaid?'Paid &#x2705;':'Unpaid &#x26A0;')+'</div></div></div><span class="badge" style="background:rgba(0,0,0,.15);color:'+clr+'">'+badge+'</span></div><div style="display:flex;gap:6px">'
         +(s.verified!==true?'<button class="avs btn bg" data-id="'+s.id+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Verify</button>':'')
         +(s.verified!==false?'<button class="ars btn br" data-id="'+s.id+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Reject</button>':'')
         +'<button class="ads btn br" data-id="'+s.id+'" data-name="'+(s.name||s.id)+'" style="margin-top:0;flex:1;font-size:11px;padding:8px">Delete</button>'
         +'</div><button class="view-shop btn bo" data-id="'+s.id+'" data-name="'+(s.name||s.id)+'" style="margin-top:6px;width:100%;font-size:11px;padding:7px">&#x1F4CB; View Details</button></div>';
     });
     ab.innerHTML=h;
-    ab.querySelectorAll('.avs').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('shops').doc(id).update({verified:true}).then(function(){toast('Shop verified');showAShops();}).catch(function(){toast('Error');});});});});
+    ab.querySelectorAll('.avs').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');var b=this;b.textContent='Verifying...';b.disabled=true;loadFB(function(db){if(!db)return;db.collection('shops').doc(id).update({verified:true,verify_notified:false,verified_at:Date.now(),subscription_paid:true,subscription_until:Date.now()+(30*24*60*60*1000)}).then(function(){toast('Shop verified! 30-day trial subscription added.');showAShops();}).catch(function(){toast('Error');b.textContent='Verify';b.disabled=false;});});});});
     ab.querySelectorAll('.ars').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('shops').doc(id).update({verified:false,delivery_enabled:false}).then(function(){toast('Rejected');showAShops();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.ads').forEach(function(btn){btn.addEventListener('click',function(){var nm=this.getAttribute('data-name');if(!confirm('Delete '+nm+'?'))return;var id=this.getAttribute('data-id');loadFB(function(db){if(!db)return;db.collection('shops').doc(id).delete().then(function(){toast('Deleted');showAShops();}).catch(function(){toast('Error');});});});});
     ab.querySelectorAll('.view-shop').forEach(function(btn){btn.addEventListener('click',function(){showShopDetail(this.getAttribute('data-id'),this.getAttribute('data-name'));});});
@@ -2761,6 +2816,12 @@ function showFeeEditor(){
     +'<input id="fee-km" type="number" value="'+rate+'" placeholder="20" min="5" max="100"></div>'
     +'<div class="fld"><label>M-Pesa Till / Phone Number</label>'
     +'<input id="fee-till" type="tel" value="'+till+'" placeholder="07XX or Till No" autocomplete="off"></div>'
+    +'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.2);border-radius:10px;padding:12px;margin-bottom:10px">'
+    +'<div style="font-size:10px;font-weight:800;color:#8b5cf6;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">&#x1F4B0; My Revenue</div>'
+    +'<div class="fld"><label>My cut from rider delivery (%)</label><input id="fee-rcut" type="number" value="'+(window._RIDER_CUT||0)+'" placeholder="0" min="0" max="50"><div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:3px">0 = rider keeps 100% · 10 = you earn 10% per job</div></div>'
+    +'<div class="fld"><label>Shop monthly subscription (KSh)</label><input id="fee-ssub" type="number" value="'+(window._SHOP_SUB||0)+'" placeholder="0" min="0"><div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:3px">0 = free · Unpaid shops hidden from customers</div></div>'
+    +'</div>'
+    +'<div class="fld"><label>Max rider job radius (km)</label><input id="fee-radius" type="number" value="'+(window._JOB_RADIUS||50)+'" placeholder="50" min="1" max="200"><div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:3px">Riders only see jobs within this distance from pickup point</div></div>'
     +'<div style="background:#1a1a22;border-radius:10px;padding:12px;margin-bottom:12px">'
     +'<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Fee Preview</div>'
     +'<div id="fee-preview" style="font-size:14px;color:#10b981">KSh 50 base + KSh 20 × 1km = KSh 70</div>'
@@ -2782,21 +2843,27 @@ function showFeeEditor(){
     var b=parseInt(document.getElementById('fee-base').value)||50;
     var k=parseInt(document.getElementById('fee-km').value)||20;
     var t=(document.getElementById('fee-till').value||'').trim();
+    var rcut=parseFloat(document.getElementById('fee-rcut').value)||0;
+    var ssub=parseInt(document.getElementById('fee-ssub').value)||0;
+    var radius=parseFloat(document.getElementById('fee-radius').value)||50;
     if(b<20){toast('Base fee too low (min KSh 20)');return;}
     if(k<5){toast('Per km rate too low (min KSh 5)');return;}
     if(!t){toast('Enter M-Pesa till or phone number');return;}
+    if(rcut<0||rcut>50){toast('Rider cut must be 0-50%');return;}
     var btn=document.getElementById('save-fees-btn');
     btn.textContent='Saving...';btn.disabled=true;
     loadFB(function(db){
       if(!db){toast('No connection');btn.textContent='Save Settings';btn.disabled=false;return;}
       db.collection('platform_config').doc('fees').set({
-        base_fee:b,per_km_rate:k,mpesa_till:t,updated_at:Date.now(),updated_by:USER.phone
+        base_fee:b,per_km_rate:k,mpesa_till:t,
+        rider_cut_percent:rcut,shop_subscription_fee:ssub,job_radius_km:radius,
+        updated_at:Date.now(),updated_by:USER.phone
       }).then(function(){
         window._ADMIN_BASE_FEE=b;window._ADMIN_PER_KM=k;window._ADMIN_TILL=t;
-        window.MP=t; 
-        toast('✅ Settings saved! Base KSh '+b+', KSh '+k+'/km, Till: '+t);
-        hideSh();
-        showAOv(); 
+        window._RIDER_CUT=rcut;window._SHOP_SUB=ssub;window._JOB_RADIUS=radius;
+        window.MP=t;
+        toast('Settings saved! Base KSh '+b+' · '+rcut+'% rider cut · KSh '+ssub+' shop sub/mo');
+        hideSh();showAOv();
       }).catch(function(){toast('Error saving');btn.textContent='Save Settings';btn.disabled=false;});
     });
   });
