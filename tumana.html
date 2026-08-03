@@ -156,7 +156,7 @@ body.light [style*="color:#8b5cf6"]{color:#7c3aed!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v36 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v38 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -1059,7 +1059,24 @@ function showOrds(){
       
       var statusMsg='';
       if(o.status==='placed')statusMsg='<div style="font-size:12px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#f59e0b">&#x23F3; Waiting for shop to confirm your order...</div>';
-      else if(o.status==='confirmed')statusMsg='<div style="font-size:12px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#8b5cf6">&#x1F50D; Looking for a rider near you...</div>';
+      else if(o.status==='shop_accepted'){
+        var aItems=o.accepted_items||o.items||[];
+        var sList=aItems.map(function(it){return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span style="color:rgba(255,255,255,.6)">'+it.name+' ×'+it.quantity+'</span><span style="color:#fff;font-weight:700">KSh '+(it.price*it.quantity)+'</span></div>';}).join('');
+        statusMsg='<div style="background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:12px;margin-bottom:8px">'
+          +'<div style="font-size:11px;font-weight:800;color:#10b981;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">&#x2705; Shop Accepted — Pay Now</div>'
+          +'<div style="background:#1a1a22;border-radius:8px;padding:10px;margin-bottom:10px">'
+          +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:6px">ITEMS ACCEPTED BY SHOP</div>'
+          +sList
+          +'<div style="border-top:1px solid rgba(255,255,255,.08);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between"><span style="color:rgba(255,255,255,.4);font-size:12px">Total goods</span><span style="font-size:18px;font-weight:800;color:#fff">KSh '+(o.subtotal||0)+'</span></div>'
+          +'<div style="font-size:13px;color:#10b981;font-weight:700;margin-top:6px">&#x1F4F1; Send M-Pesa to: '+(o.shop_mpesa||'Shop')+'</div>'
+          +'<div style="font-size:11px;color:rgba(255,255,255,.35)">Ref: TUM'+o.id.slice(-4)+'</div>'
+          +'</div>'
+          +'<div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:8px">After paying, enter your M-Pesa confirmation code:</div>'
+          +'<input id="cust-mpesa-'+o.id+'" type="text" placeholder="e.g. QGH456XYZ" style="width:100%;background:#1a1a22;border:1.5px solid rgba(16,185,129,.3);border-radius:8px;padding:10px;font-size:14px;color:#fff;font-family:inherit;text-transform:uppercase;margin-bottom:8px;outline:none">'
+          +'<button class="cust-pay-btn btn bg" data-id="'+o.id+'" style="margin-top:0;font-size:14px;padding:13px">&#x1F4F1; Confirm Payment</button>'
+          +'</div>';
+      }
+      else if(o.status==='confirmed')statusMsg='<div style="font-size:12px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#8b5cf6">&#x1F50D; Payment confirmed! Looking for a rider...</div>';
       else if(o.status==='assigned')statusMsg='<div style="font-size:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#10b981">&#x1F6F5; Rider is on the way to pick up your order!</div>';
       else if(o.status==='picked')statusMsg='<div style="font-size:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#10b981">&#x1F4E6; Order picked up — coming to you now!</div>';
       h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:9px"><div><div style="font-weight:700;font-size:14px">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Order')+' #'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.shopName||o.pickup_from||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div>'+statusMsg+'<div style="margin:10px 0 8px">'+tH+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:5px">'+desc+'</div><div style="font-weight:700;color:#10b981">KSh '+o.total+'</div>'+(o.rider_name?'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:9px;margin-top:7px">'
@@ -1210,446 +1227,162 @@ function loadSOrd(){
   });
 }
 function showSOrd(){
-  var c=document.getElementById('shc');if(!c)return;
-  if(!SORD.length){c.innerHTML=SDON?empty('&#x1F4CB;','No orders yet','Orders appear when customers order'):empty('&#x1F534;','Delivery is Off','Toggle above to start receiving orders');return;}
+  var el=document.getElementById('shc');if(!el)return;
+  if(!SORD.length){el.innerHTML=SDON?empty('&#x1F4CB;','No orders yet','Orders appear when customers order'):empty('&#x1F534;','Delivery is Off','Toggle to start receiving orders');return;}
   var h='';
   SORD.forEach(function(o){
-    var items=(o.items||[]).map(function(i){return i.name+' x'+i.quantity;}).join(', ')||o.item_description||'';
-    h+='<div class="card" style="border-left:4px solid #10b981"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div><div style="font-weight:700">#'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.customer_name||'')+' · '+(o.customer_phone||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">'+items+'</div><div style="display:flex;gap:7px;margin-bottom:8px"><div style="flex:1;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.13);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px">YOU EARN</div><div style="font-weight:800;color:#10b981">KSh '+(o.subtotal||o.total||0)+'</div></div><div style="flex:1;background:#1a1a22;border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px">TOTAL</div><div style="font-weight:800">KSh '+(o.total||0)+'</div></div></div>';
-    
-    if(o.delivery_address){h+='<div style="background:#1a1a22;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px"><span style="color:rgba(255,255,255,.4)">&#x1F4CD; Deliver to: </span><strong>'+o.delivery_address+'</strong></div>';}
+    var statusClr=o.status==='placed'?'#f59e0b':o.status==='shop_accepted'?'#8b5cf6':o.status==='confirmed'?'#10b981':'#10b981';
+    h+='<div class="card" style="border-left:4px solid '+statusClr+';margin-bottom:12px">';
+    // Header: order ID + status badge
+    h+='<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">';
+    h+='<div><div style="font-weight:800;font-size:15px">#'+o.id.slice(-6).toUpperCase()+'</div>';
+    h+='<div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px">&#x1F464; '+(o.customer_name||'Customer')+'</div>';
+    h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">&#x1F4DE; '+(o.customer_phone||'')+'</div>';
+    if(o.delivery_address){h+='<div style="font-size:12px;color:#10b981;margin-top:2px">&#x1F4CD; '+(o.delivery_address)+'</div>';}
+    h+='</div>';
+    h+='<span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span>';
+    h+='</div>';
+    // Items preview
+    var itemList=o.items||[];
+    var acceptedItems=o.accepted_items||itemList;
+    var previewItems=(acceptedItems.length?acceptedItems:itemList).slice(0,3).map(function(i){return (i.name||'')+'×'+(i.quantity||1);}).join(' · ');
+    if(previewItems){h+='<div style="font-size:12px;color:rgba(255,255,255,.35);margin-bottom:8px;line-height:1.5">'+previewItems+(itemList.length>3?' ...':'')+' </div>';}
+    // Earnings bar
+    var sub=o.subtotal||(acceptedItems.reduce?acceptedItems.reduce(function(s,i){return s+(i.price||0)*(i.quantity||1);},0):o.total)||0;
+    h+='<div style="display:flex;gap:7px;margin-bottom:10px">';
+    h+='<div style="flex:1;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.13);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px">YOU GET</div><div style="font-weight:800;color:#10b981">KSh '+(o.subtotal||sub)+'</div></div>';
+    h+='<div style="flex:1;background:#1a1a22;border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px">TOTAL</div><div style="font-weight:800">KSh '+(o.total||0)+'</div></div>';
+    h+='</div>';
+    // Action areas by status
     if(o.status==='placed'){
-      h+='<div style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.2);border-radius:10px;padding:12px;margin-bottom:8px">';
-      h+='<div style="font-size:11px;font-weight:800;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">New Order — Accept or Reject?</div>';
-      h+='<div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.7;margin-bottom:10px">Review the order. If you accept, the customer will be prompted to pay via M-Pesa before the order is confirmed.</div>';
-      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
-      h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:13px;padding:12px">&#x274C; Reject</button>';
-      h+='<button class="ab btn bg" data-id="'+o.id+'" style="margin-top:0;font-size:13px;padding:12px">&#x2714; Accept Order</button>';
-      h+='</div></div>';
+      h+='<button class="vw-order btn bp" data-id="'+o.id+'" style="margin-bottom:8px;font-size:13px;padding:12px">&#x1F4CB; View Items & Accept / Reject</button>';
+      h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:12px;padding:9px">&#x274C; Reject Whole Order</button>';
     } else if(o.status==='shop_accepted'){
-      h+='<div style="background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:12px;margin-bottom:8px">';
-      h+='<div style="font-size:11px;font-weight:800;color:#10b981;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">&#x23F3; Waiting for Customer Payment</div>';
-      h+='<div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.7;margin-bottom:10px">Customer has been prompted to pay M-Pesa. Once they submit their code, the order will be confirmed automatically and riders notified.</div>';
-      h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">Your till: <strong style="color:#10b981">'+(USER.mpesa_till||USER.phone)+'</strong></div>';
+      h+='<div style="background:rgba(139,92,246,.07);border:1.5px solid rgba(139,92,246,.25);border-radius:10px;padding:11px">';
+      h+='<div style="font-size:11px;font-weight:800;color:#8b5cf6;margin-bottom:4px">&#x23F3; Waiting for Customer Payment</div>';
+      h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">Customer is paying M-Pesa. Order confirms automatically.</div>';
+      h+='<div style="font-size:12px;color:#10b981;margin-top:6px;font-weight:700">Your till: '+(USER.mpesa_till||USER.phone)+'</div>';
+      h+='</div>';
+    } else if(o.status==='confirmed'){
+      h+='<div style="background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:10px;padding:11px">';
+      h+='<div style="font-size:11px;font-weight:800;color:#10b981;margin-bottom:4px">&#x2705; Payment Received — Prepare Order</div>';
+      h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">Customer paid. A rider will arrive to pick up soon.</div>';
       h+='</div>';
     }
-    if(o.rider_name){h+='<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.14);border-radius:8px;padding:9px;font-size:12px;color:#8b5cf6;margin-top:6px">&#x1F6F5; '+o.rider_name+' · '+o.rider_phone+'</div>';}
+    if(o.rider_name){h+='<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.14);border-radius:8px;padding:9px;font-size:12px;color:#8b5cf6;margin-top:6px">&#x1F6F5; Rider: '+o.rider_name+' · '+o.rider_phone+'</div>';}
     h+='</div>';
   });
-  c.innerHTML=h;
-  // Accept button: sets status to shop_accepted → customer gets pay prompt
-  c.querySelectorAll('.ab').forEach(function(btn){btn.addEventListener('click',function(){
-    var id=this.getAttribute('data-id');
-    var b=this;b.textContent='Accepting...';b.disabled=true;
-    // Load shop's M-Pesa till to embed in order (so customer sees correct number)
+  el.innerHTML=h;
+
+  // View Items button → per-item accept/reject modal
+  el.querySelectorAll('.vw-order').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var id=this.getAttribute('data-id');
+      var order=SORD.find(function(o){return o.id===id;});
+      if(!order)return;
+      showItemAcceptModal(order);
+    });
+  });
+
+  // Reject whole order
+  el.querySelectorAll('.rb').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      if(!confirm('Reject this order?'))return;
+      dbUpd('delivery_orders',this.getAttribute('data-id'),{status:'rejected'},function(){toast('Order rejected');});
+    });
+  });
+}
+
+function showItemAcceptModal(order){
+  var items=order.items||[];
+  // Build per-item tick/cross UI
+  var h='<div class="hd"></div>';
+  h+='<div style="font-size:18px;font-weight:800;margin-bottom:2px">Review Items</div>';
+  h+='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:4px">&#x1F464; '+( order.customer_name||'Customer')+' · &#x1F4CD; '+(order.delivery_address||'')+'</div>';
+  h+='<div style="font-size:12px;color:rgba(255,255,255,.35);margin-bottom:14px">Tick items you have. Untick items out of stock. Then tap Submit.</div>';
+  h+='<div id="item-accept-list">';
+  items.forEach(function(it,i){
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06)">';
+    h+='<div id="itog-'+i+'" class="item-tog" data-idx="'+i+'" style="width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,.15);border:2px solid #10b981;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;flex-shrink:0">&#x2713;</div>';
+    h+='<div style="flex:1"><div style="font-weight:700;font-size:14px">'+(it.name||'Item')+'</div>';
+    h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">x'+(it.quantity||1)+' · KSh '+((it.price||0)*(it.quantity||1))+'</div></div>';
+    h+='<div style="font-size:16px;font-weight:800;color:#10b981">KSh '+((it.price||0)*(it.quantity||1))+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid rgba(255,255,255,.08);margin-top:4px">';
+  h+='<div><div style="font-size:11px;color:rgba(255,255,255,.4)">Accepted subtotal</div><div id="itotal" style="font-size:20px;font-weight:800;color:#10b981">KSh 0</div></div>';
+  h+='<div id="icount" style="font-size:12px;color:rgba(255,255,255,.4)">'+items.length+'/'+items.length+' items</div>';
+  h+='</div>';
+  h+='<button id="submit-accept" class="btn bg" style="font-size:15px;padding:15px">&#x2705; Submit — Notify Customer to Pay</button>';
+  h+='<button id="reject-all" class="btn br" style="margin-top:6px">&#x274C; Reject Whole Order</button>';
+  showSh(h);
+
+  // Track accepted state per item (all accepted by default)
+  var accepted=items.map(function(){return true;});
+
+  function recalc(){
+    var total=0;var count=0;
+    accepted.forEach(function(a,i){if(a){total+=(items[i].price||0)*(items[i].quantity||1);count++;}});
+    var tot=document.getElementById('itotal');if(tot)tot.textContent='KSh '+total;
+    var cnt=document.getElementById('icount');if(cnt)cnt.textContent=count+'/'+items.length+' items';
+    return{total:total,count:count};
+  }
+  recalc();
+
+  // Toggle each item
+  document.getElementById('item-accept-list').querySelectorAll('.item-tog').forEach(function(tog){
+    tog.addEventListener('click',function(){
+      var i=parseInt(this.getAttribute('data-idx'));
+      accepted[i]=!accepted[i];
+      if(accepted[i]){
+        this.style.background='rgba(16,185,129,.15)';this.style.borderColor='#10b981';
+        this.style.color='#10b981';this.innerHTML='&#x2713;';
+      } else {
+        this.style.background='rgba(239,68,68,.1)';this.style.borderColor='#ef4444';
+        this.style.color='#ef4444';this.innerHTML='&#x2715;';
+      }
+      recalc();
+    });
+  });
+
+  // Submit accepted items → shop_accepted with accepted_items + M-Pesa prompt to customer
+  document.getElementById('submit-accept').addEventListener('click',function(){
+    var r=recalc();
+    if(r.count===0){toast('Accept at least one item to continue');return;}
+    var btn=this;btn.textContent='Submitting...';btn.disabled=true;
+    var acceptedItems=items.filter(function(it,i){return accepted[i];});
+    var newSub=acceptedItems.reduce(function(s,it){return s+(it.price||0)*(it.quantity||1);},0);
+    var df=order.delivery_fee||70;
     loadFB(function(db){
-      if(!db){b.textContent='Accept Order';b.disabled=false;return;}
+      if(!db){btn.textContent='Submit';btn.disabled=false;toast('No connection');return;}
       db.collection('shops').doc(USER.phone).get().then(function(snap){
         var shopTill=(snap.exists&&snap.data().mpesa_till)||USER.phone;
-        db.collection('delivery_orders').doc(id).update({
+        db.collection('delivery_orders').doc(order.id).update({
           status:'shop_accepted',
+          accepted_items:acceptedItems,
+          subtotal:newSub,
+          total:newSub+df,
           shop_accepted_at:Date.now(),
           shop_phone:USER.phone,
           shop_mpesa:shopTill
         }).then(function(){
-          toast('&#x2705; Order accepted! Customer is being prompted to pay.');
-        }).catch(function(){b.textContent='Accept Order';b.disabled=false;toast('Error');});
-      }).catch(function(){
-        // If shop doc fails, still accept with phone as fallback
-        db.collection('delivery_orders').doc(id).update({
-          status:'shop_accepted',shop_accepted_at:Date.now(),shop_phone:USER.phone,shop_mpesa:USER.phone
-        }).then(function(){toast('&#x2705; Accepted!');}).catch(function(){b.textContent='Accept Order';b.disabled=false;});
-      });
-    });
-  });});
-  c.querySelectorAll('.rb').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Reject this order?'))return;dbUpd('delivery_orders',this.getAttribute('data-id'),{status:'rejected'},function(){toast('Order rejected');});});});
-}
-function showSSales(){
-  var el=document.getElementById('shc');if(!el)return;
-  var view=window._sv||'sales';
-  var isSales=view==='sales', isDebt=view==='debts', isHistory=view==='history';
-
-  var tabH='<div style="display:flex;gap:5px;margin-bottom:12px">'
-    +'<button id="svs" style="flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid '+(isSales?'#10b981':'rgba(255,255,255,.13)')+';background:'+(isSales?'rgba(16,185,129,.1)':'transparent')+';color:'+(isSales?'#10b981':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">&#x1F4B0; Sales</button>'
-    +'<button id="svd" style="flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid '+(isDebt?'#ef4444':'rgba(255,255,255,.13)')+';background:'+(isDebt?'rgba(239,68,68,.08)':'transparent')+';color:'+(isDebt?'#ef4444':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">&#x26A0; Debts</button>'
-    +'<button id="svh" style="flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid '+(isHistory?'#8b5cf6':'rgba(255,255,255,.13)')+';background:'+(isHistory?'rgba(139,92,246,.1)':'transparent')+';color:'+(isHistory?'#8b5cf6':'rgba(255,255,255,.4)')+';font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">&#x1F4C5; History</button>'
-    +'</div>';
-
-  el.innerHTML=tabH
-    +'<button id="recb" class="btn ba" style="margin-bottom:12px;margin-top:0">+ Record Sale</button>'
-    +'<div id="svdata"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
-
-  document.getElementById('svs').addEventListener('click',function(){window._sv='sales';showSSales();});
-  document.getElementById('svd').addEventListener('click',function(){window._sv='debts';showSSales();});
-  document.getElementById('svh').addEventListener('click',function(){window._sv='history';showSSales();});
-  document.getElementById('recb').addEventListener('click',showRecSale);
-
-  loadFB(function(db){
-    if(!db){document.getElementById('svdata').innerHTML=empty('&#x1F4B0;','No connection','Connect to load sales data');return;}
-    db.collection('shops').doc(USER.phone).collection('sales').limit(200).get().then(function(s){
-      var allS=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}).sort(function(a,b){return(b.created_at||0)-(a.created_at||0);});
-      var svd=document.getElementById('svdata');if(!svd)return;
-
-      if(isSales){
-        var paid=allS.filter(function(x){return !x.is_debt;});
-        var today=new Date().toDateString();
-        var todayT=paid.filter(function(x){return new Date(x.created_at||0).toDateString()===today;}).reduce(function(s,x){return s+(x.total||0);},0);
-        var todayCost=paid.filter(function(x){return new Date(x.created_at||0).toDateString()===today;}).reduce(function(s,x){return s+(x.cost||0);},0);
-        var allT=paid.reduce(function(s,x){return s+(x.total||0);},0);
-        var allCost=paid.reduce(function(s,x){return s+(x.cost||0);},0);
-        var todayProfit=todayT-todayCost;
-        var allProfit=allT-allCost;
-        var statsH='<div class="g3" style="margin-bottom:10px">'
-          +'<div class="sb2"><div class="sv" style="color:#f59e0b;font-size:17px">KSh '+todayT.toLocaleString()+'</div><div class="sl">Today Sales</div></div>'
-          +'<div class="sb2"><div class="sv" style="color:#10b981;font-size:17px">KSh '+todayProfit.toLocaleString()+'</div><div class="sl">Today Profit</div></div>'
-          +'<div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:17px">KSh '+allT.toLocaleString()+'</div><div class="sl">All Time</div></div>'
-          +'</div>';
-        var lH='';
-        if(!paid.length){lH=empty('&#x1F4B0;','No sales yet','Use + Record Sale to start');}
-        paid.slice(0,50).forEach(function(x){
-          var profit=(x.total||0)-(x.cost||0);
-          lH+='<div class="card" style="border-left:3px solid #10b981;margin-bottom:8px">'
-            +'<div style="display:flex;justify-content:space-between;align-items:start">'
-            +'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+(x.product_name||'Sale')+'</div>'
-            +'<div style="font-size:11px;color:rgba(255,255,255,.4)">'+(x.customer_name||'Walk-in')+'</div>'
-            +'<div style="font-size:10px;color:rgba(255,255,255,.3)">'+new Date(x.created_at||0).toLocaleDateString('en-KE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</div></div>'
-            +'<div style="text-align:right;flex-shrink:0;margin-left:10px">'
-            +'<div style="font-weight:800;color:#10b981">KSh '+(x.total||0)+'</div>'
-            +(profit>0?'<div style="font-size:10px;color:#4ade80">+KSh '+profit+' profit</div>':'')
-            +'<div style="font-size:10px;color:rgba(255,255,255,.4)">'+(x.payment_type||'cash')+'</div>'
-            +'</div></div></div>';
-        });
-        svd.innerHTML=statsH+lH;
-      }
-
-      else if(isDebt){
-        var debts=allS.filter(function(x){return x.is_debt&&!x.debt_paid;});
-        var dPaid=allS.filter(function(x){return x.is_debt&&x.debt_paid;});
-        var dTotal=debts.reduce(function(s,d){return s+(d.total||0);},0);
-        var dH='';
-        if(!debts.length){dH='<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:20px;text-align:center;margin-bottom:12px"><div style="font-size:32px;margin-bottom:6px">&#x2705;</div><div style="font-weight:700">No outstanding debts</div></div>';}
-        else{
-          debts.forEach(function(d){
-            dH+='<div class="card" style="border-left:3px solid #ef4444;margin-bottom:9px">'
-              +'<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">'
-              +'<div><div style="font-weight:700;font-size:14px">'+(d.customer_name||'Customer')+'</div>'
-              +'<div style="font-size:12px;color:rgba(255,255,255,.4)">'+(d.product_name||'')+'</div>'
-              +(d.customer_phone?'<div style="font-size:11px;color:rgba(255,255,255,.35)">&#x1F4DE; '+d.customer_phone+'</div>':'')
-              +'<div style="font-size:10px;color:rgba(255,255,255,.3)">'+new Date(d.created_at||0).toLocaleDateString('en-KE',{day:'numeric',month:'short'})+'</div></div>'
-              +'<div style="text-align:right"><div style="font-size:18px;font-weight:800;color:#ef4444">KSh '+(d.total||0)+'</div>'
-              +(d.customer_phone?'<a href="https://wa.me/254'+d.customer_phone.slice(1)+'" target="_blank" style="display:block;font-size:10px;color:#25D366;margin-top:3px;text-decoration:none">&#x1F4F1; WhatsApp</a>':'')
-              +'<button class="pd-btn btn bg" data-id="'+d.id+'" style="font-size:11px;padding:5px 10px;margin-top:5px;width:auto">Mark Paid</button>'
-              +'</div></div></div>';
-          });
-        }
-        
-        if(dPaid.length){
-          dH+='<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1.5px;margin:12px 0 6px">Recently Paid</div>';
-          dPaid.slice(0,5).forEach(function(d){
-            dH+='<div class="card" style="border-left:3px solid #10b981;margin-bottom:8px;opacity:.7;display:flex;justify-content:space-between;align-items:center">'
-              +'<div><div style="font-weight:700;font-size:13px">'+(d.customer_name||'Customer')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(d.product_name||'')+'</div></div>'
-              +'<div style="text-align:right"><div style="font-weight:700;color:#10b981">KSh '+(d.total||0)+'</div><div style="font-size:10px;color:rgba(255,255,255,.3)">Paid &#x2705;</div></div></div>';
-          });
-        }
-        svd.innerHTML='<div style="background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:11px;font-weight:700;color:#ef4444">TOTAL OWED TO YOU</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">'+debts.length+' customers</div></div><div style="font-size:22px;font-weight:800;color:#ef4444">KSh '+dTotal.toLocaleString()+'</div></div>'+dH;
-        svd.querySelectorAll('.pd-btn').forEach(function(btn){
-          btn.addEventListener('click',function(){
-            if(!confirm('Mark as paid?'))return;
-            var id=this.getAttribute('data-id');
-            loadFB(function(db){if(!db){toast('No connection');return;}
-              db.collection('shops').doc(USER.phone).collection('sales').doc(id).update({debt_paid:true,paid_at:Date.now()}).then(function(){toast('Marked as paid!');window._sv='debts';showSSales();}).catch(function(){toast('Error');});
-            });
-          });
-        });
-      }
-
-      else if(isHistory){
-        var paid2=allS.filter(function(x){return !x.is_debt;});
-        var allCost2=paid2.reduce(function(s,x){return s+(x.cost||0);},0);
-        var allRev=paid2.reduce(function(s,x){return s+(x.total||0);},0);
-        var allProfit2=allRev-allCost2;
-        
-        var weekAgo=Date.now()-7*24*3600*1000;
-        var weekS=paid2.filter(function(x){return(x.created_at||0)>weekAgo;});
-        var weekRev=weekS.reduce(function(s,x){return s+(x.total||0);},0);
-        var weekCost=weekS.reduce(function(s,x){return s+(x.cost||0);},0);
-        var weekProfit=weekRev-weekCost;
-        
-        var now=new Date(); var monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
-        var monthS=paid2.filter(function(x){return(x.created_at||0)>monthStart;});
-        var monthRev=monthS.reduce(function(s,x){return s+(x.total||0);},0);
-        var monthProfit=monthRev-monthS.reduce(function(s,x){return s+(x.cost||0);},0);
-
-        var summH='<div style="margin-bottom:14px">'
-          +'<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Summary</div>'
-          +'<div class="g2"><div class="sb2"><div class="sv" style="color:#10b981;font-size:16px">KSh '+weekRev.toLocaleString()+'</div><div class="sl">This Week Sales</div></div><div class="sb2"><div class="sv" style="color:#4ade80;font-size:16px">KSh '+weekProfit.toLocaleString()+'</div><div class="sl">This Week Profit</div></div></div>'
-          +'<div class="g2"><div class="sb2"><div class="sv" style="color:#8b5cf6;font-size:16px">KSh '+monthRev.toLocaleString()+'</div><div class="sl">This Month Sales</div></div><div class="sb2"><div class="sv" style="color:#f59e0b;font-size:16px">KSh '+monthProfit.toLocaleString()+'</div><div class="sl">Month Profit</div></div></div>'
-          +'<div class="sb2" style="text-align:center;margin-bottom:0"><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:4px">All Time</div><div style="display:flex;justify-content:space-around"><div><div style="font-size:18px;font-weight:800;color:#10b981">KSh '+allRev.toLocaleString()+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Revenue</div></div><div><div style="font-size:18px;font-weight:800;color:#4ade80">KSh '+allProfit2.toLocaleString()+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Profit</div></div><div><div style="font-size:18px;font-weight:800;color:#fbbf24">'+paid2.length+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Sales</div></div></div></div>'
-          +'</div>';
-
-        var days={};
-        paid2.forEach(function(x){
-          var d=new Date(x.created_at||0);
-          var key=d.toLocaleDateString('en-KE',{weekday:'short',day:'numeric',month:'short',year:'2-digit'});
-          if(!days[key])days[key]={rev:0,cost:0,count:0,items:[]};
-          days[key].rev+=(x.total||0);
-          days[key].cost+=(x.cost||0);
-          days[key].count++;
-          days[key].items.push((x.product_name||'Item')+' KSh '+(x.total||0));
-        });
-
-        var dayKeys=Object.keys(days);
-        var dayH='<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Daily Breakdown</div>';
-        if(!dayKeys.length){dayH+=empty('&#x1F4C5;','No records yet','Start recording sales');}
-        dayKeys.forEach(function(day){
-          var d=days[day];
-          var profit=d.rev-d.cost;
-          dayH+='<div class="card" style="margin-bottom:9px">'
-            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-            +'<div style="font-weight:700;font-size:14px">'+day+'</div>'
-            +'<div style="text-align:right"><div style="font-weight:800;color:#10b981">KSh '+d.rev.toLocaleString()+'</div>'
-            +(profit>0?'<div style="font-size:11px;color:#4ade80">+KSh '+profit+' profit</div>':'')+'</div></div>'
-            +'<div style="display:flex;gap:12px;font-size:11px;color:rgba(255,255,255,.4)">'
-            +'<span>'+d.count+' sales</span>'
-            +(d.cost>0?'<span>Cost: KSh '+d.cost+'</span>':'')
-            +'</div>'
-            +(d.items.length?'<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,.3)">'+d.items.slice(0,3).join(', ')+(d.items.length>3?' +'+( d.items.length-3)+' more':'')+'</div>':'')
-            +'</div>';
-        });
-
-        var prods={};
-        paid2.forEach(function(x){
-          var n=x.product_name||'Unknown';
-          if(!prods[n])prods[n]={rev:0,count:0,profit:0};
-          prods[n].rev+=(x.total||0);
-          prods[n].count++;
-          prods[n].profit+=(x.total||0)-(x.cost||0);
-        });
-        var prodKeys=Object.keys(prods).sort(function(a,b){return prods[b].rev-prods[a].rev;});
-        var prodH='<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin:14px 0 8px">Top Products</div>';
-        prodKeys.slice(0,8).forEach(function(name){
-          var p=prods[name];
-          prodH+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">'
-            +'<div><div style="font-weight:700;font-size:13px">'+name+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+p.count+' sold</div></div>'
-            +'<div style="text-align:right"><div style="font-weight:800;color:#10b981">KSh '+p.rev.toLocaleString()+'</div>'
-            +(p.profit>0?'<div style="font-size:10px;color:#4ade80">+KSh '+p.profit+' profit</div>':'')+'</div></div>';
-        });
-
-        var waText='*TUMANA Daily Summary - '+new Date().toLocaleDateString('en-KE')+'*\n\n'
-          +'Today Sales: KSh '+paid2.filter(function(x){return new Date(x.created_at||0).toDateString()===new Date().toDateString();}).reduce(function(s,x){return s+(x.total||0);},0).toLocaleString()+'\n'
-          +'This Week: KSh '+weekRev.toLocaleString()+' (Profit: KSh '+weekProfit.toLocaleString()+')\n'
-          +'This Month: KSh '+monthRev.toLocaleString()+' (Profit: KSh '+monthProfit.toLocaleString()+')';
-        var shareH='<a href="https://wa.me/?text='+encodeURIComponent(waText)+'" target="_blank" style="display:block;margin-top:14px;padding:13px;background:rgba(37,211,102,.1);border:1.5px solid rgba(37,211,102,.3);border-radius:10px;color:#25D366;text-align:center;font-weight:800;font-size:14px;text-decoration:none">&#x1F4F1; Share Summary on WhatsApp</a>';
-
-        svd.innerHTML=summH+dayH+prodH+shareH;
-      }
-
-    }).catch(function(){
-      var svd=document.getElementById('svdata');
-      if(svd)svd.innerHTML=empty('&#x26A0;','Error loading','Check your connection and try again');
+          hideSh();
+          toast('Customer notified to pay KSh '+newSub+' via M-Pesa');
+        }).catch(function(){btn.textContent='Submit';btn.disabled=false;toast('Error');});
+      }).catch(function(){btn.textContent='Submit';btn.disabled=false;toast('Error loading shop');});
     });
   });
-}
-function showRecSale(){
-  window._saleCart=window._saleCart||[];
-  
-  loadFB(function(db){
-    if(!db){renderSaleCart([]);return;}
-    db.collection('shops').doc(USER.phone).collection('stock').get().then(function(s){
-      var items=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(i){return(i.quantity||0)>0;});
-      renderSaleCart(items);
-    }).catch(function(){renderSaleCart([]);});
+
+  // Reject whole order
+  document.getElementById('reject-all').addEventListener('click',function(){
+    if(!confirm('Reject this order?'))return;
+    hideSh();
+    dbUpd('delivery_orders',order.id,{status:'rejected'},function(){toast('Order rejected');});
   });
 }
 
-function renderSaleCart(stockItems){
-  window._recStock=stockItems;
 
-  var optsH='<option value="">-- Pick item to add --</option>';
-  stockItems.forEach(function(it){
-    optsH+='<option value="'+it.id+'">'+(it.emoji||'')+(it.emoji?' ':'')+it.name+' (KSh '+it.selling_price+' · '+(it.quantity||0)+' left)</option>';
-  });
-  optsH+='<option value="__custom">&#x270F;&#xFE0F; Other (type manually)</option>';
-
-  function cartRows(){
-    if(!window._saleCart.length) return '<div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;padding:12px 0">No items added yet</div>';
-    return window._saleCart.map(function(it,i){
-      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;background:#1a1a22;border-radius:9px;padding:9px 10px">'
-        +'<div style="flex:1"><div style="font-weight:700;font-size:13px">'+(it.emoji||'')+(it.emoji?' ':'')+it.name+'</div>'
-        +'<div style="font-size:11px;color:rgba(255,255,255,.4)">KSh '+it.price+' each'+(it.cost?' · cost KSh '+it.cost:'')+'</div></div>'
-        +'<div style="display:flex;align-items:center;gap:6px">'
-        +'<button class="qb qbm sc-m" data-i="'+i+'" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">&#x2212;</button>'
-        +'<span style="font-weight:700;min-width:18px;text-align:center">'+it.qty+'</span>'
-        +'<button class="qb qbp sc-p" data-i="'+i+'" style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.2)">+</button>'
-        +'<button class="sc-del" data-i="'+i+'" style="background:none;border:none;color:#ef4444;font-size:16px;cursor:pointer;padding:0 2px">&#x1F5D1;</button>'
-        +'</div>'
-        +'<div style="font-size:13px;font-weight:800;color:#10b981;min-width:54px;text-align:right">KSh '+(it.price*it.qty)+'</div>'
-        +'</div>';
-    }).join('');
-  }
-
-  function cartTotal(){
-    return window._saleCart.reduce(function(s,it){return s+it.price*it.qty;},0);
-  }
-  function cartProfit(){
-    return window._saleCart.reduce(function(s,it){return s+(it.price-it.cost)*it.qty;},0);
-  }
-
-  function rebuildSh(){
-    var sc=window._saleCart;
-    var tot=cartTotal(); var prof=cartProfit(); var hasProfit=sc.some(function(x){return x.cost>0;});
-    document.getElementById('sc-rows').innerHTML=cartRows();
-    document.getElementById('sc-total').textContent='KSh '+tot.toLocaleString();
-    if(hasProfit){var pe=document.getElementById('sc-profit');if(pe){pe.textContent='Profit: KSh '+prof.toLocaleString();pe.style.display='';}}
-    
-    document.getElementById('sc-rows').querySelectorAll('.sc-m').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);sc[i].qty=Math.max(1,sc[i].qty-1);rebuildSh();});});
-    document.getElementById('sc-rows').querySelectorAll('.sc-p').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);sc[i].qty++;rebuildSh();});});
-    document.getElementById('sc-rows').querySelectorAll('.sc-del').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);sc.splice(i,1);rebuildSh();});});
-  }
-
-  showSh('<div class="hd"></div>'
-    +'<div style="font-size:18px;font-weight:800;margin-bottom:14px">&#x1F4B0; Record Sale</div>'
-
-    +'<div class="fld"><label>Add Item</label>'
-    +(stockItems.length?'<select id="rcp-sel">'+optsH+'</select>'
-      :'<input id="rcp-sel-c" type="text" placeholder="Item name (no stock loaded)">')
-    +'</div>'
-    +'<div id="custom-row" style="display:none">'
-    +'<div class="fld"><label>Item Name</label><input id="rcp-cust" type="text" placeholder="e.g. Mandazi" autocomplete="off"></div>'
-    +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px">'
-    +'<div class="fld" style="margin-bottom:0"><label>Price (KSh)</label><input id="rcp-price" type="number" placeholder="60"></div>'
-    +'<div class="fld" style="margin-bottom:0"><label>Cost (KSh)</label><input id="rcp-cost" type="number" placeholder="45"></div>'
-    +'<div class="fld" style="margin-bottom:0"><label>Qty</label><input id="rcp-qty" type="number" placeholder="1" value="1"></div>'
-    +'</div>'
-    +'<button id="add-item-btn" class="btn bg" style="margin-bottom:14px;padding:11px">+ Add to Sale</button>'
-
-    +'<div style="background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:12px;margin-bottom:12px">'
-    +'<div style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Items in this Sale</div>'
-    +'<div id="sc-rows">'+cartRows()+'</div>'
-    +'<div style="border-top:1px solid rgba(16,185,129,.15);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">'
-    +'<div><span style="font-size:13px;color:rgba(255,255,255,.4)">Total</span>'
-    +'<div id="sc-profit" style="font-size:11px;color:#4ade80;'+(cartProfit()>0?'':'display:none')+'">Profit: KSh '+cartProfit()+'</div></div>'
-    +'<span id="sc-total" style="font-size:22px;font-weight:800;color:#10b981">KSh '+cartTotal().toLocaleString()+'</span>'
-    +'</div></div>'
-
-    +'<div class="fld"><label>Customer Name</label><input id="rcc" type="text" placeholder="e.g. Mama Jane (optional)" autocomplete="off"></div>'
-    +'<div class="fld"><label>Customer Phone (for debt)</label><input id="rcph" type="tel" placeholder="07XX (optional)"></div>'
-    +'<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:1.5px">Payment</div>'
-    +'<div style="display:flex;gap:8px">'
-    +'<button id="ptc" class="btn bg" style="margin-top:0;font-size:12px;padding:10px;flex:1">Cash</button>'
-    +'<button id="ptm" class="btn bo" style="margin-top:0;font-size:12px;padding:10px;flex:1">M-Pesa</button>'
-    +'<button id="ptd" class="btn bo" style="margin-top:0;font-size:12px;padding:10px;flex:1;border-color:#ef4444;color:#ef4444">Debt</button>'
-    +'</div></div>'
-    +'<button id="ssb" class="btn ba">&#x1F4BE; Save Sale</button>'
-    +'<button id="csb" class="btn bo">Cancel</button>'
-  );
-
-  var selEl=document.getElementById('rcp-sel');
-  if(selEl){
-    selEl.addEventListener('change',function(){
-      var cRow=document.getElementById('custom-row');
-      if(this.value==='__custom'){
-        cRow.style.display='';
-        document.getElementById('rcp-price').value='';
-        document.getElementById('rcp-cost').value='';
-      } else if(this.value){
-        cRow.style.display='none';
-        var it=stockItems.filter(function(x){return x.id===this.value;}.bind(this))[0];
-        if(it){document.getElementById('rcp-price').value=it.selling_price||0;document.getElementById('rcp-cost').value=it.cost_price||0;}
-      } else {cRow.style.display='none';}
-    });
-  }
-
-  document.getElementById('add-item-btn').addEventListener('click',function(){
-    var sel=document.getElementById('rcp-sel');
-    var selVal=sel?sel.value:'__custom';
-    var name=''; var stockId=null; var emoji='';
-    if(selVal&&selVal!=='__custom'){
-      var it=stockItems.filter(function(x){return x.id===selVal;})[0];
-      if(it){name=it.name;stockId=it.id;emoji=it.emoji||'';}
-    } else {
-      var custInp=document.getElementById('rcp-cust')||document.getElementById('rcp-sel-c');
-      name=(custInp&&custInp.value||'').trim();
-    }
-    if(!name){toast(stockItems.length?'Select an item or choose "Other"':'Enter item name');return;}
-    var price=parseFloat((document.getElementById('rcp-price')&&document.getElementById('rcp-price').value)||0)||0;
-    var cost=parseFloat((document.getElementById('rcp-cost')&&document.getElementById('rcp-cost').value)||0)||0;
-    var qty=parseInt((document.getElementById('rcp-qty')&&document.getElementById('rcp-qty').value)||1)||1;
-    if(!price){toast('Enter selling price');return;}
-    
-    var existing=window._saleCart.filter(function(x){return x.stockId===stockId&&x.name===name;})[0];
-    if(existing){existing.qty+=qty;}
-    else{window._saleCart.push({name:name,emoji:emoji,price:price,cost:cost,qty:qty,stockId:stockId});}
-    
-    if(sel){sel.value='';document.getElementById('custom-row').style.display='none';}
-    document.getElementById('rcp-price').value='';
-    document.getElementById('rcp-cost').value='';
-    document.getElementById('rcp-qty').value='1';
-    toast('Added: '+name);
-    rebuildSh();
-  });
-
-  rebuildSh();
-
-  var pt='cash';
-  function setPT(t){
-    pt=t;var cols={cash:'#10b981',mpesa:'#3b82f6',debt:'#ef4444'};
-    [['ptc','cash'],['ptm','mpesa'],['ptd','debt']].forEach(function(x){
-      var el=document.getElementById(x[0]);if(!el)return;var a=x[1]===t;
-      el.style.borderColor=a?cols[t]:'rgba(255,255,255,.2)';
-      el.style.background=a?'rgba('+(t==='cash'?'16,185,129':t==='mpesa'?'59,130,246':'239,68,68')+',.15)':'transparent';
-      el.style.color=a?cols[t]:'rgba(255,255,255,.6)';
-    });
-  }
-  document.getElementById('ptc').addEventListener('click',function(){setPT('cash');});
-  document.getElementById('ptm').addEventListener('click',function(){setPT('mpesa');});
-  document.getElementById('ptd').addEventListener('click',function(){setPT('debt');});
-
-  document.getElementById('csb').addEventListener('click',function(){window._saleCart=[];hideSh();});
-
-  document.getElementById('ssb').addEventListener('click',function(){
-    if(!window._saleCart.length){toast('Add at least one item');return;}
-    var cust=(document.getElementById('rcc').value||'Walk-in').trim();
-    var phone=(document.getElementById('rcph').value||'').trim();
-    var tot=cartTotal(); var prof=cartProfit();
-    var btn=document.getElementById('ssb');
-    btn.textContent='Saving...';btn.disabled=true;
-
-    loadFB(function(db){
-      if(!db){toast('No connection');btn.textContent='Save Sale';btn.disabled=false;return;}
-      var batch=db.batch();
-      
-      window._saleCart.forEach(function(it){
-        var ref=db.collection('shops').doc(USER.phone).collection('sales').doc();
-        batch.set(ref,{
-          customer_name:cust,product_name:it.name,quantity:it.qty,
-          selling_price:it.price,cost:it.cost*it.qty,total:it.price*it.qty,
-          payment_type:pt,is_debt:pt==='debt',debt_paid:false,
-          customer_phone:phone,created_at:Date.now(),shop_phone:USER.phone,
-          stock_id:it.stockId||null,sale_group:Date.now()
-        });
-        
-        if(it.stockId){
-          var src=stockItems.filter(function(x){return x.id===it.stockId;})[0];
-          if(src){
-            var newQty=Math.max(0,(src.quantity||0)-it.qty);
-            var sRef=db.collection('shops').doc(USER.phone).collection('stock').doc(it.stockId);
-            batch.update(sRef,{quantity:newQty});
-          }
-        }
-      });
-      batch.commit().then(function(){
-        var summary=window._saleCart.length===1
-          ? window._saleCart[0].name+' KSh '+tot
-          : window._saleCart.length+' items, KSh '+tot;
-        toast(pt==='debt'?'Debt: KSh '+tot+' by '+cust:(summary+(prof>0?' · Profit: KSh '+prof:'')));
-        window._saleCart=[];
-        hideSh();window._sv='sales';showSSales();
-      }).catch(function(){toast('Error saving');btn.textContent='Save Sale';btn.disabled=false;});
-    });
-  });
-}
 function showSStock(){
   var el=document.getElementById('shc');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div>';
@@ -3105,7 +2838,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v36 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v38 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
