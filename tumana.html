@@ -148,6 +148,13 @@ body.light [style*="color:#10b981"]{color:#059669!important}
 body.light [style*="color:#ef4444"]{color:#dc2626!important}
 body.light [style*="color:#f59e0b"]{color:#d97706!important}
 body.light [style*="color:#8b5cf6"]{color:#7c3aed!important}
+body.light [style*="color:rgba(255,255,255,.4)"]{color:rgba(13,40,24,.55)!important}
+body.light [style*="color:rgba(255,255,255,.5)"]{color:rgba(13,40,24,.6)!important}
+body.light [style*="color:rgba(255,255,255,.35)"]{color:rgba(13,40,24,.45)!important}
+body.light .sboxt{color:rgba(13,40,24,.5)!important}
+body.light .sv{color:#0d2818!important}
+body.light [style*="font-weight:800;color:#fff"]{color:#0d2818!important}
+body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 
 </style>
 </head>
@@ -156,7 +163,7 @@ body.light [style*="color:#8b5cf6"]{color:#7c3aed!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v38 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v40 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -424,7 +431,7 @@ function navGo(r,t){
 
 var MSHOPS=[{id:'s1',name:'Mama Jane Grocery',category:'Grocery',distance_km:.5,rating:4.8,icon:'&#x1F6D2;',location:'Chemelil Center',delivery_enabled:true,verified:true},{id:'s2',name:'Chemelil Pharmacy',category:'Pharmacy',distance_km:.8,rating:4.9,icon:'&#x1F48A;',location:'Near Hospital',delivery_enabled:true,verified:true},{id:'s3',name:'Fresh Mboga',category:'Vegetables',distance_km:.3,rating:4.7,icon:'&#x1F96C;',location:'Market',delivery_enabled:true,verified:true}];
 var MPRODS={s1:[{id:'p1',name:'Maziwa 500ml',selling_price:60,emoji:'&#x1F95B;'},{id:'p2',name:'Mkate Brown',selling_price:55,emoji:'&#x1F35E;'}],s2:[{id:'p5',name:'Panadol',selling_price:50,emoji:'&#x1F48A;'}],s3:[{id:'p7',name:'Tomatoes 1kg',selling_price:80,emoji:'&#x1F345;'},{id:'p8',name:'Sukuma Wiki',selling_price:30,emoji:'&#x1F96C;'}]};
-var STEPS={shop:['placed','shop_accepted','confirmed','assigned','picked','delivered'],pickup:['confirmed','assigned','picked','delivered']};
+var STEPS={shop:['placed','shop_accepted','customer_paid','confirmed','assigned','picked','delivered'],pickup:['confirmed','assigned','picked','delivered']};
 var SLBL={placed:'Waiting',confirmed:'Confirmed',assigned:'Rider Assigned',picked:'Picked Up',delivered:'Delivered',rejected:'Rejected'};
 var SCLS={placed:'bpl',confirmed:'bco',assigned:'bas',picked:'bpi',delivered:'bde',rejected:'brj',
           
@@ -489,7 +496,8 @@ function renderAuth(){
     +(!isL&&isS?'<div class="fld"><label>Shop Name</label><input id="fs" type="text" placeholder="e.g. Mama Jane Grocery" autocomplete="off"></div>':'')+(!isL&&AR.id==='rider'?'<div class="fld"><label>Your M-Pesa Number <span style=\\"color:#ef4444\\">*</span></label><input id="rider-mpesa-reg" type="tel" placeholder="07XX — customers pay delivery fee here" autocomplete="off"></div><div style="font-size:11px;color:rgba(255,255,255,.4);margin:-8px 0 12px;line-height:1.6">&#x26A0; Required. You cannot go Online without this. Customers send you delivery payment directly to this number.</div>':'')
     +(isL?'<div class="fld"><label>Your PIN</label><input id="fpin" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
          :'<div class="fld"><label>Create 4-Digit PIN</label><input id="fpin" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
-         +'<div class="fld"><label>Confirm PIN</label><input id="fpin2" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>')
+         +'<div class="fld"><label>Confirm PIN</label><input id="fpin2" type="password" inputmode="numeric" maxlength="4" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
+         +'<div style="font-size:11px;color:rgba(255,255,255,.35);text-align:center;margin:-6px 0 8px">You will use this PIN every time you log in</div>')
     +'<button id="ab" class="btn '+btnC+'" style="margin-top:8px">'+(isL?'Login &#x2192;':'Create Account &#x2192;')+'</button>'
     +'<div class="dv">or</div>'
     +'<button id="tg" class="btn bo">'+(isL?'Create new account':'Already registered? Login')+'</button>'
@@ -1076,7 +1084,8 @@ function showOrds(){
           +'<button class="cust-pay-btn btn bg" data-id="'+o.id+'" style="margin-top:0;font-size:14px;padding:13px">&#x1F4F1; Confirm Payment</button>'
           +'</div>';
       }
-      else if(o.status==='confirmed')statusMsg='<div style="font-size:12px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#8b5cf6">&#x1F50D; Payment confirmed! Looking for a rider...</div>';
+      else if(o.status==='customer_paid')statusMsg='<div style="font-size:12px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#f59e0b">&#x23F3; Payment submitted! Waiting for shop to verify and confirm...</div>';
+      else if(o.status==='confirmed')statusMsg='<div style="font-size:12px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#8b5cf6">&#x1F50D; Confirmed! Looking for a rider near you...</div>';
       else if(o.status==='assigned')statusMsg='<div style="font-size:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#10b981">&#x1F6F5; Rider is on the way to pick up your order!</div>';
       else if(o.status==='picked')statusMsg='<div style="font-size:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;color:#10b981">&#x1F4E6; Order picked up — coming to you now!</div>';
       h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:9px"><div><div style="font-weight:700;font-size:14px">'+(o.type==='pickup'?'&#x1F6F5; Pickup':'&#x1F6D2; Order')+' #'+o.id.slice(-6).toUpperCase()+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(o.shopName||o.pickup_from||'')+'</div></div><span class="badge '+(SCLS[o.status]||'bpl')+'">'+(SLBL[o.status]||o.status)+'</span></div>'+statusMsg+'<div style="margin:10px 0 8px">'+tH+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:5px">'+desc+'</div><div style="font-weight:700;color:#10b981">KSh '+o.total+'</div>'+(o.rider_name?'<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:9px;margin-top:7px">'
@@ -1103,11 +1112,11 @@ function showOrds(){
         loadFB(function(db){
           if(!db){b.textContent='Submit M-Pesa Payment';b.disabled=false;toast('No connection');return;}
           db.collection('delivery_orders').doc(oid).update({
-            status:'confirmed',
+            status:'customer_paid',
             customer_mpesa_code:code,
             customer_paid_at:Date.now()
           }).then(function(){
-            toast('Payment confirmed! Looking for a rider now...');
+            toast('Payment submitted! Shop will confirm and release your order shortly.');
           }).catch(function(){
             b.textContent='Submit M-Pesa Payment';b.disabled=false;
             toast('Error — check connection and try again');
@@ -1263,10 +1272,23 @@ function showSOrd(){
       h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">Customer is paying M-Pesa. Order confirms automatically.</div>';
       h+='<div style="font-size:12px;color:#10b981;margin-top:6px;font-weight:700">Your till: '+(USER.mpesa_till||USER.phone)+'</div>';
       h+='</div>';
+    } else if(o.status==='customer_paid'){
+      h+='<div style="background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.35);border-radius:10px;padding:13px;margin-bottom:8px">';
+      h+='<div style="font-size:11px;font-weight:800;color:#f59e0b;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">&#x1F4B3; Customer Payment Received</div>';
+      h+='<div style="background:#1a1a22;border-radius:8px;padding:10px;margin-bottom:10px">';
+      h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:rgba(255,255,255,.4)">Amount paid</span><span style="font-weight:800;color:#10b981;font-size:16px">KSh '+(o.subtotal||0)+'</span></div>';
+      h+='<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:rgba(255,255,255,.4)">M-Pesa code</span><span style="font-weight:800;color:#fff;font-size:14px;letter-spacing:1px">'+(o.customer_mpesa_code||'—')+'</span></div>';
+      h+='<div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:6px">Verify this code in your M-Pesa messages before confirming.</div>';
+      h+='</div>';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
+      h+='<button class="rb btn br" data-id="'+o.id+'" style="margin-top:0;font-size:12px;padding:11px">&#x274C; Reject</button>';
+      h+='<button class="final-confirm btn bg" data-id="'+o.id+'" style="margin-top:0;font-size:12px;padding:11px;font-weight:800">&#x2705; Confirm & Release</button>';
+      h+='</div>';
+      h+='</div>';
     } else if(o.status==='confirmed'){
       h+='<div style="background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:10px;padding:11px">';
-      h+='<div style="font-size:11px;font-weight:800;color:#10b981;margin-bottom:4px">&#x2705; Payment Received — Prepare Order</div>';
-      h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">Customer paid. A rider will arrive to pick up soon.</div>';
+      h+='<div style="font-size:11px;font-weight:800;color:#10b981;margin-bottom:4px">&#x2705; Confirmed — Rider Being Assigned</div>';
+      h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">Prepare the order. Rider will arrive soon.</div>';
       h+='</div>';
     }
     if(o.rider_name){h+='<div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.14);border-radius:8px;padding:9px;font-size:12px;color:#8b5cf6;margin-top:6px">&#x1F6F5; Rider: '+o.rider_name+' · '+o.rider_phone+'</div>';}
@@ -1284,7 +1306,19 @@ function showSOrd(){
     });
   });
 
-  // Reject whole order
+  // Final confirm (shop sees M-Pesa code → releases to riders)
+  el.querySelectorAll('.final-confirm').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var id=this.getAttribute('data-id');
+      var b=this;b.textContent='Confirming...';b.disabled=true;
+      dbUpd('delivery_orders',id,{status:'confirmed',shop_final_confirmed_at:Date.now()},function(ok){
+        if(ok){toast('Order confirmed! Riders will be notified now.');}
+        else{b.textContent='Confirm & Release';b.disabled=false;toast('Error — try again');}
+      });
+    });
+  });
+
+  // Reject
   el.querySelectorAll('.rb').forEach(function(btn){
     btn.addEventListener('click',function(){
       if(!confirm('Reject this order?'))return;
@@ -2057,18 +2091,18 @@ function showAOv(){
         +statBox('shops','#f59e0b',actS,'Active Shops','18px')
         +statBox('riders-all','#10b981',r[2].docs.length,'All Riders','18px')
         +'</div>'
-        +'<div class="sbox"><div class="sboxt">Revenue</div>'
-        +'<div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform Revenue</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div>'
-        +'<div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Rider Payouts</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div>'
+        +'<div class="sbox" style="background:var(--card-bg,#111116);border:1.5px solid var(--card-bd,rgba(255,255,255,.07))"><div class="sboxt">Revenue</div>'
+        +'<div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:var(--tc,rgba(255,255,255,.4));font-size:13px">Platform Revenue</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:var(--tc,rgba(255,255,255,.4));font-size:13px">Rider Payouts</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div>'
         +'</div>'
         +(USER&&(USER.is_master===true||USER.is_master==='true')?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">Add trusted sub-admins below.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button><button id="rst-req-btn" class="btn bo" style="margin-top:6px">PIN Reset Requests</button></div>':'')
         +'<div id="fee-config-box" class="sbox" style="cursor:pointer;border-color:rgba(245,158,11,.3);margin-top:12px">'
         +'<div class="sboxt" style="color:#f59e0b">&#x2699;&#xFE0F; Platform Settings (tap to edit)</div>'
         +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">'
-        +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Base fee: <strong style="color:#fff">KSh '+(window._ADMIN_BASE_FEE||50)+'</strong></div>'
-        +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Per km: <strong style="color:#fff">KSh '+(window._ADMIN_PER_KM||20)+'</strong></div>'
-        +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Till/Phone: <strong style="color:#10b981">'+(window._ADMIN_TILL||MP)+'</strong></div>'
-        +'<div style="font-size:12px;color:rgba(255,255,255,.4)">Tap to change &#x270F;</div>'
+        +'<div class="sboxt" style="text-transform:none;letter-spacing:0;font-size:12px">Base fee: <strong style="color:#10b981">KSh '+(window._ADMIN_BASE_FEE||50)+'</strong></div>'
+        +'<div class="sboxt" style="text-transform:none;letter-spacing:0;font-size:12px">Per km: <strong style="color:#10b981">KSh '+(window._ADMIN_PER_KM||20)+'</strong></div>'
+        +'<div class="sboxt" style="text-transform:none;letter-spacing:0;font-size:12px">Till: <strong style="color:#10b981">'+(window._ADMIN_TILL||MP)+'</strong></div>'
+        +'<div class="sboxt" style="text-transform:none;letter-spacing:0;font-size:12px">Tap to change &#x270F;</div>'
         +'</div></div>'
         +'<button id="aout" class="btn bo">Logout</button>';
 
@@ -2838,7 +2872,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v38 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v40 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
