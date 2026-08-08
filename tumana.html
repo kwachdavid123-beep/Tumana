@@ -163,7 +163,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v40 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v43 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -689,7 +689,21 @@ function startApp(){
 
 function startCust(){
   SHOPS=MSHOPS;
-  loadFB(function(db){if(!db)return;db.collection('shops').where('delivery_enabled','==',true).get().then(function(s){var ok=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(sh){return sh.verified!==false;});if(ok.length)SHOPS=ok;}).catch(function(){});});
+  loadFB(function(db){if(!db)return;
+    // Load ALL verified shops with subscription paid — both open and closed
+    // Open shops shown first, closed shown greyed with badge
+    db.collection('shops').where('verified','==',true).get().then(function(s){
+      var ok=s.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+        .filter(function(sh){return sh.subscription_paid!==false;});
+      // Sort: open (delivery_enabled=true) first, then closed
+      ok.sort(function(a,b){
+        var ao=a.delivery_enabled===true?1:0;
+        var bo=b.delivery_enabled===true?1:0;
+        return bo-ao;
+      });
+      if(ok.length)SHOPS=ok;
+    }).catch(function(){});
+  });
   showHome();
 }
 function showHome(){
@@ -700,9 +714,16 @@ function showHome(){
   var shH='';
   shops.forEach(function(s){
     var isFav=favIds.indexOf(s.id)>=0;
-    shH+='<div class="card"><div class="sg" data-id="'+s.id+'" style="display:flex;gap:10px;align-items:center;cursor:pointer">'
-      +'<div style="width:50px;height:50px;border-radius:11px;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+s.icon+'</div>'
-      +'<div style="flex:1"><div style="font-size:15px;font-weight:700;margin-bottom:2px">'+s.name+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+s.category+' · '+s.location+'</div></div>'
+    var isOpen=s.delivery_enabled===true;
+    var iconHtml=s.icon_photo
+      ?'<img src="'+s.icon_photo+'" style="width:50px;height:50px;border-radius:11px;object-fit:cover;flex-shrink:0">'
+      :'<div style="width:50px;height:50px;border-radius:11px;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+s.icon+'</div>';
+    shH+='<div class="card" style="'+(isOpen?'':'opacity:.55;')+'">'
+      +'<div class="sg" data-id="'+s.id+'" style="display:flex;gap:10px;align-items:center;cursor:pointer'+(isOpen?'':';pointer-events:'+(s.delivery_enabled===false?'none':'auto'))+'">'
+      +iconHtml
+      +'<div style="flex:1"><div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="font-size:15px;font-weight:700">'+s.name+'</div>'
+      +(isOpen?'<span style="font-size:9px;font-weight:800;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:4px;padding:2px 6px;text-transform:uppercase;letter-spacing:.5px">Open</span>':'<span style="font-size:9px;font-weight:800;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25);border-radius:4px;padding:2px 6px;text-transform:uppercase;letter-spacing:.5px">Closed</span>')
+      +'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+s.category+' · '+s.location+'</div></div>'
       +'<button class="fb" data-id="'+s.id+'" style="background:none;border:none;font-size:20px;cursor:pointer;color:'+(isFav?'#fbbf24':'rgba(255,255,255,.2)')+'">'+( isFav?'&#x2605;':'&#x2606;')+'</button>'
       +'</div>'
       +'<div style="display:flex;gap:5px;margin-top:8px">'
@@ -796,8 +817,11 @@ function renderProds(prods){
     h+='<div style="background:#111116;border:1.5px solid rgba(255,255,255,.07);border-radius:14px;margin-bottom:10px;overflow:hidden">';
     if(p.photo){h+='<div style="width:100%;height:180px;overflow:hidden"><img src="'+p.photo+'" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>';}
     h+='<div style="padding:12px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px"><div style="font-size:15px;font-weight:800;color:#fff">'+(p.photo?'':((p.emoji||'&#x1F4E6;')+' '))+p.name+'</div><div style="font-size:17px;font-weight:800;color:#10b981;white-space:nowrap;margin-left:8px">KSh '+p.selling_price+'</div></div>';
-    if(p.description){h+='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px;line-height:1.5">'+p.description+'</div>';}
-    if(qty>0){h+='<div class="qrow" style="margin-bottom:0"><button class="qb cm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);width:36px;height:36px" data-id="'+p.id+'" data-n="'+p.name+'" data-p="'+p.selling_price+'">&#x2212;</button><span style="font-weight:800;font-size:16px;min-width:28px;text-align:center">'+qty+'</span><button class="qb cp" style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.2);width:36px;height:36px" data-id="'+p.id+'" data-n="'+p.name+'" data-p="'+p.selling_price+'">+</button><span style="flex:1"></span><span style="font-size:13px;font-weight:700;color:#10b981">KSh '+(p.selling_price*qty)+'</span></div>';}
+    if(p.description){h+='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:6px;line-height:1.5">'+p.description+'</div>';}
+    if(p.bulk_qty&&p.bulk_price){h+='<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;padding:5px 10px;margin-bottom:8px;font-size:11px;font-weight:700;color:#f59e0b">&#x1F4B0; '+p.bulk_qty+' for KSh '+p.bulk_price+'</div>';}
+    var totP=(p.bulk_qty&&p.bulk_price&&qty>=p.bulk_qty)?Math.floor(qty/p.bulk_qty)*p.bulk_price+(qty%p.bulk_qty)*p.selling_price:p.selling_price*qty;
+    var isBulk=!!(p.bulk_qty&&p.bulk_price&&qty>=p.bulk_qty);
+    if(qty>0){h+='<div class="qrow" style="margin-bottom:0'+(isBulk?';background:rgba(245,158,11,.06)':'')+'"><button class="qb cm" data-bq="'+(p.bulk_qty||0)+'" data-bp="'+(p.bulk_price||0)+'" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);width:36px;height:36px" data-id="'+p.id+'" data-n="'+p.name+'" data-p="'+p.selling_price+'">&#x2212;</button><span style="font-weight:800;font-size:16px;min-width:28px;text-align:center">'+qty+'</span><button class="qb cp" data-bq="'+(p.bulk_qty||0)+'" data-bp="'+(p.bulk_price||0)+'" style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.2);width:36px;height:36px" data-id="'+p.id+'" data-n="'+p.name+'" data-p="'+p.selling_price+'">+</button><span style="flex:1"></span><div style="text-align:right">'+(isBulk?'<div style="font-size:9px;color:#f59e0b;font-weight:700">BULK</div>':'')+'<span style="font-size:13px;font-weight:800;color:'+(isBulk?'#f59e0b':'#10b981')+'">KSh '+totP+'</span></div></div>';}
     else{h+='<button class="addb ca" data-id="'+p.id+'" data-n="'+p.name+'" data-p="'+p.selling_price+'" style="font-size:13px;padding:9px">+ Add to Cart</button>';}
     h+='</div></div>';
   });
@@ -1182,6 +1206,8 @@ function startShop(){
   dbGet('shops',USER.phone,function(shop){
     if(shop){
       SDON=shop.delivery_enabled||false;
+      window._shopType=shop.shop_type||'goods';
+      window._shopDoc=shop;
       if(shop.verified===true&&shop.verify_notified===false){
         loadFB(function(db){if(db)db.collection('shops').doc(USER.phone).update({verify_notified:true}).catch(function(){});});
         setTimeout(function(){
@@ -1206,11 +1232,176 @@ function showCreateShop(){
     if(!name){toast('Enter shop name');return;}if(!loc){toast('Enter your location');return;}
     var locDesc=(document.getElementById('csld')&&document.getElementById('csld').value||'').trim();
     var cstill=(document.getElementById('cs-till')&&document.getElementById('cs-till').value||'').trim()||phone;
-    dbSet('shops',USER.phone,{name:name,category:cat,location:loc,location_desc:locDesc,icon:'&#x1F3EA;',owner_phone:USER.phone,owner_name:USER.name,delivery_enabled:false,distance_km:.5,rating:5.0,mpesa_till:cstill});
+    var shopType=(document.getElementById('fs-type')&&document.getElementById('fs-type').value)||'goods';
+    dbSet('shops',USER.phone,{name:name,category:cat,location:loc,location_desc:locDesc,icon:shopType==='service'?'&#x2702;':'&#x1F3EA;',shop_type:shopType,owner_phone:USER.phone,owner_name:USER.name,delivery_enabled:false,distance_km:.5,rating:5.0,mpesa_till:cstill});
     USER.shopName=name;su();toast('Shop created!');SDON=false;renderShopDash();
   });
 }
+function showSvcBookings(){
+  var el=document.getElementById('svc-body');if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div>';
+  loadFB(function(db){
+    if(!db){el.innerHTML='<div style="padding:20px;color:rgba(255,255,255,.4)">Connect to see bookings</div>';return;}
+    db.collection('bookings').where('shop_phone','==',USER.phone).where('status','in',['pending','confirmed']).limit(50).get()
+      .then(function(snap){
+        var bks=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).sort(function(a,b){return(a.booking_ts||0)-(b.booking_ts||0);});
+        if(!bks.length){el.innerHTML=empty('&#x1F4CB;','No bookings yet','Customers will book here');return;}
+        var h='';
+        bks.forEach(function(b){
+          var ip=b.status==='pending';
+          h+='<div class="card" style="border-left:3px solid '+(ip?'#f59e0b':'#10b981')+';margin-bottom:10px">';
+          h+='<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div>';
+          h+='<div style="font-weight:800;font-size:14px">'+(b.service_name||'Service')+'</div>';
+          h+='<div style="font-size:12px;color:rgba(255,255,255,.5)">'+(b.customer_name||b.customer_phone)+'</div>';
+          h+='<div style="font-size:12px;color:rgba(255,255,255,.5)">&#x1F4DE; '+(b.customer_phone||'')+'</div>';
+          h+='<div style="font-size:13px;color:#10b981;font-weight:700">&#x1F4C5; '+(b.booking_date||'')+' &#x23F0; '+(b.booking_time||'')+'</div>';
+          h+='<div style="font-size:14px;font-weight:800">KSh '+(b.price||0)+'</div></div>';
+          h+='<span class="badge '+(ip?'bpl':'bco')+'">'+(ip?'Pending':'Confirmed')+'</span></div>';
+          if(ip){h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button class="bkn btn br" data-id="'+b.id+'" style="margin-top:0;font-size:12px;padding:10px">&#x274C; Decline</button><button class="bky btn bg" data-id="'+b.id+'" style="margin-top:0;font-size:12px;padding:10px">&#x2705; Confirm</button></div>';}
+          else{h+='<button class="bkd btn ba" data-id="'+b.id+'" style="font-size:12px;padding:10px">&#x2714; Mark Completed</button>';}
+          h+='</div>';
+        });
+        el.innerHTML=h;
+        el.querySelectorAll('.bky').forEach(function(btn){btn.addEventListener('click',function(){dbUpd('bookings',this.getAttribute('data-id'),{status:'confirmed'},function(){toast('Confirmed!');showSvcBookings();});});});
+        el.querySelectorAll('.bkn').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Decline?'))return;dbUpd('bookings',this.getAttribute('data-id'),{status:'cancelled'},function(){toast('Declined');showSvcBookings();});});});
+        el.querySelectorAll('.bkd').forEach(function(btn){btn.addEventListener('click',function(){dbUpd('bookings',this.getAttribute('data-id'),{status:'completed',completed_at:Date.now()},function(){toast('Completed!');showSvcBookings();});});});
+      }).catch(function(){el.innerHTML='<div style="padding:20px;color:rgba(255,255,255,.4)">Error loading</div>';});
+  });
+}
+function showSvcServices(){
+  var el=document.getElementById('svc-body');if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div>';
+  loadFB(function(db){
+    if(!db)return;
+    db.collection('shops').doc(USER.phone).collection('services').get().then(function(snap){
+      var svcs=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      var h='<button id="add-svc-btn" class="btn bg" style="margin-bottom:14px">+ Add Service</button>';
+      if(!svcs.length)h+='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4)">No services yet.</div>';
+      svcs.forEach(function(s){
+        h+='<div class="card" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center">';
+        h+='<div><div style="font-weight:800">'+s.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(s.duration||30)+' min'+(s.description?' · '+s.description:'')+'</div></div>';
+        h+='<div style="text-align:right"><div style="font-weight:800;color:#8b5cf6">KSh '+s.price+'</div><button class="del-svc btn br" data-id="'+s.id+'" style="margin-top:4px;font-size:10px;padding:4px 8px">Del</button></div></div></div>';
+      });
+      el.innerHTML=h;
+      document.getElementById('add-svc-btn').addEventListener('click',function(){
+        showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:14px">Add Service</div>'
+          +'<div class="fld"><label>Service Name</label><input id="svn" type="text" placeholder="e.g. Haircut, Shave" autocomplete="off"></div>'
+          +'<div class="fld"><label>Description (optional)</label><input id="svd" type="text" placeholder="e.g. Classic cut + wash" autocomplete="off"></div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+          +'<div class="fld" style="margin-bottom:0"><label>Price (KSh)</label><input id="svp" type="number" placeholder="200"></div>'
+          +'<div class="fld" style="margin-bottom:0"><label>Duration (min)</label><input id="svt" type="number" placeholder="30"></div></div>'
+          +'<button id="sv-save" class="btn bg">Save Service</button>'
+          +'<button class="btn bo" style="margin-top:6px" onclick="hideSh()">Cancel</button>');
+        document.getElementById('sv-save').addEventListener('click',function(){
+          var n=(document.getElementById('svn').value||'').trim();
+          var p=parseFloat(document.getElementById('svp').value)||0;
+          var t=parseInt(document.getElementById('svt').value)||30;
+          var d=(document.getElementById('svd').value||'').trim();
+          if(!n||!p){toast('Enter name and price');return;}
+          var btn=this;btn.textContent='Saving...';btn.disabled=true;
+          loadFB(function(db){
+            db.collection('shops').doc(USER.phone).collection('services').add({name:n,price:p,duration:t,description:d,created_at:Date.now()})
+              .then(function(){hideSh();toast('Added!');showSvcServices();})
+              .catch(function(){btn.textContent='Save Service';btn.disabled=false;toast('Error');});
+          });
+        });
+      });
+      el.querySelectorAll('.del-svc').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('Delete this service?'))return;var id=this.getAttribute('data-id');loadFB(function(db){db.collection('shops').doc(USER.phone).collection('services').doc(id).delete().then(function(){toast('Deleted');showSvcServices();}).catch(function(){toast('Error');});});});});
+    });
+  });
+}
+function showSvcSettings(){
+  var el=document.getElementById('svc-body');if(!el)return;
+  var shop=window._shopDoc||{};
+  el.innerHTML='<div class="sbox"><div class="sboxt">&#x1F4F1; M-Pesa Number</div>'
+    +'<div class="fld"><label>Customers pay here after service</label><input id="vt" type="tel" value="'+(shop.mpesa_till||USER.phone)+'" placeholder="07XX"></div>'
+    +'<button id="sv-till" class="btn bg" style="margin-top:0">Save</button></div>'
+    +'<div class="sbox"><div class="sboxt">Working Hours</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    +'<div class="fld"><label>Open</label><input id="vop" type="time" value="'+(shop.open_time||'08:00')+'"></div>'
+    +'<div class="fld"><label>Close</label><input id="vcl" type="time" value="'+(shop.close_time||'18:00')+'"></div></div>'
+    +'<button id="sv-hrs" class="btn ba" style="margin-top:4px">Save Hours</button></div>'
+    +'<button id="sv-out" class="btn br" style="margin-top:8px">Logout</button>';
+  document.getElementById('sv-till').addEventListener('click',function(){var t=(document.getElementById('vt').value||'').trim();if(t)loadFB(function(db){db.collection('shops').doc(USER.phone).set({mpesa_till:t},{merge:true}).then(function(){toast('Saved!');}).catch(function(){toast('Error');});});});
+  document.getElementById('sv-hrs').addEventListener('click',function(){var o=document.getElementById('vop').value;var cl=document.getElementById('vcl').value;loadFB(function(db){db.collection('shops').doc(USER.phone).set({open_time:o,close_time:cl},{merge:true}).then(function(){toast('Hours saved!');}).catch(function(){toast('Error');});});});
+  document.getElementById('sv-out').addEventListener('click',function(){if(confirm('Logout?'))logout();});
+}
+function showServiceShopDetail(shop){
+  var pg_el=document.getElementById('pg');if(!pg_el)return;
+  pg_el.innerHTML='<div style="padding:14px 18px 0;display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+    +'<button onclick="showHome()" style="background:none;border:none;font-size:22px;cursor:pointer;color:rgba(255,255,255,.6)">&#x2190;</button>'
+    +'<div style="flex:1"><div style="font-size:18px;font-weight:800">'+shop.name+'</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4)">&#x2702; '+shop.category+' · '+shop.location+'</div></div></div>'
+    +'<div id="svc-cust-body" style="padding:0 18px 100px"></div>';
+  var body=document.getElementById('svc-cust-body');
+  body.innerHTML='<div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div>';
+  loadFB(function(db){
+    if(!db){body.innerHTML='<div style="padding:20px;color:rgba(255,255,255,.4)">Connect to view services</div>';return;}
+    db.collection('shops').doc(shop.id||shop.owner_phone).collection('services').get().then(function(snap){
+      var svcs=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      if(!svcs.length){body.innerHTML='<div style="text-align:center;padding:30px;color:rgba(255,255,255,.4)">No services listed yet</div>';return;}
+      var selSvc=null;
+      var h='<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Select a Service</div>';
+      svcs.forEach(function(s,i){
+        h+='<div class="svc-sel card" data-i="'+i+'" style="margin-bottom:8px;cursor:pointer">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center">'
+          +'<div><div style="font-weight:800">'+s.name+'</div>'
+          +'<div style="font-size:12px;color:rgba(255,255,255,.4)">'+(s.duration||30)+' min'+(s.description?' · '+s.description:'')+'</div></div>'
+          +'<div style="font-weight:800;color:#8b5cf6;font-size:16px">KSh '+s.price+'</div></div></div>';
+      });
+      h+='<div id="bk-form" style="display:none;background:rgba(139,92,246,.06);border:1.5px solid rgba(139,92,246,.25);border-radius:14px;padding:14px;margin-top:10px">'
+        +'<div id="bk-lbl" style="font-size:14px;font-weight:800;color:#8b5cf6;margin-bottom:12px"></div>'
+        +'<div class="fld"><label>Date</label><input id="bk-date" type="date" min="'+new Date().toISOString().slice(0,10)+'"></div>'
+        +'<div class="fld"><label>Time</label><input id="bk-time" type="time" value="'+(shop.open_time||'09:00')+'"></div>'
+        +'<div class="fld"><label>Your Name</label><input id="bk-name" type="text" value="'+(USER.name||'')+'"></div>'
+        +'<div class="fld"><label>Notes (optional)</label><input id="bk-note" type="text" placeholder="Any preferences..." autocomplete="off"></div>'
+        +'<button id="bk-submit" class="btn bp" style="font-size:15px;padding:15px">&#x1F4C5; Book Appointment</button></div>';
+      body.innerHTML=h;
+      body.querySelectorAll('.svc-sel').forEach(function(card,i){
+        card.addEventListener('click',function(){
+          body.querySelectorAll('.svc-sel').forEach(function(c){c.style.borderColor='';c.style.background='';});
+          this.style.borderColor='#8b5cf6';this.style.background='rgba(139,92,246,.08)';
+          selSvc=svcs[i];
+          var f=document.getElementById('bk-form');var l=document.getElementById('bk-lbl');
+          if(f)f.style.display='block';
+          if(l)l.textContent='Booking: '+selSvc.name+' — KSh '+selSvc.price;
+        });
+      });
+      document.getElementById('bk-submit').addEventListener('click',function(){
+        if(!selSvc){toast('Select a service first');return;}
+        var date=document.getElementById('bk-date').value;
+        var time=document.getElementById('bk-time').value;
+        var name=(document.getElementById('bk-name').value||'').trim()||USER.name;
+        var note=(document.getElementById('bk-note').value||'').trim();
+        if(!date){toast('Pick a date');return;}
+        if(!time){toast('Pick a time');return;}
+        if(new Date(date+'T'+time).getTime()<Date.now()){toast('Pick a future time');return;}
+        var btn=this;btn.textContent='Booking...';btn.disabled=true;
+        loadFB(function(db){
+          db.collection('bookings').add({
+            shop_phone:shop.owner_phone||shop.id,shop_name:shop.name,
+            customer_phone:USER.phone,customer_name:name,
+            service_id:selSvc.id,service_name:selSvc.name,
+            price:selSvc.price,duration:selSvc.duration||30,
+            booking_date:date,booking_time:time,
+            booking_ts:new Date(date+'T'+time).getTime(),
+            notes:note,status:'pending',created_at:Date.now()
+          }).then(function(){
+            toast('Booking sent! Shop will confirm.');
+            btn.textContent='Booked!';
+            document.getElementById('bk-form').style.display='none';
+          }).catch(function(){btn.textContent='Book Appointment';btn.disabled=false;toast('Error');});
+        });
+      });
+    });
+  });
+}
+
 function renderShopDash(){
+  // Service shops get a completely different dashboard
+  if(window._shopType==='service'||(window._shopDoc&&window._shopDoc.shop_type==='service')){
+    return renderServiceShopDash();
+  }
   setNav('shop','orders');
   var sn=USER.shopName||USER.name;
   pg().innerHTML='<div class="hero-dark" style="background:linear-gradient(180deg,#1a1200,#08080c);padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:17px;font-weight:700">'+sn+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+USER.phone+'</div></div><button id="shout" style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:inherit">Out</button></div><div style="display:flex;justify-content:space-between;align-items:center;background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.12);border-radius:10px;padding:10px 12px"><div><div style="font-weight:700;font-size:13px;color:'+(SDON?'#10b981':'rgba(255,255,255,.4)')+'">'+( SDON?'&#x1F7E2; Accepting Orders':'&#x1F534; Delivery Off')+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">'+(SDON?'Customers can see your shop':'Toggle to receive orders')+'</div></div><div id="dtog" class="tog'+(SDON?' on':'')+'"><div class="togth"></div></div></div></div><div class="stabs"><div class="stab on" data-st="orders">&#x1F4CB; Orders</div><div class="stab" data-st="sales">&#x1F4B0; Sales</div><div class="stab" data-st="stock">&#x1F4E6; Stock</div><div class="stab" data-st="insights">&#x1F4CA; Biz</div><div class="stab" data-st="settings">&#x2699;</div></div>v></div><div id="shc" style="overflow-y:auto;padding:10px 18px 100px"></div>';
@@ -1417,6 +1608,295 @@ function showItemAcceptModal(order){
 }
 
 
+function showSSales(){
+  var el=document.getElementById('shc');if(!el)return;
+  // Sub-tabs: Record | Debts | History
+  var sST=window._sST||'record';
+  el.innerHTML='<div class="stabs" style="margin-bottom:10px">'
+    +'<div class="stab'+(sST==='record'?' on':'')+'" id="ss-rec">&#x2795; Record</div>'
+    +'<div class="stab'+(sST==='debts'?' on':'')+'" id="ss-dbt">&#x1F4B8; Debts</div>'
+    +'<div class="stab'+(sST==='history'?' on':'')+'" id="ss-hist">&#x1F4C5; History</div>'
+    +'</div>'
+    +'<div id="ss-body"></div>';
+  el.querySelector('#ss-rec').addEventListener('click',function(){window._sST='record';showSSalesBody();this.className='stab on';el.querySelector('#ss-dbt').className='stab';el.querySelector('#ss-hist').className='stab';});
+  el.querySelector('#ss-dbt').addEventListener('click',function(){window._sST='debts';showSSalesBody();this.className='stab on';el.querySelector('#ss-rec').className='stab';el.querySelector('#ss-hist').className='stab';});
+  el.querySelector('#ss-hist').addEventListener('click',function(){window._sST='history';showSSalesBody();this.className='stab on';el.querySelector('#ss-rec').className='stab';el.querySelector('#ss-dbt').className='stab';});
+  showSSalesBody();
+}
+
+// ── Offline queue for sales ────────────────────────────────────────────
+// Sales are always written to localStorage first, then synced to Firestore
+// This means recording works 100% offline. On reconnect, queue auto-syncs.
+function getLocalSales(){try{return JSON.parse(localStorage.getItem('tumana_sales_'+USER.phone)||'[]');}catch(e){return[];}}
+function saveLocalSale(sale){
+  var arr=getLocalSales();
+  sale.id=sale.id||('ls'+Date.now());
+  sale.synced=false;
+  arr.unshift(sale);
+  if(arr.length>500)arr=arr.slice(0,500);
+  localStorage.setItem('tumana_sales_'+USER.phone,JSON.stringify(arr));
+  return sale;
+}
+function markSaleSynced(localId){
+  var arr=getLocalSales();
+  arr.forEach(function(s){if(s.id===localId)s.synced=true;});
+  localStorage.setItem('tumana_sales_'+USER.phone,JSON.stringify(arr));
+}
+function syncLocalSales(){
+  var arr=getLocalSales();
+  var unsynced=arr.filter(function(s){return !s.synced;});
+  if(!unsynced.length)return;
+  loadFB(function(db){
+    if(!db)return;
+    unsynced.forEach(function(s){
+      db.collection('shops').doc(USER.phone).collection('sales').add(s)
+        .then(function(){markSaleSynced(s.id);})
+        .catch(function(){});
+    });
+  });
+}
+
+function showSSalesBody(){
+  var el=document.getElementById('ss-body');if(!el)return;
+  var sST=window._sST||'record';
+  if(sST==='record')showSRecordSale(el);
+  else if(sST==='debts')showSDebts(el);
+  else showSHistory(el);
+}
+
+function showSRecordSale(el){
+  // Load stock for item picker
+  loadFB(function(db){
+    var stock=[];
+    var loadStock=function(cb){
+      if(!db){cb([]);return;}
+      db.collection('shops').doc(USER.phone).collection('stock').where('quantity','>',0).get()
+        .then(function(snap){cb(snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}));})
+        .catch(function(){cb([]);});
+    };
+    loadStock(function(items){
+      var cart=[];
+      function renderCart(){
+        var cartEl=document.getElementById('sale-cart');if(!cartEl)return;
+        if(!cart.length){cartEl.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,.35);text-align:center;padding:12px">No items added yet. Tap items above.</div>';return;}
+        var total=cart.reduce(function(s,i){return s+(i.price*i.qty);},0);
+        var cost=cart.reduce(function(s,i){return s+(i.cost*i.qty);},0);
+        var h='';
+        cart.forEach(function(ci,i){
+          h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">';
+          h+='<div style="flex:1"><div style="font-size:13px;font-weight:700">'+ci.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">KSh '+ci.price+' each</div></div>';
+          h+='<div style="display:flex;align-items:center;gap:6px">';
+          h+='<button class="qb sc-rm" data-i="'+i+'" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);width:28px;height:28px">&#x2212;</button>';
+          h+='<span style="font-weight:800;min-width:20px;text-align:center">'+ci.qty+'</span>';
+          h+='<button class="qb sc-add" data-i="'+i+'" style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.2);width:28px;height:28px">+</button>';
+          h+='<span style="font-weight:800;color:#10b981;min-width:50px;text-align:right">KSh '+(ci.price*ci.qty)+'</span>';
+          h+='</div></div>';
+        });
+        h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-top:4px">';
+        h+='<div><div style="font-size:11px;color:rgba(255,255,255,.4)">Profit: <span style="color:#4ade80;font-weight:700">KSh '+(total-cost)+'</span></div></div>';
+        h+='<div style="font-size:18px;font-weight:800;color:#10b981">KSh '+total+'</div>';
+        h+='</div>';
+        cartEl.innerHTML=h;
+        cartEl.querySelectorAll('.sc-rm').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.getAttribute('data-i'));if(cart[i].qty>1)cart[i].qty--;else cart.splice(i,1);renderCart();});});
+        cartEl.querySelectorAll('.sc-add').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.getAttribute('data-i'));cart[i].qty++;renderCart();});});
+      }
+      var itemsHtml='';
+      if(items.length){
+        items.forEach(function(it){
+          itemsHtml+='<button class="sc-item" data-id="'+it.id+'" data-name="'+it.name+'" data-price="'+it.selling_price+'" data-cost="'+(it.cost_price||0)+'" style="background:#1a1a22;border:1.5px solid rgba(255,255,255,.08);border-radius:9px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:6px;text-align:left"><span>'+(it.emoji||'📦')+' '+it.name+'</span><span style="color:#10b981">KSh '+it.selling_price+'</span></button>';
+        });
+      } else {
+        itemsHtml='<div style="font-size:12px;color:rgba(255,255,255,.4);padding:10px">Add stock first to pick items, or record manually below.</div>';
+      }
+      el.innerHTML=
+        '<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Pick from stock</div>'
+        +(itemsHtml)
+        +'<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin:10px 0 6px">Cart</div>'
+        +'<div id="sale-cart" style="margin-bottom:10px"></div>'
+        +'<div class="fld"><label>Customer Name (optional)</label><input id="sc-cust" type="text" placeholder="e.g. Mama Achieng" autocomplete="off"></div>'
+        +'<div class="fld"><label>Payment Method</label><select id="sc-pay"><option value="cash">Cash</option><option value="mpesa">M-Pesa</option><option value="debt">Debt (pay later)</option></select></div>'
+        +'<div class="fld" id="sc-manual-row"><label>Manual item (if not in stock)</label><input id="sc-man-name" type="text" placeholder="Item name" autocomplete="off" style="margin-bottom:6px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="sc-man-price" type="number" placeholder="Price KSh"><input id="sc-man-cost" type="number" placeholder="Cost KSh (optional)"></div><button id="sc-man-add" class="btn bo" style="margin-top:6px;font-size:12px;padding:8px">+ Add Manual Item</button></div>'
+        +'<button id="sc-submit" class="btn bg" style="margin-top:4px;font-size:15px;padding:15px">&#x2705; Record Sale</button>'
+        +(navigator.onLine?'':'<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px;margin-top:8px;font-size:12px;color:#f59e0b">&#x26A0; Offline — sale saved locally, will sync when connected</div>');
+      renderCart();
+      // Wire item picker
+      el.querySelectorAll('.sc-item').forEach(function(b){
+        b.addEventListener('click',function(){
+          var id=this.getAttribute('data-id');
+          var existing=cart.find(function(c){return c.id===id;});
+          if(existing){existing.qty++;}
+          else{cart.push({id:id,name:this.getAttribute('data-name'),price:parseFloat(this.getAttribute('data-price')),cost:parseFloat(this.getAttribute('data-cost')||0),qty:1});}
+          renderCart();
+        });
+      });
+      // Manual item add
+      document.getElementById('sc-man-add').addEventListener('click',function(){
+        var nm=(document.getElementById('sc-man-name').value||'').trim();
+        var pr=parseFloat(document.getElementById('sc-man-price').value)||0;
+        var co=parseFloat(document.getElementById('sc-man-cost').value)||0;
+        if(!nm||!pr){toast('Enter item name and price');return;}
+        cart.push({id:'m'+Date.now(),name:nm,price:pr,cost:co,qty:1});
+        document.getElementById('sc-man-name').value='';
+        document.getElementById('sc-man-price').value='';
+        document.getElementById('sc-man-cost').value='';
+        renderCart();
+        toast('Item added to cart');
+      });
+      // Submit sale
+      document.getElementById('sc-submit').addEventListener('click',function(){
+        if(!cart.length){toast('Add at least one item');return;}
+        var payMethod=document.getElementById('sc-pay').value;
+        var custName=(document.getElementById('sc-cust').value||'').trim();
+        var total=cart.reduce(function(s,i){return s+(i.price*i.qty);},0);
+        var cost=cart.reduce(function(s,i){return s+(i.cost*i.qty);},0);
+        var sale={
+          product_name:cart.length===1?cart[0].name:cart.map(function(i){return i.name;}).join(', '),
+          items:cart.map(function(i){return{id:i.id,name:i.name,qty:i.qty,price:i.price,cost:i.cost};}),
+          total:total,cost:cost,profit:total-cost,
+          payment_method:payMethod,
+          is_debt:payMethod==='debt',
+          customer_name:custName||'Walk-in',
+          created_at:Date.now(),
+          shop:USER.phone
+        };
+        var btn=this;btn.textContent='Saving...';btn.disabled=true;
+        // Always save locally first (offline support)
+        var localSale=saveLocalSale(sale);
+        // Update stock quantities in Firestore (if online)
+        var stockUpdates=cart.filter(function(i){return i.id&&!i.id.startsWith('m');});
+        loadFB(function(db){
+          if(db){
+            // Sync to Firestore
+            db.collection('shops').doc(USER.phone).collection('sales').add(sale)
+              .then(function(){
+                markSaleSynced(localSale.id);
+                // Decrement stock
+                stockUpdates.forEach(function(i){
+                  db.collection('shops').doc(USER.phone).collection('stock').doc(i.id)
+                    .update({quantity:window.firebase.firestore.FieldValue.increment(-i.qty)}).catch(function(){});
+                });
+                toast('Sale recorded! KSh '+total+(payMethod==='debt'?' — debt noted':''));
+                cart=[];renderCart();btn.textContent='Record Sale';btn.disabled=false;
+              }).catch(function(){
+                // Firestore failed but local save worked
+                toast('Saved offline! Will sync when connected.');
+                cart=[];renderCart();btn.textContent='Record Sale';btn.disabled=false;
+              });
+          } else {
+            toast('Saved offline! Will sync when connected.');
+            cart=[];renderCart();btn.textContent='Record Sale';btn.disabled=false;
+          }
+        });
+      });
+    });
+  });
+}
+
+function showSDebts(el){
+  el.innerHTML='<div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div>';
+  // Combine local + Firestore debts
+  var localDebts=getLocalSales().filter(function(s){return s.is_debt&&s.payment_method==='debt';});
+  loadFB(function(db){
+    if(!db){
+      renderDebts(localDebts,el);return;
+    }
+    db.collection('shops').doc(USER.phone).collection('sales').where('is_debt','==',true).orderBy?
+    db.collection('shops').doc(USER.phone).collection('sales').where('is_debt','==',true).limit(100).get()
+      .then(function(snap){
+        var remote=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+        // Merge local unsynced + remote
+        var localOnly=localDebts.filter(function(l){return !l.synced;});
+        renderDebts(localOnly.concat(remote),el);
+      }).catch(function(){renderDebts(localDebts,el);}):renderDebts(localDebts,el);
+  });
+}
+function renderDebts(debts,el){
+  if(!debts.length){el.innerHTML=empty('&#x1F4B8;','No Debts','All payments are settled');return;}
+  var total=debts.reduce(function(s,d){return s+(d.total||0);},0);
+  var h='<div style="background:rgba(239,68,68,.07);border:1.5px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">';
+  h+='<div class="sboxt" style="text-transform:none;letter-spacing:0">Total owed to you</div>';
+  h+='<div style="font-size:20px;font-weight:800;color:#ef4444">KSh '+total+'</div></div>';
+  debts.forEach(function(d){
+    h+='<div class="card" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:start">';
+    h+='<div><div style="font-weight:700">'+(d.customer_name||'Walk-in')+'</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.4)">'+(d.product_name||'Items')+' · '+(d.created_at?new Date(d.created_at).toLocaleDateString():'')+'</div></div>';
+    h+='<div style="font-weight:800;color:#ef4444;font-size:16px">KSh '+(d.total||0)+'</div></div>';
+    h+='<button class="mark-paid btn bg" data-id="'+(d.id||'')+'" data-local="'+(d.synced===false?'1':'')+'" style="margin-top:8px;font-size:12px;padding:9px">&#x2705; Mark as Paid</button>';
+    h+='</div>';
+  });
+  el.innerHTML=h;
+  el.querySelectorAll('.mark-paid').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var id=this.getAttribute('data-id');var b=this;
+      b.textContent='Marking...';b.disabled=true;
+      // Remove from local
+      var arr=getLocalSales();
+      arr=arr.filter(function(s){return s.id!==id;});
+      localStorage.setItem('tumana_sales_'+USER.phone,JSON.stringify(arr));
+      loadFB(function(db){
+        if(db&&id&&!id.startsWith('ls')){
+          db.collection('shops').doc(USER.phone).collection('sales').doc(id).update({is_debt:false,paid_at:Date.now()}).catch(function(){});
+        }
+        toast('Marked as paid!');showSDebts(el);
+      });
+    });
+  });
+}
+
+function showSHistory(el){
+  el.innerHTML='<div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div>';
+  // Show local sales first (instant), then load Firestore
+  var local=getLocalSales().filter(function(s){return !s.is_debt;});
+  loadFB(function(db){
+    if(!db){renderSHistory(local,el);return;}
+    db.collection('shops').doc(USER.phone).collection('sales').limit(200).get()
+      .then(function(snap){
+        var remote=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+        // Merge, deduplicate
+        var localUnsynced=local.filter(function(l){return !l.synced;});
+        var all=localUnsynced.concat(remote).sort(function(a,b){return(b.created_at||0)-(a.created_at||0);});
+        renderSHistory(all,el);
+        // Sync unsynced in background
+        syncLocalSales();
+      }).catch(function(){renderSHistory(local,el);});
+  });
+}
+function renderSHistory(all,el){
+  if(!all.length){el.innerHTML=empty('&#x1F4C5;','No sales yet','Record your first sale above');return;}
+  // Group by day
+  var today=new Date().toDateString();
+  var yesterday=new Date(Date.now()-86400000).toDateString();
+  var groups={};
+  all.forEach(function(s){
+    var d=new Date(s.created_at||0).toDateString();
+    if(!groups[d])groups[d]={sales:[],total:0,profit:0};
+    groups[d].sales.push(s);groups[d].total+=s.total||0;groups[d].profit+=(s.profit||0);
+  });
+  var h='';
+  Object.keys(groups).sort(function(a,b){return new Date(b)-new Date(a);}).slice(0,14).forEach(function(day){
+    var g=groups[day];
+    var label=day===today?'Today':day===yesterday?'Yesterday':new Date(day).toLocaleDateString('en-KE',{weekday:'short',month:'short',day:'numeric'});
+    h+='<div style="margin-bottom:14px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+    h+='<div style="font-size:11px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px">'+label+'</div>';
+    h+='<div style="text-align:right"><span style="font-weight:800;color:#10b981">KSh '+g.total+'</span><span style="font-size:10px;color:#4ade80;margin-left:6px">+'+g.profit+' profit</span></div>';
+    h+='</div>';
+    g.sales.forEach(function(s){
+      h+='<div class="card" style="margin-bottom:6px;padding:10px">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center">';
+      h+='<div><div style="font-size:13px;font-weight:700">'+(s.product_name||'Sale')+'</div>';
+      h+='<div style="font-size:11px;color:rgba(255,255,255,.4)">'+(s.customer_name||'Walk-in')+' · '+(s.payment_method==='cash'?'Cash':s.payment_method==='mpesa'?'M-Pesa':'Debt');
+      if(!s.synced)h+=' · <span style="color:#f59e0b">⏳ Pending sync</span>';
+      h+='</div></div>';
+      h+='<div style="text-align:right"><div style="font-weight:800;color:#10b981">KSh '+(s.total||0)+'</div>';
+      if(s.profit)h+='<div style="font-size:10px;color:#4ade80">+'+s.profit+'</div>';
+      h+='</div></div></div>';
+    });
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
 function showSStock(){
   var el=document.getElementById('shc');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div>';
@@ -1447,8 +1927,7 @@ function showAddProd(){
     +'<div class="fld" style="margin-bottom:0"><label>Cost Price (KSh)</label><input id="apc" type="number" placeholder="45"></div>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
-    +'<div class="fld" style="margin-bottom:0"><label>Quantity</label><input id="apq" type="number" placeholder="20"></div>'
-    +'<div class="fld" style="margin-bottom:0"><label>Emoji</label><input id="ape" type="text" placeholder="&#x1F4E6;" maxlength="4" value="&#x1F4E6;"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'    +'<div class="fld" style="margin-bottom:0"><label>Quantity</label><input id="apq" type="number" placeholder="20"></div>'    +'<div class="fld" style="margin-bottom:0"><label>Emoji</label><input id="ape" type="text" placeholder="&#x1F4E6;" maxlength="4" value="&#x1F4E6;"></div>'    +'</div>'    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">'    +'<div class="fld" style="margin-bottom:0"><label>Bulk Qty (optional)</label><input id="apbq" type="number" placeholder="e.g. 3" min="2"></div>'    +'<div class="fld" style="margin-bottom:0"><label>Bulk Price (KSh)</label><input id="apbp" type="number" placeholder="e.g. 100"></div>'    +'</div>'    +'<div style="font-size:10px;color:rgba(255,255,255,.35);margin:-4px 0 12px;line-height:1.6">Bulk: e.g. buy 3 for KSh 100. Leave blank if none.</div>'    +'<div class="fld" style="margin-bottom:0"><label>Emoji</label><input id="ape" type="text" placeholder="&#x1F4E6;" maxlength="4" value="&#x1F4E6;"></div>'
     +'</div>'
     +'<div class="fld"><label>Product Photo (optional)</label>'
     +'<div id="ap-photo-preview" style="width:100%;height:120px;background:#1a1a22;border:1.5px dashed rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.4)">&#x1F4F7; Tap to add photo</div>'
@@ -1838,6 +2317,20 @@ function renderRBody(){
   }
   b.innerHTML=h;
   var advb=document.getElementById('advb');if(advb)advb.addEventListener('click',advJob);
+  var cjb=document.getElementById('cancel-job-btn');
+  if(cjb){cjb.addEventListener('click',function(){
+    if(!RACT)return;
+    if(!confirm('Release this job? Another rider can take it. Only do this if you truly cannot complete it.'))return;
+    var oid=RACT.id;
+    dbUpd('delivery_orders',oid,{status:'confirmed',rider_phone:null,rider_name:null,rider_mpesa:null},function(ok){
+      if(!ok){toast('Error — try again');return;}
+      dbSet('riders',USER.phone,{busy:false});
+      if(window._ractUnsub){try{window._ractUnsub();}catch(e){}window._ractUnsub=null;}
+      RACT=null;
+      toast('Job released. Open for other riders now.');
+      if(RON)startJL();else renderRBody();
+    });
+  });}
   b.querySelectorAll('.acj').forEach(function(btn){btn.addEventListener('click',function(){accJob(this.getAttribute('data-id'));});});
   b.querySelectorAll('.dcj').forEach(function(btn){btn.addEventListener('click',function(){
     var jid=this.getAttribute('data-id');
@@ -1898,7 +2391,9 @@ function advJob(){
 }
 
 function showCollectPayment(order){
-  var df=order.delivery_fee||70;
+  // Use exact stored delivery_fee — fallback to total-subtotal, then 70
+  // This ensures rider and customer always see the SAME number
+  var df=order.delivery_fee||((order.total&&order.subtotal)?(order.total-order.subtotal):70);
   var riderEarn=df;
   var riderMpesa=USER.mpesa_phone||window._riderMpesa||order.rider_mpesa||USER.phone;
   var custName=order.customer_name||'Customer';
@@ -1909,7 +2404,7 @@ function showCollectPayment(order){
     +'<div style="font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:16px;line-height:1.5">From <strong style="color:#fff">'+custName+'</strong></div>'
     +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.18);border-radius:12px;padding:14px;margin-bottom:16px">'
     +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Delivery fee</span><span style="font-size:18px;font-weight:700;color:rgba(255,255,255,.6)">KSh '+riderEarn+'</span></div>'
-    +((window._RIDER_CUT&&window._RIDER_CUT>0)?'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform cut ('+window._RIDER_CUT+'%)</span><span style="font-size:13px;font-weight:700;color:#ef4444">- KSh '+Math.round(riderEarn*(window._RIDER_CUT||0)/100)+'</span></div>':'')
+    +((window._RIDER_CUT>0)?'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Platform cut ('+window._RIDER_CUT+'%)</span><span style="font-size:13px;font-weight:700;color:#ef4444">- KSh '+Math.round(riderEarn*window._RIDER_CUT/100)+'</span></div>':'')
     +'<div style="height:1px;background:rgba(255,255,255,.08);margin:6px 0"></div>'
     +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:#10b981;font-size:13px;font-weight:700">Your earnings</span><span style="font-size:22px;font-weight:800;color:#10b981">KSh '+(riderEarn-Math.round(riderEarn*(window._RIDER_CUT||0)/100))+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;margin:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Your M-Pesa</span><span style="font-weight:800;color:#10b981;font-size:16px">'+riderMpesa+'</span></div>'
@@ -1972,8 +2467,8 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
   if(window._ractUnsub){try{window._ractUnsub();}catch(e){}window._ractUnsub=null;}
 
   var cutPct=window._RIDER_CUT||0;
-  var platformCut=Math.round(riderEarn*cutPct/100);
-  var riderNet=riderEarn-platformCut;
+  var platformCut=cutPct>0?Math.round(riderEarn*cutPct/100):0;
+  var riderNet=riderEarn-platformCut; // = riderEarn when cut is 0%
   var updateData={
     status:'delivered',
     rider_payment_method:payMethod,
@@ -2872,7 +3367,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v40 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v43 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
