@@ -163,7 +163,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v43 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v44 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -503,6 +503,19 @@ function renderAuth(){
     +'<button id="tg" class="btn bo">'+(isL?'Create new account':'Already registered? Login')+'</button>'
     +(isL?'<div style="margin-top:12px;text-align:center"><span id="resetpin" style="font-size:12px;color:rgba(255,255,255,.35);cursor:pointer;text-decoration:underline">Forgot PIN? Contact admin</span></div>':'')
     +'</div>';
+  // Inject shop type selector if registering as shop
+  if(!isL&&isS){
+    var stypeSel=document.createElement('select');
+    stypeSel.id='fs-type';stypeSel.style.cssText='width:100%;background:#1a1a22;border:1.5px solid rgba(255,255,255,.13);border-radius:10px;padding:12px;font-size:15px;color:#fff;font-family:inherit;outline:none;margin-bottom:12px';
+    ['Goods Shop (groceries, food, items)|goods','Service Shop (barber, salon, repairs)|service'].forEach(function(opt){
+      var parts=opt.split('|');var o=document.createElement('option');o.value=parts[1];o.textContent=parts[0];stypeSel.appendChild(o);
+    });
+    var lbl=document.createElement('label');lbl.textContent='Shop Type';lbl.style.cssText='display:block;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:5px';
+    var wrap=document.createElement('div');wrap.className='fld';wrap.appendChild(lbl);wrap.appendChild(stypeSel);
+    var fsEl=document.getElementById('fs');
+    if(fsEl&&fsEl.parentNode){fsEl.parentNode.parentNode.insertBefore(wrap,fsEl.parentNode.nextSibling);}
+  }
+
   document.getElementById('bk').addEventListener('click',showRole);
   document.getElementById('tg').addEventListener('click',function(){AM=AM==='login'?'register':'login';renderAuth();});
   var resetEl=document.getElementById('resetpin');
@@ -840,75 +853,147 @@ function renderProds(prods){
 function showCart(){
   setTitle('TUMANA','#10b981');setNav('customer','cart');
   if(!CART.length){pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700">Cart</div></div>'+empty('&#x1F6D2;','Cart is empty','Browse shops and add items');return;}
-  var sub=CART.reduce(function(s,i){return s+i.price*i.qty;},0);
-  var df=calcFee(CART[0].shopDist||.5);var total=sub+df;var rG=df;
-  var h='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700;margin-bottom:2px">Your Cart</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">'+CART[0].shopName+'</div></div><div style="padding:0 18px 100px">';
-  CART.forEach(function(item,i){
-    h+='<div class="card" style="border-left:3px solid #10b981;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;margin-bottom:2px">'+item.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">KSh '+item.price+' each</div></div><div style="text-align:right"><div style="font-weight:700;color:#10b981;font-size:15px;margin-bottom:5px">KSh '+(item.price*item.qty)+'</div><div class="qrow"><button class="qb cim" data-i="'+i+'" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">&#x2212;</button><span style="font-weight:700;min-width:18px;text-align:center">'+item.qty+'</span><button class="qb cip" data-i="'+i+'" style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.2)">+</button></div></div></div>';
+  // Subtotal only — delivery fee calculated AFTER destination is entered
+  var sub=CART.reduce(function(s,i){
+    var q=i.qty||1;var p=i.price||0;var bq=i.bulk_qty||0;var bp=i.bulk_price||0;
+    return s+((bq>=2&&bp>0&&q>=bq)?Math.floor(q/bq)*bp+(q%bq)*p:p*q);
+  },0);
+  var h='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700;margin-bottom:12px">Your Cart</div>';
+  // Shop info
+  if(CS&&CS.name){h+='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px">&#x1F3EA; '+CS.name+'</div>';}
+  // Item list
+  CART.forEach(function(i){
+    var q=i.qty||1;var p=i.price||0;var bq=i.bulk_qty||0;var bp=i.bulk_price||0;
+    var totP=(bq>=2&&bp>0&&q>=bq)?Math.floor(q/bq)*bp+(q%bq)*p:p*q;
+    var isBulk=!!(bq&&bp&&q>=bq);
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">';
+    h+='<div><div style="font-size:14px;font-weight:700">'+i.name+'</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.4)">×'+q+(isBulk?' · BULK DEAL':' · KSh '+p+' each')+'</div></div>';
+    h+='<div style="text-align:right"><div style="font-weight:800;color:'+(isBulk?'#f59e0b':'#10b981')+'">KSh '+totP+'</div></div></div>';
   });
-  h+='<div style="background:rgba(16,185,129,.04);border:1.5px solid rgba(16,185,129,.13);border-radius:12px;padding:13px;margin:12px 0"><div style="display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,.4);margin:4px 0"><span>Subtotal</span><span>KSh '+sub+'</span></div><div style="display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,.4);margin:4px 0"><span>Delivery</span><span>KSh '+df+'</span></div><div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#10b981;border-top:1px solid rgba(16,185,129,.18);padding-top:9px;margin-top:7px"><span>Total</span><span>KSh '+total+'</span></div></div><button id="plb" class="btn bg">Place Order - KSh '+total+'</button></div>';
+  // Subtotal
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid rgba(255,255,255,.1);margin-top:2px">';
+  h+='<div style="font-size:14px;font-weight:700">Goods Subtotal</div>';
+  h+='<div style="font-size:20px;font-weight:800;color:#fff">KSh '+sub+'</div></div>';
+  // Delivery fee estimate (shown before destination is entered)
+  var estDf=calcFee(CART[0].shopDist||0.5);
+  h+='<div id="fee-est-box" style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:11px;padding:12px;margin-bottom:14px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center">';
+  h+='<div><div style="font-size:12px;color:rgba(255,255,255,.4)">Estimated delivery fee</div>';
+  h+='<div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:2px">Exact fee shown after you enter destination</div></div>';
+  h+='<div id="fee-est-val" style="font-size:18px;font-weight:800;color:#10b981">~KSh '+estDf+'</div></div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">';
+  h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">Estimated total</div>';
+  h+='<div style="font-size:14px;font-weight:800;color:rgba(255,255,255,.7)">~KSh '+(sub+estDf)+'</div></div>';
+  h+='</div>';
+  h+='<button id="proceed-checkout" class="btn bg" style="font-size:16px;padding:16px">Enter Delivery Location &#x1F4CD;</button>';
+  h+='<button id="clear-cart" class="btn bo" style="margin-top:6px;font-size:12px;padding:10px">Clear Cart</button>';
+  h+='</div></div>';
   pg().innerHTML=h;
-  pg().querySelectorAll('.cim').forEach(function(b){b.addEventListener('click',function(){var i=parseInt(this.dataset.i);CART[i].qty--;if(CART[i].qty<=0)CART.splice(i,1);showCart();});});
-  pg().querySelectorAll('.cip').forEach(function(b){b.addEventListener('click',function(){CART[parseInt(this.dataset.i)].qty++;showCart();});});
-  document.getElementById('plb').addEventListener('click',function(){
-    
+
+  document.getElementById('clear-cart').addEventListener('click',function(){if(!confirm('Clear your cart?'))return;CART=[];showHome();});
+
+  document.getElementById('proceed-checkout').addEventListener('click',function(){
+    // Show destination sheet — THEN calculate exact delivery fee
     showSh('<div class="hd"></div>'
       +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4CD; Delivery Location</div>'
-      +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Tell rider exactly where to bring your order</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Enter where to deliver — fee calculated from your location</div>'
       +'<div class="fld"><label>Your Address / House</label><input id="del-addr" type="text" placeholder="e.g. House No.5, Kisumu Road" autocomplete="off"></div>'
       +'<div class="fld"><label>Nearest Landmark</label><input id="del-land" type="text" placeholder="e.g. Opposite Market, near school gate" autocomplete="off"></div>'
-      +'<button id="del-gps-btn" style="width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">&#x1F4CD; Use GPS Location</button>'
-      +'<button id="del-next" class="btn bg" style="margin-top:0">Continue to Payment &#x2192;</button>'
+      +'<button id="del-gps-btn" style="width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">&#x1F4CD; Use My GPS Location</button>'
+      +'<div id="fee-live-box" style="display:none;background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.25);border-radius:11px;padding:12px;margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:rgba(255,255,255,.4)">Goods</span><span style="font-weight:700">KSh '+sub+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:12px;color:rgba(255,255,255,.4)">Delivery</span><span id="fee-live-val" style="font-weight:800;color:#10b981">KSh ?</span></div>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)"><span style="font-size:13px;font-weight:700">Total</span><span id="total-live-val" style="font-weight:800;font-size:16px;color:#fff">KSh ?</span></div>'
+      +'<div id="dist-label" style="font-size:10px;color:rgba(255,255,255,.3);margin-top:4px"></div>'
+      +'</div>'
+      +'<button id="calc-fee-btn" class="btn ba" style="margin-bottom:8px">&#x1F4CF; Calculate Delivery Fee</button>'
+      +'<button id="del-next" class="btn bg" style="margin-top:0;display:none">&#x2705; Confirm Order</button>'
       +'<button id="del-cancel" class="btn bo" style="margin-top:6px">Cancel</button>'
     );
+
     document.getElementById('del-cancel').addEventListener('click',hideSh);
-    
+
+    // GPS button
     document.getElementById('del-gps-btn').addEventListener('click',function(){
-      var btn=this;btn.textContent='Detecting...';
+      var btn=this;btn.textContent='Getting GPS...';
       if(!navigator.geolocation){toast('GPS not available');return;}
       navigator.geolocation.getCurrentPosition(function(pos){
-        window._ordLat=pos.coords.latitude.toFixed(6);
-        window._ordLng=pos.coords.longitude.toFixed(6);
-        btn.textContent='&#x2705; GPS Captured';
-        btn.style.background='rgba(16,185,129,.2)';btn.style.color='#10b981';
-        toast('Location captured!');
-      },function(){toast('Cannot get GPS — enter address manually');btn.textContent='&#x1F4CD; Use GPS Location';},{enableHighAccuracy:true,timeout:8000});
+        window._custLat=pos.coords.latitude;window._custLng=pos.coords.longitude;
+        var addrEl=document.getElementById('del-addr');
+        if(addrEl&&!addrEl.value)addrEl.value='GPS Location ('+pos.coords.latitude.toFixed(4)+','+pos.coords.longitude.toFixed(4)+')';
+        btn.textContent='GPS captured';btn.style.color='#10b981';
+        // Auto-calculate fee if shop has GPS
+        autoCalcFee();
+      },function(){btn.textContent='GPS failed — type address above';btn.style.color='#ef4444';},{enableHighAccuracy:true,timeout:10000});
     });
-    
+
+    function haversineKm(a,b,x,y){var R=6371,dL=(x-a)*Math.PI/180,dG=(y-b)*Math.PI/180,z=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(x*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(z),Math.sqrt(1-z));}
+
+    function autoCalcFee(){
+      var shopLat=CS&&CS.lat;var shopLng=CS&&CS.lng;
+      var df=calcFee(CART[0].shopDist||0.5);var km=CART[0].shopDist||0.5;
+      if(window._custLat&&window._custLng&&shopLat&&shopLng){
+        km=Math.max(0.2,Math.round(haversineKm(shopLat,shopLng,window._custLat,window._custLng)*10)/10);
+        df=calcFee(km);
+      } else if(window._custLat&&window._custLng){
+        km=Math.max(0.2,Math.round(haversineKm(-0.0236,35.0182,window._custLat,window._custLng)*10)/10);
+        df=calcFee(km);
+      }
+      window._finalDf=df;window._finalKm=km;
+      var fbox=document.getElementById('fee-live-box');if(fbox)fbox.style.display='block';
+      var fv=document.getElementById('fee-live-val');if(fv)fv.textContent='KSh '+df;
+      var tv=document.getElementById('total-live-val');if(tv)tv.textContent='KSh '+(sub+df);
+      var dl=document.getElementById('dist-label');if(dl)dl.textContent='Distance: ~'+km+'km';
+      var nb=document.getElementById('del-next');if(nb)nb.style.display='block';
+      // Also update cart estimate
+      var ev=document.getElementById('fee-est-val');if(ev)ev.textContent='KSh '+df;
+    }
+
+    // Calculate fee button
+    document.getElementById('calc-fee-btn').addEventListener('click',function(){
+      var addr=(document.getElementById('del-addr').value||'').trim();
+      if(!addr){toast('Enter your delivery address or use GPS');return;}
+      autoCalcFee();
+    });
+
+    // Confirm Order button
     document.getElementById('del-next').addEventListener('click',function(){
       var addr=(document.getElementById('del-addr').value||'').trim();
       var land=(document.getElementById('del-land').value||'').trim();
-      if(!addr&&!land&&!window._ordLat){toast('Enter your address or use GPS');return;}
+      if(!addr){toast('Enter delivery address first');return;}
       var fullAddr=[addr,land].filter(Boolean).join(' — ');
-      window._deliveryAddr=fullAddr||'GPS Location';
-      
-      document.getElementById('sh').innerHTML='<div class="hd"></div>'
-        +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4B3; Pay for Goods</div>'
-        +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:4px">Deliver to: <strong style="color:#10b981">'+( window._deliveryAddr||'')+'</strong></div>'
-        +'<div style="font-size:11px;color:rgba(255,255,255,.3);margin-bottom:14px">'+(window._ordLat?'GPS: '+window._ordLat+','+window._ordLng:'')+'</div>'
-        +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.18);border-radius:12px;padding:13px;margin-bottom:14px">'
-        +'<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Send M-Pesa to shop:</div>'
-        +'<div style="display:flex;justify-content:space-between;margin:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Number</span><span style="font-size:15px;font-weight:700;color:#10b981">&#x1F4F1; '+MP+'</span></div>'
-        +'<div style="display:flex;justify-content:space-between;margin:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Amount (Goods)</span><span style="font-size:15px;font-weight:700;color:#10b981">KSh '+sub+'</span></div>'
-        +'<div style="display:flex;justify-content:space-between;margin:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Delivery fee</span><span style="font-size:13px;font-weight:700;color:rgba(255,255,255,.6)">KSh '+df+' (pay rider on delivery)</span></div>'
-        +'<div style="display:flex;justify-content:space-between;margin:6px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Ref</span><span style="font-size:13px;font-weight:700;color:#10b981">TUM'+USER.phone.slice(-4)+'</span></div>'
-        +'</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px">'
-        +'<button id="cn" class="btn bo" style="margin-top:0">Cancel</button>'
-        +'<button id="sn" class="btn bg" style="margin-top:0">Sent M-Pesa</button>'
-        +'</div>'
-        +'<div style="padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:9px;text-align:center;font-size:12px;color:rgba(255,255,255,.35)">&#x1F4B5; Cash disabled — M-Pesa only for safety</div>';
-      document.getElementById('cn').addEventListener('click',hideSh);
-      
-      document.getElementById('sn').addEventListener('click',function(){
-        placeOrder('mpesa','');
-      });
-      
-      var cashBtnEl=document.getElementById('cash-btn');
-      if(cashBtnEl){cashBtnEl.addEventListener('click',function(){toast('Cash payments are disabled. Please use M-Pesa.');});}
+      window._deliveryAddr=fullAddr;
+      var df=window._finalDf||calcFee(CART[0].shopDist||0.5);
+      hideSh();
+      // Show payment method selection
+      showPaymentSheet(sub,df);
     });
   });
-  }
+}
+
+function showPaymentSheet(sub,df){
+  var total=sub+df;
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:14px">Confirm Order</div>'
+    +'<div style="background:#1a1a22;border-radius:11px;padding:12px;margin-bottom:14px">'
+    +'<div style="display:flex;justify-content:space-between;padding:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Goods</span><span style="font-weight:700">KSh '+sub+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Delivery</span><span style="font-weight:700;color:#10b981">KSh '+df+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(255,255,255,.08);margin-top:4px"><span style="font-size:14px;font-weight:800">Total</span><span style="font-size:20px;font-weight:800">KSh '+total+'</span></div>'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">&#x1F4CD; '+( window._deliveryAddr||'Your location')+'</div>'
+    +'</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px">Payment: M-Pesa only (pay shop after they accept)</div>'
+    +'<button id="sn" class="btn bg" style="font-size:15px;padding:15px">&#x2705; Place Order</button>'
+    +'<button id="cn" class="btn bo" style="margin-top:6px">Back</button>'
+  );
+  document.getElementById('cn').addEventListener('click',hideSh);
+  document.getElementById('sn').addEventListener('click',function(){
+    placeOrder('mpesa','');
+  });
+  // Cash path disabled
+  var cashBtnEl=document.getElementById('cash-btn');
+  if(cashBtnEl){cashBtnEl.addEventListener('click',function(){toast('Cash payments are disabled. Please use M-Pesa.');});}
+}
 
 function placeOrder(payMethod,mpesaCode){
   if(!CART.length){toast('Cart is empty');return;}
@@ -1339,58 +1424,91 @@ function showServiceShopDetail(shop){
     if(!db){body.innerHTML='<div style="padding:20px;color:rgba(255,255,255,.4)">Connect to view services</div>';return;}
     db.collection('shops').doc(shop.id||shop.owner_phone).collection('services').get().then(function(snap){
       var svcs=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
-      if(!svcs.length){body.innerHTML='<div style="text-align:center;padding:30px;color:rgba(255,255,255,.4)">No services listed yet</div>';return;}
-      var selSvc=null;
-      var h='<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Select a Service</div>';
-      svcs.forEach(function(s,i){
-        h+='<div class="svc-sel card" data-i="'+i+'" style="margin-bottom:8px;cursor:pointer">'
-          +'<div style="display:flex;justify-content:space-between;align-items:center">'
-          +'<div><div style="font-weight:800">'+s.name+'</div>'
-          +'<div style="font-size:12px;color:rgba(255,255,255,.4)">'+(s.duration||30)+' min'+(s.description?' · '+s.description:'')+'</div></div>'
-          +'<div style="font-weight:800;color:#8b5cf6;font-size:16px">KSh '+s.price+'</div></div></div>';
-      });
-      h+='<div id="bk-form" style="display:none;background:rgba(139,92,246,.06);border:1.5px solid rgba(139,92,246,.25);border-radius:14px;padding:14px;margin-top:10px">'
-        +'<div id="bk-lbl" style="font-size:14px;font-weight:800;color:#8b5cf6;margin-bottom:12px"></div>'
-        +'<div class="fld"><label>Date</label><input id="bk-date" type="date" min="'+new Date().toISOString().slice(0,10)+'"></div>'
-        +'<div class="fld"><label>Time</label><input id="bk-time" type="time" value="'+(shop.open_time||'09:00')+'"></div>'
-        +'<div class="fld"><label>Your Name</label><input id="bk-name" type="text" value="'+(USER.name||'')+'"></div>'
-        +'<div class="fld"><label>Notes (optional)</label><input id="bk-note" type="text" placeholder="Any preferences..." autocomplete="off"></div>'
-        +'<button id="bk-submit" class="btn bp" style="font-size:15px;padding:15px">&#x1F4C5; Book Appointment</button></div>';
-      body.innerHTML=h;
-      body.querySelectorAll('.svc-sel').forEach(function(card,i){
-        card.addEventListener('click',function(){
-          body.querySelectorAll('.svc-sel').forEach(function(c){c.style.borderColor='';c.style.background='';});
-          this.style.borderColor='#8b5cf6';this.style.background='rgba(139,92,246,.08)';
-          selSvc=svcs[i];
-          var f=document.getElementById('bk-form');var l=document.getElementById('bk-lbl');
-          if(f)f.style.display='block';
-          if(l)l.textContent='Booking: '+selSvc.name+' — KSh '+selSvc.price;
+      var selSvc=null;var h='';
+
+      // Shop offers / price list
+      if(svcs.length){
+        h+='<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Services & Prices</div>';
+        svcs.forEach(function(s,i){
+          h+='<div class="svc-sel card" data-i="'+i+'" style="margin-bottom:8px;cursor:pointer;transition:.15s">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center">'
+            +'<div><div style="font-weight:800">'+s.name+'</div>'
+            +'<div style="font-size:12px;color:rgba(255,255,255,.4)">'+(s.duration||30)+' min'+(s.description?' · '+s.description:'')+'</div></div>'
+            +'<div style="font-weight:800;color:#8b5cf6;font-size:16px">KSh '+s.price+'</div></div></div>';
         });
-      });
+      } else {
+        h+='<div style="background:rgba(139,92,246,.05);border:1px solid rgba(139,92,246,.2);border-radius:11px;padding:12px;margin-bottom:12px">'
+          +'<div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.7">No price list yet. Describe what you need below and we will get back to you with pricing.</div>'
+          +'</div>';
+      }
+
+      // Custom service input — always visible
+      h+='<div style="background:rgba(139,92,246,.06);border:1.5px solid rgba(139,92,246,.25);border-radius:14px;padding:14px;margin-top:10px" id="bk-form">';
+      h+='<div id="bk-lbl" style="font-size:14px;font-weight:800;color:#8b5cf6;margin-bottom:10px">&#x270F; Describe What You Want</div>';
+      h+='<div class="fld"><label>Service (select above or type your own)</label>'
+        +'<input id="bk-svc-txt" type="text" placeholder="e.g. Box braids, Gel nails, Shave + lineup, Full facial" autocomplete="off" style="font-size:15px"></div>';
+      h+='<div class="fld"><label>Your Name</label><input id="bk-name" type="text" value="'+(USER.name||'')+'" autocomplete="off"></div>';
+      h+='<div class="fld"><label>Date</label><input id="bk-date" type="date" min="'+new Date().toISOString().slice(0,10)+'"></div>';
+      h+='<div class="fld"><label>Preferred Time</label><input id="bk-time" type="time" value="'+(shop.open_time||'09:00')+'"></div>';
+      h+='<div class="fld"><label>Extra Notes (optional)</label><input id="bk-note" type="text" placeholder="e.g. length, colour, style preference" autocomplete="off"></div>';
+      h+='<div id="bk-price-row" style="display:none;background:#1a1a22;border-radius:9px;padding:10px;margin-bottom:10px">'
+        +'<div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(255,255,255,.4)">Selected service</span>'
+        +'<span id="bk-price-label" style="font-weight:800;color:#8b5cf6"></span></div></div>';
+      h+='<button id="bk-submit" class="btn bp" style="font-size:15px;padding:15px">&#x1F4C5; Book Appointment</button>';
+      h+='</div>';
+
+      body.innerHTML=h;
+
+      // Tap service to pre-fill
+      if(svcs.length){
+        body.querySelectorAll('.svc-sel').forEach(function(card,i){
+          card.addEventListener('click',function(){
+            body.querySelectorAll('.svc-sel').forEach(function(c){c.style.borderColor='';c.style.background='';});
+            this.style.borderColor='#8b5cf6';this.style.background='rgba(139,92,246,.08)';
+            selSvc=svcs[i];
+            var t=document.getElementById('bk-svc-txt');
+            if(t)t.value=selSvc.name+(selSvc.description?' — '+selSvc.description:'');
+            var lbl=document.getElementById('bk-lbl');
+            if(lbl)lbl.textContent='Booking: '+selSvc.name;
+            var pr=document.getElementById('bk-price-row');if(pr)pr.style.display='block';
+            var pl=document.getElementById('bk-price-label');
+            if(pl)pl.textContent='KSh '+selSvc.price+' · '+(selSvc.duration||30)+' min';
+          });
+        });
+      }
+
       document.getElementById('bk-submit').addEventListener('click',function(){
-        if(!selSvc){toast('Select a service first');return;}
+        var svcTxt=(document.getElementById('bk-svc-txt').value||'').trim();
         var date=document.getElementById('bk-date').value;
         var time=document.getElementById('bk-time').value;
         var name=(document.getElementById('bk-name').value||'').trim()||USER.name;
         var note=(document.getElementById('bk-note').value||'').trim();
+        if(!svcTxt){toast('Describe the service you want');return;}
         if(!date){toast('Pick a date');return;}
         if(!time){toast('Pick a time');return;}
-        if(new Date(date+'T'+time).getTime()<Date.now()){toast('Pick a future time');return;}
+        if(new Date(date+'T'+time).getTime()<Date.now()){toast('Pick a future date and time');return;}
         var btn=this;btn.textContent='Booking...';btn.disabled=true;
         loadFB(function(db){
           db.collection('bookings').add({
-            shop_phone:shop.owner_phone||shop.id,shop_name:shop.name,
-            customer_phone:USER.phone,customer_name:name,
-            service_id:selSvc.id,service_name:selSvc.name,
-            price:selSvc.price,duration:selSvc.duration||30,
-            booking_date:date,booking_time:time,
+            shop_phone:shop.owner_phone||shop.id,
+            shop_name:shop.name,
+            customer_phone:USER.phone,
+            customer_name:name,
+            service_id:selSvc?selSvc.id:'custom',
+            service_name:svcTxt,
+            price:selSvc?selSvc.price:0,
+            duration:selSvc?selSvc.duration||30:60,
+            booking_date:date,
+            booking_time:time,
             booking_ts:new Date(date+'T'+time).getTime(),
-            notes:note,status:'pending',created_at:Date.now()
+            notes:note,
+            status:'pending',
+            created_at:Date.now()
           }).then(function(){
-            toast('Booking sent! Shop will confirm.');
-            btn.textContent='Booked!';
-            document.getElementById('bk-form').style.display='none';
-          }).catch(function(){btn.textContent='Book Appointment';btn.disabled=false;toast('Error');});
+            toast('Booking sent! Shop will confirm and share price.');
+            btn.textContent='&#x2705; Booked!';
+            document.getElementById('bk-form').innerHTML='<div style="text-align:center;padding:20px"><div style="font-size:36px;margin-bottom:8px">&#x1F4C5;</div><div style="font-size:15px;font-weight:700;color:#10b981">Appointment Requested!</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-top:6px">'+shop.name+' will confirm your booking.<br>Check My Orders tab for updates.</div></div>';
+          }).catch(function(){btn.textContent='Book Appointment';btn.disabled=false;toast('Error booking — check connection');});
         });
       });
     });
@@ -3367,7 +3485,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v43 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v44 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
