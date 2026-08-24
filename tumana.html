@@ -148,6 +148,18 @@ body.light [style*="color:#10b981"]{color:#059669!important}
 body.light [style*="color:#ef4444"]{color:#dc2626!important}
 body.light [style*="color:#f59e0b"]{color:#d97706!important}
 body.light [style*="color:#8b5cf6"]{color:#7c3aed!important}
+body.light .sbox{background:#fff!important;border:1.5px solid #c6f0de!important}
+body.light .sboxt{color:rgba(13,40,24,.55)!important}
+body.light .sb2{background:#e8faf1!important;border:1.5px solid #b7f0d8!important}
+body.light .sv{color:#0d2818!important}
+body.light .sl{color:rgba(13,40,24,.5)!important}
+body.light .g2>div,body.light .g3>div{background:#e8faf1!important;border-color:#b7f0d8!important}
+body.light #admin-rev-box *{color:#0d2818!important}
+body.light [style*="color:rgba(255,255,255,.4);font-size:13px"]{color:rgba(13,40,24,.55)!important}
+body.light .card{background:#fff!important;border:1.5px solid #c6f0de!important;color:#0d2818!important}
+body.light .badge.bpl{background:rgba(245,158,11,.15)!important;color:#b45309!important}
+body.light .badge.bco{background:rgba(16,185,129,.15)!important;color:#065f46!important}
+body.light .badge.bas{background:rgba(139,92,246,.15)!important;color:#5b21b6!important}
 body.light [style*="color:rgba(255,255,255,.4)"]{color:rgba(13,40,24,.55)!important}
 body.light [style*="color:rgba(255,255,255,.5)"]{color:rgba(13,40,24,.6)!important}
 body.light [style*="color:rgba(255,255,255,.35)"]{color:rgba(13,40,24,.45)!important}
@@ -163,7 +175,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v44 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v45 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -214,7 +226,7 @@ setTimeout(function(){
   <div id="sb">
     <span id="sbt" style="font-size:14px;font-weight:800;letter-spacing:1px;color:#10b981">TUMANA</span>
     <div style="display:flex;align-items:center;gap:10px">
-      <button id="tbtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:rgba(255,255,255,.7)">&#x2600;</button>
+      <button id="back-btn" style="background:none;border:none;font-size:22px;cursor:pointer;color:rgba(255,255,255,.5);padding:0 4px;display:none">&#x2190;</button><button id="tbtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:rgba(255,255,255,.7)">&#x2600;</button>
     </div>
   </div>
   <div id="pg"></div>
@@ -236,6 +248,13 @@ var TH=localStorage.getItem('th')||'dark';
 var RTAB='customer',AM='login',AR={id:'customer',col:'#10b981',ic:'&#x1F6CD;',lbl:'Customer'};
 var PUDIST=1,PUFEE=70,TT;
 var MP='0799878872',SADMIN='0799878872';
+var NAV_HIST=[]; // page navigation history stack
+function navPush(fn,args){NAV_HIST.push({fn:fn,args:args||[]});if(NAV_HIST.length>10)NAV_HIST.shift();var bb=document.getElementById('back-btn');if(bb)bb.style.display=NAV_HIST.length>1?'block':'none';}
+function navBack(){
+  // Remove current page from history
+  if(NAV_HIST.length>1){NAV_HIST.pop();var prev=NAV_HIST[NAV_HIST.length-1];try{prev.fn.apply(null,prev.args);}catch(e){showHome();}}
+  else{showHome();}
+}
 var FBC={apiKey:'AIzaSyB_C61rcssdlvqbyUK_QcHkl4HxbwcQBOI',authDomain:'chawkpro1.firebaseapp.com',projectId:'chawkpro1',storageBucket:'chawkpro1.firebasestorage.app',messagingSenderId:'897807998371',appId:'1:897807998371:web:33770a8ee5950c54860e16'};
 
 function applyTheme(){
@@ -720,6 +739,7 @@ function startCust(){
   showHome();
 }
 function showHome(){
+  navPush(showHome);
   setTitle('TUMANA','#10b981');setNav('customer','home');
   var shops=SHOPS.length?SHOPS:MSHOPS;
   var favIds=USER.favourite_shops||[];
@@ -851,6 +871,7 @@ function renderProds(prods){
   area.querySelectorAll('.ca').forEach(function(b){b.addEventListener('click',function(){mc(this.dataset.id,this.dataset.n,parseFloat(this.dataset.p),1);});});
 }
 function showCart(){
+  navPush(showCart);
   setTitle('TUMANA','#10b981');setNav('customer','cart');
   if(!CART.length){pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700">Cart</div></div>'+empty('&#x1F6D2;','Cart is empty','Browse shops and add items');return;}
   // Subtotal only — delivery fee calculated AFTER destination is entered
@@ -927,8 +948,6 @@ function showCart(){
         autoCalcFee();
       },function(){btn.textContent='GPS failed — type address above';btn.style.color='#ef4444';},{enableHighAccuracy:true,timeout:10000});
     });
-
-    function haversineKm(a,b,x,y){var R=6371,dL=(x-a)*Math.PI/180,dG=(y-b)*Math.PI/180,z=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(x*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(z),Math.sqrt(1-z));}
 
     function autoCalcFee(){
       var shopLat=CS&&CS.lat;var shopLng=CS&&CS.lng;
@@ -1066,6 +1085,7 @@ function placeOrder(payMethod,mpesaCode){
   });
 }
 function showPickup(){
+  navPush(showPickup);
   setTitle('PICKUP','#10b981');setNav('customer','pickup');
   PUDIST=1;PUFEE=calcFee(1);
   window._gpsLat=null;window._gpsLng=null;
@@ -1157,6 +1177,7 @@ function showPickup(){
 }
 
 function showOrds(){
+  navPush(showOrds);
   setTitle('TUMANA','#10b981');setNav('customer','orders');
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700;margin-bottom:12px">My Orders</div></div><div id="olist" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
   if(OUNSUB)OUNSUB();
@@ -1449,7 +1470,8 @@ function showServiceShopDetail(shop){
         +'<input id="bk-svc-txt" type="text" placeholder="e.g. Box braids, Gel nails, Shave + lineup, Full facial" autocomplete="off" style="font-size:15px"></div>';
       h+='<div class="fld"><label>Your Name</label><input id="bk-name" type="text" value="'+(USER.name||'')+'" autocomplete="off"></div>';
       h+='<div class="fld"><label>Date</label><input id="bk-date" type="date" min="'+new Date().toISOString().slice(0,10)+'"></div>';
-      h+='<div class="fld"><label>Preferred Time</label><input id="bk-time" type="time" value="'+(shop.open_time||'09:00')+'"></div>';
+      h+='<div class="fld"><label>Preferred Time</label><input id="bk-time" type="time" value="'+(shop.open_time||'09:00')+'"></div>'
+      h+='<div id="avail-box" style="display:none;padding:9px 12px;border-radius:9px;margin:0 0 8px;font-size:12px;font-weight:700;text-align:center"></div>';;
       h+='<div class="fld"><label>Extra Notes (optional)</label><input id="bk-note" type="text" placeholder="e.g. length, colour, style preference" autocomplete="off"></div>';
       h+='<div id="bk-price-row" style="display:none;background:#1a1a22;border-radius:9px;padding:10px;margin-bottom:10px">'
         +'<div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(255,255,255,.4)">Selected service</span>'
@@ -1477,6 +1499,27 @@ function showServiceShopDetail(shop){
         });
       }
 
+      // Availability checker — checks Firestore for conflicting bookings
+      function checkAvailability(){
+        var dEl=document.getElementById('bk-date');
+        var tEl=document.getElementById('bk-time');
+        var box=document.getElementById('avail-box');
+        if(!box||!dEl||!dEl.value||!tEl||!tEl.value)return;
+        box.style.display='block';box.style.background='rgba(255,255,255,.05)';box.style.color='rgba(255,255,255,.4)';box.style.border='none';box.textContent='Checking...';
+        loadFB(function(db){
+          if(!db){box.style.display='none';return;}
+          db.collection('bookings').where('shop_phone','==',shop.owner_phone||shop.id).where('booking_date','==',dEl.value).where('status','in',['pending','confirmed']).get()
+            .then(function(snap){
+              var taken=snap.docs.map(function(d){return d.data().booking_time;});
+              var t2=tEl.value.split(':');var t2m=parseInt(t2[0])*60+parseInt(t2[1]);
+              var conflict=taken.some(function(t){if(!t)return false;var t1=t.split(':');return Math.abs(parseInt(t1[0])*60+parseInt(t1[1])-t2m)<30;});
+              if(conflict){box.style.cssText='display:block;padding:9px 12px;border-radius:9px;margin:0 0 8px;font-size:12px;font-weight:700;text-align:center;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)';box.textContent='Slot appears booked — try another time';}
+              else{box.style.cssText='display:block;padding:9px 12px;border-radius:9px;margin:0 0 8px;font-size:12px;font-weight:700;text-align:center;background:rgba(16,185,129,.08);color:#10b981;border:1px solid rgba(16,185,129,.2)';box.textContent='This slot looks available!';}
+            }).catch(function(){box.style.display='none';});
+        });
+      }
+      var bkdEl=document.getElementById('bk-date');if(bkdEl)bkdEl.addEventListener('change',checkAvailability);
+      var bktEl=document.getElementById('bk-time');if(bktEl)bktEl.addEventListener('change',checkAvailability);
       document.getElementById('bk-submit').addEventListener('click',function(){
         var svcTxt=(document.getElementById('bk-svc-txt').value||'').trim();
         var date=document.getElementById('bk-date').value;
@@ -3485,7 +3528,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v44 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v45 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
