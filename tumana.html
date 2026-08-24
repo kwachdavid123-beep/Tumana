@@ -175,7 +175,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v45 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v46 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -248,7 +248,65 @@ var TH=localStorage.getItem('th')||'dark';
 var RTAB='customer',AM='login',AR={id:'customer',col:'#10b981',ic:'&#x1F6CD;',lbl:'Customer'};
 var PUDIST=1,PUFEE=70,TT;
 var MP='0799878872',SADMIN='0799878872';
-var NAV_HIST=[]; // page navigation history stack
+var NAV_HIST=[];
+
+// ── Robust GPS with retry + save to Firestore ─────────────────────────
+function getGPSRobust(onSuccess, onFail, statusEl){
+  if(statusEl){statusEl.textContent='Getting GPS... (may take 10-30s)';statusEl.style.color='rgba(255,255,255,.5)';}
+  if(!navigator.geolocation){
+    if(statusEl)statusEl.textContent='GPS not supported on this device';
+    if(onFail)onFail('unsupported');return;
+  }
+  // Try high accuracy first, fall back to low accuracy
+  function tryGPS(highAcc,attempt){
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var lat=pos.coords.latitude;var lng=pos.coords.longitude;var acc=Math.round(pos.coords.accuracy);
+      if(statusEl){statusEl.textContent='GPS captured (accuracy: '+acc+'m)';statusEl.style.color='#10b981';}
+      // Save to Firestore for future sessions
+      if(USER&&USER.phone){
+        loadFB(function(db){
+          if(!db)return;
+          var col=USER.role==='rider'?'riders':'tumana_users';
+          var docId=USER.role==='rider'?USER.phone:USER.phone+'_'+USER.role;
+          db.collection(col).doc(docId).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});
+        });
+      }
+      // Also cache in memory and localStorage
+      window._custLat=lat;window._custLng=lng;
+      try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
+      onSuccess(lat,lng,acc);
+    },function(err){
+      if(highAcc&&attempt<2){
+        // Retry with low accuracy
+        if(statusEl)statusEl.textContent='Retrying GPS...';
+        setTimeout(function(){tryGPS(false,attempt+1);},1000);
+      } else {
+        var msg=err.code===1?'GPS permission denied — enable in browser settings':err.code===2?'GPS signal not found — try outdoors':'GPS timed out — try again';
+        if(statusEl){statusEl.textContent=msg;statusEl.style.color='#ef4444';}
+        // Load last saved GPS from cache
+        try{
+          var cached=JSON.parse(localStorage.getItem('tumana_gps')||'null');
+          if(cached&&cached.ts&&Date.now()-cached.ts<3600000){// < 1 hour old
+            if(statusEl)statusEl.textContent='Using last known location ('+Math.round((Date.now()-cached.ts)/60000)+' min ago)';
+            onSuccess(cached.lat,cached.lng,999);return;
+          }
+        }catch(e){}
+        if(onFail)onFail(msg);
+      }
+    },{enableHighAccuracy:highAcc,timeout:highAcc?15000:25000,maximumAge:highAcc?0:300000});
+  }
+  tryGPS(true,0);
+}
+
+// Load last cached GPS into window vars on startup
+(function(){
+  try{
+    var cached=JSON.parse(localStorage.getItem('tumana_gps')||'null');
+    if(cached&&cached.ts&&Date.now()-cached.ts<7200000){// < 2 hours
+      window._custLat=cached.lat;window._custLng=cached.lng;
+    }
+  }catch(e){}
+})(); // page navigation history stack
 function navPush(fn,args){NAV_HIST.push({fn:fn,args:args||[]});if(NAV_HIST.length>10)NAV_HIST.shift();var bb=document.getElementById('back-btn');if(bb)bb.style.display=NAV_HIST.length>1?'block':'none';}
 function navBack(){
   // Remove current page from history
@@ -937,150 +995,14 @@ function showCart(){
 
     // GPS button
     document.getElementById('del-gps-btn').addEventListener('click',function(){
-      var btn=this;btn.textContent='Getting GPS...';
-      if(!navigator.geolocation){toast('GPS not available');return;}
-      navigator.geolocation.getCurrentPosition(function(pos){
-        window._custLat=pos.coords.latitude;window._custLng=pos.coords.longitude;
+      var btn=this;btn.disabled=true;btn.textContent='Getting GPS...';
+      getGPSRobust(function(lat,lng,acc){
+        btn.disabled=false;
         var addrEl=document.getElementById('del-addr');
-        if(addrEl&&!addrEl.value)addrEl.value='GPS Location ('+pos.coords.latitude.toFixed(4)+','+pos.coords.longitude.toFixed(4)+')';
-        btn.textContent='GPS captured';btn.style.color='#10b981';
-        // Auto-calculate fee if shop has GPS
+        if(addrEl&&!addrEl.value)addrEl.value='My GPS Location (±'+acc+'m)';
+        btn.textContent='GPS captured (±'+acc+'m)';btn.style.color='#10b981';
         autoCalcFee();
-      },function(){btn.textContent='GPS failed — type address above';btn.style.color='#ef4444';},{enableHighAccuracy:true,timeout:10000});
-    });
-
-    function autoCalcFee(){
-      var shopLat=CS&&CS.lat;var shopLng=CS&&CS.lng;
-      var df=calcFee(CART[0].shopDist||0.5);var km=CART[0].shopDist||0.5;
-      if(window._custLat&&window._custLng&&shopLat&&shopLng){
-        km=Math.max(0.2,Math.round(haversineKm(shopLat,shopLng,window._custLat,window._custLng)*10)/10);
-        df=calcFee(km);
-      } else if(window._custLat&&window._custLng){
-        km=Math.max(0.2,Math.round(haversineKm(-0.0236,35.0182,window._custLat,window._custLng)*10)/10);
-        df=calcFee(km);
-      }
-      window._finalDf=df;window._finalKm=km;
-      var fbox=document.getElementById('fee-live-box');if(fbox)fbox.style.display='block';
-      var fv=document.getElementById('fee-live-val');if(fv)fv.textContent='KSh '+df;
-      var tv=document.getElementById('total-live-val');if(tv)tv.textContent='KSh '+(sub+df);
-      var dl=document.getElementById('dist-label');if(dl)dl.textContent='Distance: ~'+km+'km';
-      var nb=document.getElementById('del-next');if(nb)nb.style.display='block';
-      // Also update cart estimate
-      var ev=document.getElementById('fee-est-val');if(ev)ev.textContent='KSh '+df;
-    }
-
-    // Calculate fee button
-    document.getElementById('calc-fee-btn').addEventListener('click',function(){
-      var addr=(document.getElementById('del-addr').value||'').trim();
-      if(!addr){toast('Enter your delivery address or use GPS');return;}
-      autoCalcFee();
-    });
-
-    // Confirm Order button
-    document.getElementById('del-next').addEventListener('click',function(){
-      var addr=(document.getElementById('del-addr').value||'').trim();
-      var land=(document.getElementById('del-land').value||'').trim();
-      if(!addr){toast('Enter delivery address first');return;}
-      var fullAddr=[addr,land].filter(Boolean).join(' — ');
-      window._deliveryAddr=fullAddr;
-      var df=window._finalDf||calcFee(CART[0].shopDist||0.5);
-      hideSh();
-      // Show payment method selection
-      showPaymentSheet(sub,df);
-    });
-  });
-}
-
-function showPaymentSheet(sub,df){
-  var total=sub+df;
-  showSh('<div class="hd"></div>'
-    +'<div style="font-size:18px;font-weight:800;margin-bottom:14px">Confirm Order</div>'
-    +'<div style="background:#1a1a22;border-radius:11px;padding:12px;margin-bottom:14px">'
-    +'<div style="display:flex;justify-content:space-between;padding:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Goods</span><span style="font-weight:700">KSh '+sub+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:5px 0"><span style="color:rgba(255,255,255,.4);font-size:13px">Delivery</span><span style="font-weight:700;color:#10b981">KSh '+df+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(255,255,255,.08);margin-top:4px"><span style="font-size:14px;font-weight:800">Total</span><span style="font-size:20px;font-weight:800">KSh '+total+'</span></div>'
-    +'<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">&#x1F4CD; '+( window._deliveryAddr||'Your location')+'</div>'
-    +'</div>'
-    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px">Payment: M-Pesa only (pay shop after they accept)</div>'
-    +'<button id="sn" class="btn bg" style="font-size:15px;padding:15px">&#x2705; Place Order</button>'
-    +'<button id="cn" class="btn bo" style="margin-top:6px">Back</button>'
-  );
-  document.getElementById('cn').addEventListener('click',hideSh);
-  document.getElementById('sn').addEventListener('click',function(){
-    placeOrder('mpesa','');
-  });
-  // Cash path disabled
-  var cashBtnEl=document.getElementById('cash-btn');
-  if(cashBtnEl){cashBtnEl.addEventListener('click',function(){toast('Cash payments are disabled. Please use M-Pesa.');});}
-}
-
-function placeOrder(payMethod,mpesaCode){
-  if(!CART.length){toast('Cart is empty');return;}
-  var shop=CS||{};
-  var shopId=shop.id||CART[0].shopId||'';
-  var sub=CART.reduce(function(s,i){return s+(i.price||0)*(i.qty||1);},0);
-  var df=calcFee(CART[0].shopDist||.5);
-  var addr=window._deliveryAddr||USER.name+' waiting';
-  var orderData={
-    type:'shop',
-    customer_phone:USER.phone,
-    customer_name:USER.name,
-    shop_id:shopId,
-    shopName:shop.name||CART[0].shopName||'',
-    delivery_address:addr,
-    items:CART.map(function(i){return{id:i.id,name:i.name,quantity:i.qty,price:i.price};}),
-    subtotal:sub,delivery_fee:df,total:sub+df,
-    rider_earnings:df,platform_earnings:0,
-    distance:CART[0].shopDist||.5,
-    status:'placed',payment_method:payMethod,
-    rider_phone:null,rider_name:null
-  };
-  if(window._ordLat){orderData.delivery_lat=window._ordLat;orderData.delivery_lng=window._ordLng;}
-
-  function doPlace(db){
-    var savedCart=CART.slice();
-    CART=[];window._ordLat=null;window._ordLng=null;window._deliveryAddr=null;
-    hideSh();showOrds();toast('&#x23F3; Sending order...');
-    db.collection('delivery_orders')
-      .add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()}))
-      .then(function(){
-    loadFB(function(db){
-      if(!db)return;
-      db.collection('riders').where('online','==',true).where('verified','==',true).limit(1).get()
-        .then(function(snap){
-          if(snap.empty){
-            toast('&#x26A0; Order placed! No riders online right now — you will be notified when a rider picks up your job.');
-          } else {
-            toast('&#x2705; Order placed! A rider will be assigned shortly.');
-          }
-        }).catch(function(){
-          toast('&#x2705; Order placed! Track in My Orders.');
-        });
-    });})
-      .catch(function(e){console.error('Order error:',e);CART=savedCart;toast('&#x26A0; Order failed. Try again.');showCart();});
-  }
-
-  loadFB(function(db){
-    if(!db){toast('No connection — cannot place order');return;}
-    
-    db.collection('delivery_orders')
-      .where('customer_phone','==',USER.phone)
-      .where('status','in',['placed','confirmed'])
-      .get()
-      .then(function(snap){
-        
-        var dup=snap.docs.some(function(d){return d.data().shop_id===shopId;});
-        if(dup){
-          hideSh();
-          toast('You already have an active order from this shop. Track it in My Orders.');
-          showOrds();
-          return;
-        }
-        doPlace(db);
-      })
-      .catch(function(){
-        
-        doPlace(db);
+      },function(msg){btn.disabled=false;btn.textContent='GPS failed — type address above';btn.style.color='#ef4444';},btn);
       });
   });
 }
@@ -1129,20 +1051,25 @@ function showPickup(){
     +'</div>';
 
   // GPS pickup
-  function getGPS(cb,stId){
-    var st=document.getElementById(stId);if(st)st.textContent='Getting GPS...';
-    if(!navigator.geolocation){if(st)st.textContent='GPS not available';return;}
-    navigator.geolocation.getCurrentPosition(function(p){
-      cb(p.coords.latitude,p.coords.longitude);
-      if(st)st.textContent='GPS captured ('+p.coords.latitude.toFixed(4)+', '+p.coords.longitude.toFixed(4)+')';
-    },function(){if(st)st.textContent='Could not get GPS. Type location above.';},{enableHighAccuracy:true,timeout:10000});
-  }
-
   document.getElementById('gps-pick').addEventListener('click',function(){
-    getGPS(function(la,ln){window._gpsLat=la;window._gpsLng=ln;var f=document.getElementById('pfr');if(f&&!f.value)f.value='My GPS location';updateFare();},'gps-pick-st');
+    var btn=this;btn.disabled=true;btn.textContent='Getting GPS...';
+    var st=document.getElementById('gps-pick-st');
+    getGPSRobust(function(la,ln,acc){
+      window._gpsLat=la;window._gpsLng=ln;
+      var f=document.getElementById('pfr');if(f&&!f.value)f.value='My GPS Location (±'+acc+'m)';
+      btn.disabled=false;btn.textContent='GPS captured';
+      updateFare();
+    },function(msg){btn.disabled=false;btn.textContent='Use GPS';if(st)st.textContent=msg||'GPS failed';},st);
   });
   document.getElementById('gps-drop').addEventListener('click',function(){
-    getGPS(function(la,ln){window._dropLat=la;window._dropLng=ln;var f=document.getElementById('pto');if(f&&!f.value)f.value='My GPS location';updateFare();},'gps-drop-st');
+    var btn=this;btn.disabled=true;btn.textContent='Getting GPS...';
+    var st=document.getElementById('gps-drop-st');
+    getGPSRobust(function(la,ln,acc){
+      window._dropLat=la;window._dropLng=ln;
+      var f=document.getElementById('pto');if(f&&!f.value)f.value='Drop-off GPS (±'+acc+'m)';
+      btn.disabled=false;btn.textContent='GPS captured';
+      updateFare();
+    },function(msg){btn.disabled=false;btn.textContent='Use GPS';if(st)st.textContent=msg||'GPS failed';},st);
   });
 
   document.getElementById('reqb').addEventListener('click',function(){
@@ -2357,6 +2284,12 @@ function startJL(){
   if(RUNSUB){RUNSUB();RUNSUB=null;}
   if(!RACT){
     dbSet('riders',USER.phone,{busy:false,online:true,name:USER.name,phone:USER.phone});
+    // Capture GPS when going online — saved to Firestore for proximity matching
+    getGPSRobust(function(lat,lng){
+      loadFB(function(db){
+        if(db)db.collection('riders').doc(USER.phone).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});
+      });
+    },function(){},null); // silent fail — still goes online
   }
   var prevJobCount=RJOBS.length;
   RUNSUB=dbListenIn('delivery_orders','status',['confirmed'],function(jobs){
@@ -3528,7 +3461,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v45 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v46 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
