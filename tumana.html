@@ -175,7 +175,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v48 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v49 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -301,7 +301,7 @@ function setNav(role,tab){
   nav.innerHTML='<div style="display:flex;width:100%;max-width:430px;justify-content:space-around">';
   items.forEach(function(item){
     var active=item[0]===tab;
-    nav.innerHTML+=('<div data-nav="'+item[0]+'" style="flex:1;text-align:center;padding:8px 0;cursor:pointer;opacity:'+(active?'1':'.45')+'"><div style="font-size:20px">'+item[1]+'</div><div style="font-size:9px;font-weight:700;margin-top:1px">'+item[2]+'</div></div>');
+    nav.innerHTML+=('<div data-nav="'+item[0]+'" style="flex:1;text-align:center;padding:10px 0;cursor:pointer;opacity:'+(active?'1':'.45')+'"><div style="font-size:22px">'+item[1]+'</div><div style="font-size:10px;font-weight:700;margin-top:2px">'+item[2]+'</div></div>');
   });
   nav.innerHTML+='</div>';
   nav.querySelectorAll('[data-nav]').forEach(function(btn){
@@ -475,11 +475,11 @@ function renderAuth(){
       // Login
       var docId=normP+'_'+AR.id;
       if(AR.id==='admin'&&normP===SADMIN){
-        dbGet('tumana_users',normP+'_admin',function(d){
-          if(!d){USER={role:'admin',name:'Admin',phone:normP,is_master:true,pin_hash:pinHash};su();startApp();}
-          else if(d.pin_hash===pinHash){USER=d;USER.role='admin';su();startApp();}
-          else toast('Wrong PIN');
-        });return;
+        // Admin trusted by phone. PIN guards local session only.
+        var prevAdmin=null;try{var ps=localStorage.getItem('tumana_user');if(ps){var pp=JSON.parse(ps);if(pp.phone===normP&&pp.role==='admin')prevAdmin=pp;}}catch(e){}
+        if(prevAdmin&&prevAdmin.pin_hash&&prevAdmin.pin_hash!==pinHash){toast('Wrong PIN');return;}
+        USER={role:'admin',name:'Admin',phone:normP,is_master:true,pin_hash:pinHash,verified:true};
+        su();dbSet('tumana_users',normP+'_admin',USER);startApp();return;
       }
       dbGet('tumana_users',docId,function(d){
         if(!d){toast('No account found. Create one first.');return;}
@@ -1106,68 +1106,43 @@ function syncOfflineQueue(){
 
 // ── Robust GPS with retry + save to Firestore ─────────────────────────
 function getGPSRobust(onSuccess,onFail,statusEl){
-  if(statusEl){statusEl.textContent='Getting location...';statusEl.style.color='rgba(255,255,255,.5)';}
-  if(!navigator.geolocation){
-    if(statusEl)statusEl.textContent='GPS not supported on this device';
-    if(onFail)onFail('GPS not supported');return;
-  }
-  // Strategy: low accuracy first (fast, works in WebViews + AppGeyser)
-  // If accuracy is terrible (>500m), try high accuracy as bonus
-  function tryLow(){
-    if(statusEl)statusEl.textContent='Getting location...';
+  function setS(msg,col){if(statusEl){statusEl.textContent=msg;if(col)statusEl.style.color=col;}}
+  setS('Getting location...','rgba(255,255,255,.5)');
+  // 1. Try cached location first (instant)
+  try{
+    var g=JSON.parse(localStorage.getItem('tumana_gps')||'null');
+    if(g&&g.ts&&Date.now()-g.ts<1800000){
+      window._custLat=g.lat;window._custLng=g.lng;
+      setS('Using saved location ('+Math.round((Date.now()-g.ts)/60000)+'min ago)','#f59e0b');
+      onSuccess(g.lat,g.lng,500);
+      // Refresh silently in background
+      if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(p){saveG(p.coords.latitude,p.coords.longitude);},function(){},{enableHighAccuracy:false,timeout:15000,maximumAge:0});
+      return;
+    }
+  }catch(e){}
+  if(!navigator.geolocation){setS('Location not supported on this device','#ef4444');if(onFail)onFail('not supported');return;}
+  // 2. Low accuracy first (network-based, fast, works in AppGeyser)
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
+    setS('Location found (±'+acc+'m)','#10b981');
+    saveG(lat,lng);onSuccess(lat,lng,acc);
+  },function(err){
+    // 3. Retry with longer timeout
     navigator.geolocation.getCurrentPosition(function(pos){
       var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-      if(statusEl){statusEl.textContent='Location found (±'+acc+'m)';statusEl.style.color='#10b981';}
-      saveGPS(lat,lng);
-      onSuccess(lat,lng,acc);
-      // Silently upgrade to high accuracy in background if accuracy is poor
-      if(acc>200){tryHigh(true);}
-    },function(err){
-      // Low accuracy failed — try high accuracy
-      if(statusEl)statusEl.textContent='Trying GPS...';
-      tryHigh(false);
-    },{enableHighAccuracy:false,timeout:20000,maximumAge:30000});
-  }
-  function tryHigh(silent){
-    navigator.geolocation.getCurrentPosition(function(pos){
-      var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-      if(!silent&&statusEl){statusEl.textContent='GPS found (±'+acc+'m)';statusEl.style.color='#10b981';}
-      saveGPS(lat,lng);
-      if(!silent)onSuccess(lat,lng,acc);
-    },function(err){
-      if(silent)return; // silent upgrade — ignore failure
-      // Both failed — try cached
-      try{
-        var cached=JSON.parse(localStorage.getItem('tumana_gps')||'null');
-        if(cached&&cached.ts&&Date.now()-cached.ts<3600000){
-          var age=Math.round((Date.now()-cached.ts)/60000);
-          if(statusEl){statusEl.textContent='Using saved location ('+age+'min ago)';statusEl.style.color='#f59e0b';}
-          onSuccess(cached.lat,cached.lng,999);return;
-        }
-      }catch(e){}
-      var msg=err.code===1?'Location permission denied — tap site settings to allow':'Location unavailable — check GPS is enabled in phone settings';
-      if(statusEl){statusEl.textContent=msg;statusEl.style.color='#ef4444';}
-      if(onFail)onFail(msg);
-    },{enableHighAccuracy:true,timeout:25000,maximumAge:0});
-  }
-  function saveGPS(lat,lng){
+      setS('Location found (±'+acc+'m)','#10b981');
+      saveG(lat,lng);onSuccess(lat,lng,acc);
+    },function(err2){
+      var msg=err2.code===1?'Location permission denied. Open browser Settings and allow Location.':'Type your address manually above — location unavailable';
+      setS(msg,'#ef4444');if(onFail)onFail(msg);
+    },{enableHighAccuracy:false,timeout:25000,maximumAge:120000});
+  },{enableHighAccuracy:false,timeout:12000,maximumAge:60000});
+  function saveG(lat,lng){
     window._custLat=lat;window._custLng=lng;
     try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
-    if(USER&&USER.phone){
-      loadFB(function(db){
-        if(!db)return;
-        var col=USER.role==='rider'?'riders':'tumana_users';
-        var docId=USER.role==='rider'?USER.phone:USER.phone+'_'+USER.role;
-        db.collection(col).doc(docId).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});
-      });
-    }
+    if(USER&&USER.phone){loadFB(function(db){if(!db)return;var col=USER.role==='rider'?'riders':'tumana_users';db.collection(col).doc(USER.role==='rider'?USER.phone:USER.phone+'_'+USER.role).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});});}
   }
-  tryLow();
 }
-
-// ── Offline queue for sales ────────────────────────────────────────────
-// Sales are always written to localStorage first, then synced to Firestore
-// This means recording works 100% offline. On reconnect, queue auto-syncs.
 function getLocalSales(){try{return JSON.parse(localStorage.getItem('tumana_sales_'+USER.phone)||'[]');}catch(e){return[];}}
 function saveLocalSale(sale){
   var arr=getLocalSales();
@@ -2810,7 +2785,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v48 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v49 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
