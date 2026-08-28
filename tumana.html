@@ -156,6 +156,7 @@ body.light .sl{color:rgba(13,40,24,.5)!important}
 body.light .g2>div,body.light .g3>div{background:#e8faf1!important;border-color:#b7f0d8!important}
 body.light #admin-rev-box *{color:#0d2818!important}
 body.light [style*="color:rgba(255,255,255,.4);font-size:13px"]{color:rgba(13,40,24,.55)!important}
+body.light [style*="background:#111116;border:1.5px solid rgba"]{background:#fff!important;border-color:#c6f0de!important}
 body.light .card{background:#fff!important;border:1.5px solid #c6f0de!important;color:#0d2818!important}
 body.light .badge.bpl{background:rgba(245,158,11,.15)!important;color:#b45309!important}
 body.light .badge.bco{background:rgba(16,185,129,.15)!important;color:#065f46!important}
@@ -175,7 +176,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v50 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v51 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -298,12 +299,16 @@ function setNav(role,tab){
   };
   var items=NAVS[role]||[];
   nav.style.display='flex';
-  nav.innerHTML='<div style="display:flex;width:100%">';
+  var nh='<div style="display:flex;width:100%;align-items:stretch">';
   items.forEach(function(item){
     var active=item[0]===tab;
-    nav.innerHTML+=('<div data-nav="'+item[0]+'" style="flex:1;text-align:center;padding:10px 0;cursor:pointer;opacity:'+(active?'1':'.45')+'"><div style="font-size:22px">'+item[1]+'</div><div style="font-size:10px;font-weight:700;margin-top:2px">'+item[2]+'</div></div>');
+    nh+='<div data-nav="'+item[0]+'" style="flex:1;text-align:center;padding:10px 0 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:'+(active?'1':'.45')+'">'
+      +'<div style="font-size:22px;line-height:1">'+item[1]+'</div>'
+      +'<div style="font-size:10px;font-weight:700;margin-top:3px">'+item[2]+'</div>'
+      +'</div>';
   });
-  nav.innerHTML+='</div>';
+  nh+='</div>';
+  nav.innerHTML=nh;
   nav.querySelectorAll('[data-nav]').forEach(function(btn){
     btn.addEventListener('click',function(){
       var t=this.getAttribute('data-nav');
@@ -484,7 +489,12 @@ function renderAuth(){
       // Check localStorage first — handles cases where Firestore doc ID differs
       var lsUser=null;try{var ls=localStorage.getItem('tumana_user');if(ls){var lsp=JSON.parse(ls);if(lsp&&lsp.phone===normP&&lsp.role===AR.id)lsUser=lsp;}}catch(e){}
       if(lsUser){
-        if(lsUser.pin_hash&&lsUser.pin_hash!==pinHash){toast('Wrong PIN');return;}
+        function pmatch(stored,p){
+          if(!stored)return true;
+          var rp=document.getElementById('fp').value.trim().replace(/\s/g,'');
+          return[btoa(normP+':'+p),btoa(rp+':'+p),btoa(normP+p),btoa(rp+p),btoa(p)].some(function(h){return h===stored;});
+        }
+        if(!pmatch(lsUser.pin_hash,pin)){toast('Wrong PIN');return;}
         USER=Object.assign({},lsUser,{pin_hash:pinHash});su();startApp();return;
       }
       // Firestore fallback
@@ -500,7 +510,8 @@ function renderAuth(){
             }).catch(function(){toast('Login error — check connection');});
           });return;
         }
-        if(d.pin_hash&&d.pin_hash!==pinHash){toast('Wrong PIN');return;}
+        function pmatch2(stored,p){if(!stored)return true;var rp=document.getElementById('fp').value.trim().replace(/\s/g,'');return[btoa(normP+':'+p),btoa(rp+':'+p),btoa(normP+p),btoa(rp+p),btoa(p)].some(function(h){return h===stored;});}
+        if(!pmatch2(d.pin_hash,pin)){toast('Wrong PIN');return;}
         USER=Object.assign({},d,{role:AR.id,pin_hash:pinHash,verified:d.verified||false});su();startApp();
       });
     } else {
@@ -1123,37 +1134,30 @@ function syncOfflineQueue(){
 
 // ── Robust GPS with retry + save to Firestore ─────────────────────────
 function getGPSRobust(onSuccess,onFail,statusEl){
-  function setS(msg,col){if(statusEl){statusEl.textContent=msg;if(col)statusEl.style.color=col;}}
-  setS('Getting location...','rgba(255,255,255,.5)');
-  // 1. Try cached location first (instant)
+  function setS(msg,col){if(statusEl&&statusEl.textContent!==undefined){statusEl.textContent=msg;if(col)statusEl.style.color=col;}}
+  // Use cached location if < 1 hour old
   try{
     var g=JSON.parse(localStorage.getItem('tumana_gps')||'null');
-    if(g&&g.ts&&Date.now()-g.ts<1800000){
+    if(g&&g.ts&&(Date.now()-g.ts)<3600000){
       window._custLat=g.lat;window._custLng=g.lng;
-      setS('Using saved location ('+Math.round((Date.now()-g.ts)/60000)+'min ago)','#f59e0b');
-      onSuccess(g.lat,g.lng,500);
-      // Refresh silently in background
-      if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(p){saveG(p.coords.latitude,p.coords.longitude);},function(){},{enableHighAccuracy:false,timeout:15000,maximumAge:0});
-      return;
+      setS('Saved location ('+(Math.round((Date.now()-g.ts)/60000))+'min ago)','#f59e0b');
+      onSuccess(g.lat,g.lng,500);return;
     }
   }catch(e){}
-  if(!navigator.geolocation){setS('Location not supported on this device','#ef4444');if(onFail)onFail('not supported');return;}
-  // 2. Low accuracy first (network-based, fast, works in AppGeyser)
+  if(!navigator.geolocation){setS('GPS not available — type address above','#ef4444');if(onFail)onFail('not supported');return;}
+  setS('Getting location...','rgba(255,255,255,.5)');
   navigator.geolocation.getCurrentPosition(function(pos){
     var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-    setS('Location found (±'+acc+'m)','#10b981');
-    saveG(lat,lng);onSuccess(lat,lng,acc);
-  },function(err){
-    // 3. Retry with longer timeout
+    setS('±'+acc+'m','#10b981');saveG(lat,lng);onSuccess(lat,lng,acc);
+  },function(){
     navigator.geolocation.getCurrentPosition(function(pos){
       var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-      setS('Location found (±'+acc+'m)','#10b981');
-      saveG(lat,lng);onSuccess(lat,lng,acc);
-    },function(err2){
-      var msg=err2.code===1?'Location permission denied. Open browser Settings and allow Location.':'Type your address manually above — location unavailable';
-      setS(msg,'#ef4444');if(onFail)onFail(msg);
-    },{enableHighAccuracy:false,timeout:25000,maximumAge:120000});
-  },{enableHighAccuracy:false,timeout:12000,maximumAge:60000});
+      setS('±'+acc+'m','#10b981');saveG(lat,lng);onSuccess(lat,lng,acc);
+    },function(){
+      setS('Location unavailable — type address manually above','#f59e0b');
+      if(onFail)onFail('unavailable');
+    },{enableHighAccuracy:false,timeout:30000,maximumAge:0});
+  },{enableHighAccuracy:false,timeout:15000,maximumAge:300000});
   function saveG(lat,lng){
     window._custLat=lat;window._custLng=lng;
     try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
@@ -2122,9 +2126,9 @@ function showAOv(){
         +statBox('shops','#f59e0b',actS,'Active Shops','18px')
         +statBox('riders-all','#10b981',r[2].docs.length,'All Riders','18px')
         +'</div>'
-        +'<div class="sbox" style="background:var(--card-bg,#111116);border:1.5px solid var(--card-bd,rgba(255,255,255,.07))"><div class="sboxt">Revenue</div>'
-        +'<div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:var(--tc,rgba(255,255,255,.4));font-size:13px">Platform Revenue</span><span style="font-weight:700;color:#10b981">KSh '+rev.toLocaleString()+'</span></div>'
-        +'<div style="display:flex;justify-content:space-between;margin:8px 0"><span style="color:var(--tc,rgba(255,255,255,.4));font-size:13px">Rider Payouts</span><span style="font-weight:700;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div>'
+        +'<div class="sbox" style="background:#111116;border:1.5px solid rgba(255,255,255,.07)"><div class="sboxt">Revenue</div>'
+        +'<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span class="sboxt" style="text-transform:none;letter-spacing:0;font-size:13px">Platform Revenue</span><span style="font-weight:800;color:#10b981">KSh '+rev.toLocaleString()+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;padding:7px 0"><span class="sboxt" style="text-transform:none;letter-spacing:0;font-size:13px">Rider Payouts</span><span style="font-weight:800;color:#8b5cf6">KSh '+(fees-rev).toLocaleString()+'</span></div>'
         +'</div>'
         +(USER&&(USER.is_master===true||USER.is_master==='true')?'<div class="sbox" style="margin-top:12px;border-color:rgba(139,92,246,.3)"><div class="sboxt" style="color:#8b5cf6">Admin Access Control</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:10px">Add trusted sub-admins below.</div><button id="mam-btn" class="btn bp" style="margin-top:0">Manage Admin Users</button><button id="rst-req-btn" class="btn bo" style="margin-top:6px">PIN Reset Requests</button></div>':'')
         +'<div id="fee-config-box" class="sbox" style="cursor:pointer;border-color:rgba(245,158,11,.3);margin-top:12px">'
@@ -2485,7 +2489,7 @@ function showAdminUsers(){
   if(!USER||!USER.is_master){toast('Master admin only');return;}
   showSh('<div class="hd"></div>'
     +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">Admin Users</div>'
-    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Only you can add or remove admins</div>'
+    +'<div class="sboxt" style="text-transform:none;letter-spacing:0;font-size:12px;margin-bottom:16px">Only you can add or remove admins</div>'
     +'<div class="fld"><label>Phone Number to Add</label><input id="adm-ph" type="tel" placeholder="07XX XXX XXX" autocomplete="off"></div>'
     +'<div class="fld"><label>Name (optional)</label><input id="adm-nm" type="text" placeholder="e.g. John Supervisor" autocomplete="off"></div>'
     +'<button id="add-adm" class="btn bp">Add Admin</button>'
@@ -2802,7 +2806,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v50 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v51 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
