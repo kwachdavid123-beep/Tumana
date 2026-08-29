@@ -176,7 +176,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v51 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v52 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -767,8 +767,9 @@ function placeOrder(payMethod,mpesaCode){
 function showOrds(){
   navPush(showOrds);
   setTitle('ORDERS','#10b981');setNav('customer','orders');
-  pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:700;margin-bottom:12px">My Orders</div></div><div id="ordlist" style="padding:0 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  pg().innerHTML='<div style="padding:16px 18px 0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:19px;font-weight:700">My Orders</div><button id="ord-hist-btn" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#10b981;cursor:pointer;font-family:inherit">History &#x1F4C5;</button></div></div><div id="ordlist" style="padding:0 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
   if(OUNSUB){try{OUNSUB();}catch(e){}}
+  setTimeout(function(){var hb=document.getElementById('ord-hist-btn');if(hb)hb.addEventListener('click',showOrderHistory);},50);
   OUNSUB=dbListen('delivery_orders','customer_phone','==',USER.phone,function(orders){
     var list=document.getElementById('ordlist');if(!list)return;
     orders=orders.filter(function(o){return o.status!=='delivered'&&o.status!=='rejected';}).sort(function(a,b){return(b.ts||0)-(a.ts||0);});
@@ -819,6 +820,44 @@ function showOrds(){
   });
 }
 // ── CUSTOMER: PROFILE ────────────────────────────────────────────────
+
+function showOrderHistory(){
+  setTitle('HISTORY','#10b981');
+  pg().innerHTML='<div style="padding:16px 18px 0;display:flex;align-items:center;gap:10px"><button onclick="showOrds()" style="background:none;border:none;font-size:22px;cursor:pointer;color:rgba(255,255,255,.6)">&#x2190;</button><div style="font-size:18px;font-weight:700">Order History</div></div><div id="hist-body" style="padding:0 18px 100px"><div style="text-align:center;padding:30px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  var cached=[];try{cached=JSON.parse(localStorage.getItem('tumana_ord_hist_'+USER.phone)||'[]');}catch(e){}
+  if(cached.length)renderOrderHistory(cached);
+  loadFB(function(db){
+    if(!db)return;
+    db.collection('delivery_orders').where('customer_phone','==',USER.phone).limit(80).get()
+      .then(function(snap){
+        var all=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+          .filter(function(o){return o.status==='delivered'||o.status==='rejected';})
+          .sort(function(a,b){return(b.ts||0)-(a.ts||0);});
+        try{localStorage.setItem('tumana_ord_hist_'+USER.phone,JSON.stringify(all.slice(0,50)));}catch(e){}
+        renderOrderHistory(all);
+      }).catch(function(){if(!cached.length){var el=document.getElementById('hist-body');if(el)el.innerHTML=empty('&#x1F4CB;','No history yet','Completed orders appear here');}});
+  });
+}
+function renderOrderHistory(orders){
+  var el=document.getElementById('hist-body');if(!el)return;
+  if(!orders.length){el.innerHTML=empty('&#x1F4CB;','No history yet','Your delivered orders appear here');return;}
+  var h='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px">'+orders.length+' completed order'+(orders.length>1?'s':'')+'</div>';
+  orders.forEach(function(o){
+    var isDelivered=o.status==='delivered';
+    var dt=o.ts||o.created_at||0;
+    var dateStr=dt?new Date(dt).toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'}):'';
+    h+='<div class="card" style="margin-bottom:8px;border-left:3px solid '+(isDelivered?'#10b981':'#ef4444')+'">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">';
+    h+='<div><div style="font-weight:800">#'+o.id.slice(-6).toUpperCase()+'</div>';
+    h+='<div style="font-size:12px;color:rgba(255,255,255,.4)">'+(o.shopName||'Shop')+' · '+dateStr+'</div></div>';
+    h+='<span style="font-size:11px;font-weight:800;color:'+(isDelivered?'#10b981':'#ef4444')+';background:'+(isDelivered?'rgba(16,185,129,.1)':'rgba(239,68,68,.1)')+';padding:3px 8px;border-radius:6px">'+(isDelivered?'&#x2705; Delivered':'&#x274C; Rejected')+'</span>';
+    h+='</div>';
+    if(o.items&&o.items.length){h+='<div style="font-size:12px;color:rgba(255,255,255,.35);margin-bottom:6px">'+o.items.slice(0,3).map(function(i){return i.name+'x'+(i.quantity||1);}).join(' · ')+(o.items.length>3?' ...':'')+'</div>';}
+    h+='<div style="display:flex;justify-content:space-between"><div style="font-size:12px;color:rgba(255,255,255,.35)">KSh '+(o.subtotal||0)+' goods + KSh '+(o.delivery_fee||0)+' delivery</div><div style="font-weight:800;color:#10b981">KSh '+(o.total||0)+'</div></div>';
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
 function showProfile(){
   setTitle('ME','#10b981');setNav('customer','profile');
   pg().innerHTML='<div style="padding:20px"><div style="text-align:center;margin-bottom:24px"><div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 10px">&#x1F464;</div><div style="font-size:18px;font-weight:800">'+(USER.name||'Me')+'</div><div style="font-size:13px;color:rgba(255,255,255,.4)">'+(USER.phone||'')+'</div></div>'
@@ -2806,14 +2845,15 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v51 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v52 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
-    var s=localStorage.getItem('tu');
+    var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
   }catch(e){try{localStorage.removeItem('tu');}catch(ex){}}
   applyTheme();
   updateOnlineStatus();
-  
+  if('serviceWorker' in navigator){navigator.serviceWorker.register('/Tumana/sw.js',{scope:'/Tumana/'}).catch(function(){});}
+  window.addEventListener('online',function(){setTimeout(function(){if(USER&&USER.phone){if(typeof syncLocalSales==='function')syncLocalSales();if(typeof syncOfflineQueue==='function')syncOfflineQueue();}},2000);});
   loadFB(function(){});
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='flex';
