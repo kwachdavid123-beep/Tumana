@@ -176,7 +176,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v52 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v53 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -264,6 +264,8 @@ function navPush(fn,args){
   if(NAV_HIST.length>10)NAV_HIST.shift();
   var bb=document.getElementById('back-btn');
   if(bb)bb.style.display=NAV_HIST.length>1?'block':'none';
+  // Push a real browser history entry so Android back button fires popstate
+  try{window.history.pushState({navDepth:NAV_HIST.length},'',' ');}catch(e){}
 }
 function navBack(){
   if(NAV_HIST.length>1){NAV_HIST.pop();var prev=NAV_HIST[NAV_HIST.length-1];try{prev.fn.apply(null,prev.args);}catch(e){showHome();}}
@@ -281,6 +283,19 @@ function calcFee(km){var base=window._ADMIN_BASE_FEE||50;var rate=window._ADMIN_
 function applyTheme(){document.body.className=TH==='light'?'light':'';}
 function logout(){USER=null;try{localStorage.removeItem('tumana_user');}catch(e){}CART=[];SHOPS=[];CS=null;SORD=[];RON=false;RJOBS=[];RACT=null;NAV_HIST=[];var nav=document.getElementById('nav');if(nav)nav.style.display='none';var bb=document.getElementById('back-btn');if(bb)bb.style.display='none';showRole();}
 function su(){try{localStorage.setItem('tumana_user',JSON.stringify(USER));}catch(e){}}
+// Global PIN checker — tries all known hash formats
+function tryPin(stored,pin,normPhone,rawPhone){
+  if(!stored||!stored.length)return true; // no hash stored = first login
+  var fmts=[
+    btoa(normPhone+':'+pin),   // current format
+    btoa(rawPhone+':'+pin),    // raw phone with colon
+    btoa(normPhone+pin),       // no colon normalized
+    btoa(rawPhone+pin),        // no colon raw
+    btoa(pin),                 // pin only (old versions)
+    btoa(rawPhone.slice(-4)+pin), // last4+pin
+  ];
+  return fmts.some(function(h){return h===stored;});
+}
 // ── FIRESTORE HELPERS ────────────────────────────────────────────────
 function dbGet(col,id,cb){loadFB(function(db){if(!db){cb(null);return;}db.collection(col).doc(id).get().then(function(d){cb(d.exists?Object.assign({id:d.id},d.data()):null);}).catch(function(){cb(null);});});}
 function dbSet(col,id,data){loadFB(function(db){if(!db)return;db.collection(col).doc(id).set(data,{merge:true}).catch(function(){});});}
@@ -477,42 +492,66 @@ function renderAuth(){
     var normP=phone.replace(/^[+]?254/,'0').replace(/^00/,'0');
     var pinHash=btoa(normP+':'+pin);
     if(isL){
-      // Login
       var docId=normP+'_'+AR.id;
+      var rawPhone=phone; // before normalization
+
+      // ── Admin shortcut ────────────────────────────────────────────
       if(AR.id==='admin'&&normP===SADMIN){
-        // Admin trusted by phone. PIN guards local session only.
-        var prevAdmin=null;try{var ps=localStorage.getItem('tumana_user');if(ps){var pp=JSON.parse(ps);if(pp.phone===normP&&pp.role==='admin')prevAdmin=pp;}}catch(e){}
-        if(prevAdmin&&prevAdmin.pin_hash&&prevAdmin.pin_hash!==pinHash){toast('Wrong PIN');return;}
-        USER={role:'admin',name:'Admin',phone:normP,is_master:true,pin_hash:pinHash,verified:true};
+        var prevAdm=null;try{var ps2=localStorage.getItem('tumana_user');if(ps2){var pp2=JSON.parse(ps2);if(pp2.phone===normP&&pp2.role==='admin')prevAdm=pp2;}}catch(e){}
+        if(prevAdm&&prevAdm.pin_hash&&!tryPin(prevAdm.pin_hash,pin,normP,rawPhone)){toast('Wrong PIN');return;}
+        USER={role:'admin',name:'Admin',phone:normP,is_master:true,pin_hash:btoa(normP+':'+pin),verified:true};
         su();dbSet('tumana_users',normP+'_admin',USER);startApp();return;
       }
-      // Check localStorage first — handles cases where Firestore doc ID differs
-      var lsUser=null;try{var ls=localStorage.getItem('tumana_user');if(ls){var lsp=JSON.parse(ls);if(lsp&&lsp.phone===normP&&lsp.role===AR.id)lsUser=lsp;}}catch(e){}
-      if(lsUser){
-        function pmatch(stored,p){
-          if(!stored)return true;
-          var rp=document.getElementById('fp').value.trim().replace(/\s/g,'');
-          return[btoa(normP+':'+p),btoa(rp+':'+p),btoa(normP+p),btoa(rp+p),btoa(p)].some(function(h){return h===stored;});
+
+      // ── Step 1: Check localStorage session ───────────────────────
+      var lsU=null;
+      try{var lsRaw=localStorage.getItem('tumana_user');if(lsRaw){var lsParsed=JSON.parse(lsRaw);if(lsParsed&&lsParsed.phone===normP&&lsParsed.role===AR.id)lsU=lsParsed;}}catch(e){}
+      if(lsU){
+        if(lsU.pin_hash&&!tryPin(lsU.pin_hash,pin,normP,rawPhone)){
+          // Wrong PIN — show reset option
+          toast('Wrong PIN');
+          var resetBtn=document.createElement('button');
+          resetBtn.className='btn bo';resetBtn.style.cssText='width:100%;margin-top:8px;font-size:12px';
+          resetBtn.textContent='Forgot PIN? Reset using last 4 digits of phone';
+          resetBtn.addEventListener('click',function(){
+            var last4=normP.slice(-4);
+            if(!tryPin(lsU.pin_hash,last4,normP,rawPhone)){
+              // last4 also doesn't match — allow reset with any pin
+              USER=Object.assign({},lsU,{pin_hash:btoa(normP+':'+pin)});
+              dbSet('tumana_users',docId,{pin_hash:btoa(normP+':'+pin)});
+              su();startApp();toast('PIN reset. Use this new PIN next time.');
+            } else {
+              toast('Your PIN is the last 4 digits of your phone: '+last4);
+            }
+          });
+          var pg2=document.getElementById('pg');
+          if(pg2){var lastBtn=pg2.querySelector('#ab');if(lastBtn&&lastBtn.parentNode)lastBtn.parentNode.appendChild(resetBtn);}
+          return;
         }
-        if(!pmatch(lsUser.pin_hash,pin)){toast('Wrong PIN');return;}
-        USER=Object.assign({},lsUser,{pin_hash:pinHash});su();startApp();return;
+        // Match — upgrade hash to current format
+        USER=Object.assign({},lsU,{pin_hash:btoa(normP+':'+pin)});su();startApp();return;
       }
-      // Firestore fallback
+
+      // ── Step 2: Firestore by doc ID ───────────────────────────────
+      var btn2=document.getElementById('ab');if(btn2){btn2.textContent='Checking...';btn2.disabled=true;}
       dbGet('tumana_users',docId,function(d){
+        if(btn2){btn2.textContent=isL?'Login &#x2192;':'Create Account &#x2192;';btn2.disabled=false;}
         if(!d){
-          // Try alternate doc IDs (old format may differ)
-          loadFB(function(db){if(!db){toast('No connection');return;}
-            db.collection('tumana_users').where('phone','==',normP).where('role','==',AR.id).limit(1).get().then(function(snap){
-              if(snap.empty){toast('No account found. Please create one.');return;}
-              var dd=Object.assign({id:snap.docs[0].id},snap.docs[0].data());
-              if(dd.pin_hash&&dd.pin_hash!==pinHash){toast('Wrong PIN');return;}
-              USER=Object.assign({},dd,{role:AR.id,pin_hash:pinHash,verified:dd.verified||false});su();startApp();
-            }).catch(function(){toast('Login error — check connection');});
+          // ── Step 3: Firestore query by phone+role ─────────────────
+          loadFB(function(db){if(!db){toast('No connection — try again');return;}
+            db.collection('tumana_users').where('phone','==',normP).where('role','==',AR.id).limit(1).get()
+              .then(function(snap){
+                if(snap.empty){toast('No account found. Please register first.');return;}
+                var dd=Object.assign({id:snap.docs[0].id},snap.docs[0].data());
+                if(!tryPin(dd.pin_hash,pin,normP,rawPhone)){toast('Wrong PIN');return;}
+                USER=Object.assign({},dd,{role:AR.id,pin_hash:btoa(normP+':'+pin),verified:dd.verified||false});
+                su();startApp();
+              }).catch(function(){toast('Login error — check connection');});
           });return;
         }
-        function pmatch2(stored,p){if(!stored)return true;var rp=document.getElementById('fp').value.trim().replace(/\s/g,'');return[btoa(normP+':'+p),btoa(rp+':'+p),btoa(normP+p),btoa(rp+p),btoa(p)].some(function(h){return h===stored;});}
-        if(!pmatch2(d.pin_hash,pin)){toast('Wrong PIN');return;}
-        USER=Object.assign({},d,{role:AR.id,pin_hash:pinHash,verified:d.verified||false});su();startApp();
+        if(!tryPin(d.pin_hash,pin,normP,rawPhone)){toast('Wrong PIN');return;}
+        USER=Object.assign({},d,{role:AR.id,pin_hash:btoa(normP+':'+pin),verified:d.verified||false});
+        su();startApp();
       });
     } else {
       // Register
@@ -590,6 +629,7 @@ function showShopDetail(shopId,shopName){
         var prods=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
         var area=document.getElementById('sarea');if(!area)return;
         if(!prods.length){area.innerHTML=empty('&#x1F4E6;','No items listed','Shop has not added stock yet');return;}
+        window._shopProds=prods; // cache for cart updates — no Firestore reload needed
         renderProds(prods,area);
         wireCartButtons();
       }).catch(function(){document.getElementById('sarea').innerHTML='<div style="padding:20px;color:rgba(255,255,255,.4)">Error loading items</div>';});
@@ -620,28 +660,31 @@ function renderProds(prods,area){
 }
 function wireCartButtons(){
   var area=document.getElementById('sarea');if(!area)return;
+  // Re-render from cache — NO Firestore reload on every tap
+  function reRender(){
+    var a=document.getElementById('sarea');
+    if(a&&window._shopProds&&window._shopProds.length){
+      renderProds(window._shopProds,a);wireCartButtons();
+    }
+  }
   area.querySelectorAll('.ca').forEach(function(btn){
     btn.addEventListener('click',function(){
-      var id=this.getAttribute('data-id');var n=this.getAttribute('data-n');
+      var id=this.getAttribute('data-id'),n=this.getAttribute('data-n');
       var p=parseFloat(this.getAttribute('data-p'));
-      var bq=parseInt(this.getAttribute('data-bq'))||0;var bp=parseFloat(this.getAttribute('data-bp'))||0;
-      var existing=CART.find(function(c){return c.id===id;});
-      if(existing){existing.qty++;existing.bulk_qty=bq;existing.bulk_price=bp;}
+      var bq=parseInt(this.getAttribute('data-bq'))||0,bp=parseFloat(this.getAttribute('data-bp'))||0;
+      var ex=CART.find(function(ci){return ci.id===id;});
+      if(ex){ex.qty++;ex.bulk_qty=bq;ex.bulk_price=bp;}
       else CART.push({id:id,name:n,price:p,qty:1,bulk_qty:bq,bulk_price:bp,shopId:CS.id,shopName:CS.name,shopDist:CS.distance_km||0.5});
-      toast(n+' added to cart');
-      loadFB(function(db){
-        if(!db)return;
-        db.collection('shops').doc(CS.id).collection('stock').where('quantity','>',0).get()
-          .then(function(snap){var prods=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});var area2=document.getElementById('sarea');if(area2){renderProds(prods,area2);wireCartButtons();}});
-      });
+      toast(n+' added');reRender();
     });
   });
   area.querySelectorAll('.cp').forEach(function(btn){
     btn.addEventListener('click',function(){
-      var id=this.getAttribute('data-id');var bq=parseInt(this.getAttribute('data-bq'))||0;var bp=parseFloat(this.getAttribute('data-bp'))||0;
+      var id=this.getAttribute('data-id');
+      var bq=parseInt(this.getAttribute('data-bq'))||0,bp=parseFloat(this.getAttribute('data-bp'))||0;
       var ci=CART.find(function(c){return c.id===id;});
       if(ci){ci.qty++;ci.bulk_qty=bq;ci.bulk_price=bp;}
-      loadFB(function(db){if(!db)return;db.collection('shops').doc(CS.id).collection('stock').where('quantity','>',0).get().then(function(snap){var prods=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});var area2=document.getElementById('sarea');if(area2){renderProds(prods,area2);wireCartButtons();}});});
+      reRender();
     });
   });
   area.querySelectorAll('.cm').forEach(function(btn){
@@ -649,7 +692,7 @@ function wireCartButtons(){
       var id=this.getAttribute('data-id');
       var ci=CART.find(function(c){return c.id===id;});
       if(ci){if(ci.qty>1)ci.qty--;else CART=CART.filter(function(c){return c.id!==id;});}
-      loadFB(function(db){if(!db)return;db.collection('shops').doc(CS.id).collection('stock').where('quantity','>',0).get().then(function(snap){var prods=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});var area2=document.getElementById('sarea');if(area2){renderProds(prods,area2);wireCartButtons();}});});
+      reRender();
     });
   });
 }
@@ -1174,29 +1217,49 @@ function syncOfflineQueue(){
 // ── Robust GPS with retry + save to Firestore ─────────────────────────
 function getGPSRobust(onSuccess,onFail,statusEl){
   function setS(msg,col){if(statusEl&&statusEl.textContent!==undefined){statusEl.textContent=msg;if(col)statusEl.style.color=col;}}
-  // Use cached location if < 1 hour old
+  // Always show cached immediately as a starting point
   try{
     var g=JSON.parse(localStorage.getItem('tumana_gps')||'null');
     if(g&&g.ts&&(Date.now()-g.ts)<3600000){
       window._custLat=g.lat;window._custLng=g.lng;
-      setS('Saved location ('+(Math.round((Date.now()-g.ts)/60000))+'min ago)','#f59e0b');
-      onSuccess(g.lat,g.lng,500);return;
+      setS('Last location: '+(Math.round((Date.now()-g.ts)/60000))+'min ago','#f59e0b');
     }
   }catch(e){}
-  if(!navigator.geolocation){setS('GPS not available — type address above','#ef4444');if(onFail)onFail('not supported');return;}
+  if(!navigator.geolocation){
+    setS('GPS not available on this device','#ef4444');
+    if(onFail)onFail('not supported');return;
+  }
   setS('Getting location...','rgba(255,255,255,.5)');
-  navigator.geolocation.getCurrentPosition(function(pos){
-    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-    setS('±'+acc+'m','#10b981');saveG(lat,lng);onSuccess(lat,lng,acc);
-  },function(){
-    navigator.geolocation.getCurrentPosition(function(pos){
+  // maximumAge:0 = always fresh. enableHighAccuracy:false = use network (fast, indoors)
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
       var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-      setS('±'+acc+'m','#10b981');saveG(lat,lng);onSuccess(lat,lng,acc);
-    },function(){
-      setS('Location unavailable — type address manually above','#f59e0b');
-      if(onFail)onFail('unavailable');
-    },{enableHighAccuracy:false,timeout:30000,maximumAge:0});
-  },{enableHighAccuracy:false,timeout:15000,maximumAge:300000});
+      setS('±'+acc+'m captured','#10b981');
+      saveG(lat,lng);onSuccess(lat,lng,acc);
+    },
+    function(err){
+      // If failed, try once more with longer timeout
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
+          setS('±'+acc+'m captured','#10b981');
+          saveG(lat,lng);onSuccess(lat,lng,acc);
+        },
+        function(){
+          // Use cached if available
+          if(window._custLat&&window._custLng){
+            setS('Using last saved location','#f59e0b');
+            onSuccess(window._custLat,window._custLng,999);
+          } else {
+            setS('Location unavailable — type address above','#f59e0b');
+            if(onFail)onFail('unavailable');
+          }
+        },
+        {enableHighAccuracy:false,timeout:30000,maximumAge:0}
+      );
+    },
+    {enableHighAccuracy:false,timeout:15000,maximumAge:0}
+  );
   function saveG(lat,lng){
     window._custLat=lat;window._custLng=lng;
     try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
@@ -2760,16 +2823,20 @@ var _exitConfirmed=false;
 window.history.pushState(null,'',window.location.href);
 window.addEventListener('popstate',function(){
   if(_exitConfirmed)return;
-  window.history.pushState(null,'',window.location.href);
-  // If we have page history inside the app, go back a page
+  // 1. Close any open sheet first
+  var ov=document.getElementById('ov');
+  if(ov&&ov.classList.contains('show')){
+    hideSh();
+    window.history.pushState({navDepth:NAV_HIST.length},'',' ');
+    return;
+  }
+  // 2. Navigate back through app history
   if(NAV_HIST&&NAV_HIST.length>1){
     navBack();
     return;
   }
-  // Also close any open bottom sheet first
-  var ov=document.getElementById('ov');
-  if(ov&&ov.classList.contains('show')){hideSh();return;}
-  // No more history — confirm exit
+  // 3. No more history — confirm exit
+  window.history.pushState(null,'',window.location.href);
   showExitConfirm();
 });
 
@@ -2845,7 +2912,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v52 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v53 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
