@@ -176,7 +176,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v54 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v55 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -284,6 +284,68 @@ function applyTheme(){document.body.className=TH==='light'?'light':'';}
 function logout(){USER=null;try{localStorage.removeItem('tumana_user');}catch(e){}CART=[];SHOPS=[];CS=null;SORD=[];RON=false;RJOBS=[];RACT=null;NAV_HIST=[];var nav=document.getElementById('nav');if(nav)nav.style.display='none';var bb=document.getElementById('back-btn');if(bb)bb.style.display='none';showRole();}
 function su(){try{localStorage.setItem('tumana_user',JSON.stringify(USER));}catch(e){}}
 function getSavedAddrs(){try{return JSON.parse(localStorage.getItem('tumana_saved_addrs_'+(USER&&USER.phone||''))||'[]');}catch(e){return[];}}
+
+// ── Community named locations ─────────────────────────────────────────
+function getCommunityLocs(){try{return JSON.parse(localStorage.getItem('tumana_locs')||'[]');}catch(e){return[];}}
+function saveCommunityLoc(name,lat,lng){
+  // Save to localStorage
+  var locs=getCommunityLocs();
+  var ex=locs.find(function(l){return l.name.toLowerCase()===name.toLowerCase();});
+  if(ex){ex.lat=lat;ex.lng=lng;ex.count=(ex.count||0)+1;}
+  else locs.push({name:name,lat:lat,lng:lng,count:1});
+  locs.sort(function(a,b){return(b.count||0)-(a.count||0);});
+  locs=locs.slice(0,50);
+  try{localStorage.setItem('tumana_locs',JSON.stringify(locs));}catch(e){}
+  // Save to Firestore shared collection
+  loadFB(function(db){
+    if(!db)return;
+    var slug=name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+    db.collection('named_locations').doc(slug).set({name:name,lat:lat,lng:lng,slug:slug,updated_at:Date.now(),saved_by:USER&&USER.phone||'anon'},{merge:true}).catch(function(){});
+  });
+}
+function loadCommunityLocs(cb){
+  // Load from Firestore
+  loadFB(function(db){
+    if(!db){cb(getCommunityLocs());return;}
+    db.collection('named_locations').limit(100).get().then(function(snap){
+      var locs=snap.docs.map(function(d){return d.data();});
+      // Merge with local
+      var local=getCommunityLocs();
+      local.forEach(function(l){if(!locs.find(function(f){return f.name.toLowerCase()===l.name.toLowerCase();}))locs.push(l);});
+      try{localStorage.setItem('tumana_locs',JSON.stringify(locs));}catch(e){}
+      cb(locs);
+    }).catch(function(){cb(getCommunityLocs());});
+  });
+}
+
+// ── Nominatim geocoder (OpenStreetMap — no API key needed) ────────────
+function geocodePlace(query,cb){
+  // Bias to Chemelil/Kisumu Kenya area
+  var q=encodeURIComponent(query+' Chemelil Kisumu Kenya');
+  var url='https://nominatim.openstreetmap.org/search?q='+q+'&format=json&limit=5&countrycodes=ke';
+  fetch(url,{headers:{'Accept':'application/json','User-Agent':'Tumana/1.0'}})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data&&data.length){
+        var results=data.map(function(d){return{name:d.display_name.split(',')[0],fullName:d.display_name,lat:parseFloat(d.lat),lng:parseFloat(d.lon)};});
+        cb(null,results);
+      } else {
+        cb('not found',[]);
+      }
+    }).catch(function(e){cb('error',[]);});
+}
+
+// ── IP fallback (when GPS fails completely) ───────────────────────────
+var CHEMELIL_LAT=-0.0915,CHEMELIL_LNG=35.0224;
+function getLocationByIP(cb){
+  fetch('https://ipapi.co/json/')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.latitude){cb(d.latitude,d.longitude,'IP');}
+      else cb(CHEMELIL_LAT,CHEMELIL_LNG,'default');
+    }).catch(function(){cb(CHEMELIL_LAT,CHEMELIL_LNG,'default');});
+}
+
 function saveAddr(addr,lat,lng){
   if(!addr||!addr.trim()||addr.length<5)return;
   var key='tumana_saved_addrs_'+(USER&&USER.phone||'');
@@ -394,6 +456,8 @@ function startCust(){
   SHOPS=MSHOPS;
   // Load cached shops for instant display
   try{var cs=JSON.parse(localStorage.getItem('tumana_shops')||'[]');if(cs.length)SHOPS=cs;}catch(e){}
+  // Pre-load community locations for quick pickup
+  loadCommunityLocs(function(){});
   loadFB(function(db){
     if(!db){showHome();return;}
     db.collection('shops').where('verified','==',true).get().then(function(s){
@@ -737,7 +801,9 @@ function showCart(){
   document.getElementById('proceed-checkout').addEventListener('click',function(){
     showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4CD; Delivery Location</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Enter where to deliver — fee is calculated from your GPS</div>'
       +(getSavedAddrs().length?'<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">&#x1F4CD; Saved Locations</div><div id="saved-addrs-list" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>':'')
-      +'<div class="fld"><label>Your Address / House</label><input id="del-addr" type="text" placeholder="e.g. House No.5, Kisumu Road" autocomplete="off"></div>'
+      +'<div class="fld"><label>Your Address / House</label><input id="del-addr" type="text" placeholder="Type place name e.g. Kandolo, Market" autocomplete="off"></div>'
+      +'<div id="del-suggest" style="margin-bottom:6px"></div>'
+      +'<button id="del-geo-btn" style="width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:#10b981;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">&#x1F50D; Search & Confirm My Location</button>'
       +'<div class="fld"><label>Nearest Landmark</label><input id="del-land" type="text" placeholder="e.g. Opposite Market, near school gate" autocomplete="off"></div>'
       +'<button id="del-gps-btn" style="width:100%;padding:10px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:rgba(255,255,255,.7);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">&#x1F4CD; Use My GPS Location (auto-calculates fee)</button>'
       +'<div id="fee-live-box" style="display:none;background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.25);border-radius:11px;padding:12px;margin-bottom:12px">'
@@ -765,6 +831,35 @@ function showCart(){
         salEl.appendChild(btn);
       });
     }
+    // Wire delivery geocode search
+    var delAddrEl=document.getElementById('del-addr');
+    function delGeoSearch(){
+      var q=(delAddrEl&&delAddrEl.value||'').trim();if(!q){toast('Type your location name first');return;}
+      var sug=document.getElementById('del-suggest');
+      // Check community locs first
+      var locs=getCommunityLocs();var local=locs.filter(function(l){return l.name.toLowerCase().includes(q.toLowerCase());});
+      function showResults(results,isLocal){
+        var h='';results.slice(0,4).forEach(function(r){var n=r.name||r.fullName;h+='<button class="del-geo-res" data-lat="'+(r.lat||0)+'" data-lng="'+(r.lng||0)+'" data-name="'+n+'" style="width:100%;text-align:left;background:'+(isLocal?'rgba(16,185,129,.08)':'#1a1a22')+';border:1px solid rgba(16,185,129,'+(isLocal?'.25':'.1')+');border-radius:8px;padding:8px 10px;font-size:12px;color:'+(isLocal?'#10b981':'#fff')+';cursor:pointer;font-family:inherit;margin-bottom:4px">&#x1F4CD; '+n+'</button>';});
+        if(sug)sug.innerHTML=h;
+        if(sug)sug.querySelectorAll('.del-geo-res').forEach(function(btn){btn.addEventListener('click',function(){
+          var n=this.getAttribute('data-name');var la=parseFloat(this.getAttribute('data-lat'));var ln=parseFloat(this.getAttribute('data-lng'));
+          if(delAddrEl)delAddrEl.value=n;if(sug)sug.innerHTML='';
+          if(la&&ln){window._custLat=la;window._custLng=ln;saveCommunityLoc(n,la,ln);saveAddr(n,la,ln);autoCalcFee();}
+          toast('Location set: '+n);
+        });});
+      }
+      if(local.length){showResults(local,true);return;}
+      if(sug)sug.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.4)">Searching OpenStreetMap...</div>';
+      geocodePlace(q,function(err,results){
+        if(err||!results.length){if(sug)sug.innerHTML='<div style="font-size:11px;color:#ef4444">Not found — try shorter name</div>';return;}
+        results.forEach(function(r){saveCommunityLoc(r.name,r.lat,r.lng);});
+        showResults(results,false);
+      });
+    }
+    var delGeoBtn=document.getElementById('del-geo-btn');
+    if(delGeoBtn)delGeoBtn.addEventListener('click',delGeoSearch);
+    if(delAddrEl)delAddrEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();delGeoSearch();}});
+
     document.getElementById('del-gps-btn').addEventListener('click',function(){
       var btn=this;btn.disabled=true;btn.textContent='Getting location...';
       getGPSRobust(function(lat,lng,acc){
@@ -971,17 +1066,25 @@ function showPickup(){
   setTitle('PICKUP','#10b981');setNav('customer','pickup');
   window._gpsLat=null;window._gpsLng=null;window._dropLat=null;window._dropLng=null;
   var estDf=calcFee(1);
+  var savedLocs=getCommunityLocs();
+  var topLocs=savedLocs.slice(0,5);
+  var locsHtml=topLocs.length?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">'+topLocs.map(function(l){return '<button class="loc-chip" data-lat="'+l.lat+'" data-lng="'+l.lng+'" data-name="'+l.name+'" style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;color:#10b981;cursor:pointer;font-family:inherit">&#x1F4CD; '+l.name+'</button>';}).join('')+'</div>':'';
   pg().innerHTML='<div style="padding:14px 18px 100px">'
     +'<div style="font-size:19px;font-weight:700;margin-bottom:14px">Request a Rider</div>'
+    +(topLocs.length?'<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Saved Places</div>'+locsHtml:'')
     +'<div style="font-size:10px;font-weight:800;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">&#x1F7E2; Pickup From</div>'
-    +'<div style="background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px;margin-bottom:10px">'
-    +'<input id="pfr" type="text" placeholder="Where should rider pick up from?" style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none;margin-bottom:8px">'
-    +'<button id="gps-pick" style="width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:#10b981;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F4CD; Use My Current GPS Location</button>'
+    +'<div style="background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px;margin-bottom:6px">'
+    +'<input id="pfr" type="text" placeholder="Type place name e.g. Kandolo, Market..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none;margin-bottom:8px">'
+    +'<div id="pfr-suggest" style="margin-bottom:6px"></div>'
+    +'<button id="geo-pick" style="width:100%;padding:8px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:#10b981;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F50D; Search & Confirm Location</button>'
+    +'<button id="gps-pick" style="width:100%;padding:8px;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.12);border-radius:8px;color:rgba(255,255,255,.5);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:5px">&#x1F4CD; Use GPS Instead</button>'
     +'<div id="gps-pick-st" style="font-size:11px;color:rgba(255,255,255,.35);text-align:center;margin-top:4px"></div></div>'
     +'<div style="font-size:10px;font-weight:800;color:#ef4444;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">&#x1F534; Drop Off To</div>'
     +'<div style="background:#111116;border:1.5px solid rgba(239,68,68,.3);border-radius:13px;padding:13px;margin-bottom:10px">'
-    +'<input id="pto" type="text" placeholder="Where should rider deliver to?" style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none;margin-bottom:8px">'
-    +'<button id="gps-drop" style="width:100%;padding:9px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:8px;color:#ef4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F4CD; Use My Current GPS Location</button>'
+    +'<input id="pto" type="text" placeholder="Type destination e.g. Chemelil Factory..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none;margin-bottom:8px">'
+    +'<div id="pto-suggest" style="margin-bottom:6px"></div>'
+    +'<button id="geo-drop" style="width:100%;padding:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:8px;color:#ef4444;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F50D; Search & Confirm Location</button>'
+    +'<button id="gps-drop" style="width:100%;padding:8px;background:rgba(239,68,68,.03);border:1px solid rgba(239,68,68,.12);border-radius:8px;color:rgba(255,255,255,.5);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:5px">&#x1F4CD; Use GPS Instead</button>'
     +'<div id="gps-drop-st" style="font-size:11px;color:rgba(255,255,255,.35);text-align:center;margin-top:4px"></div></div>'
     +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">'
     +'<div><div style="font-size:12px;color:rgba(255,255,255,.4)">Delivery fee</div><div id="fare-sub" style="font-size:11px;color:rgba(255,255,255,.3);margin-top:2px">~KSh 50 base + distance</div></div>'
@@ -996,13 +1099,69 @@ function showPickup(){
     var fs=document.getElementById('fare-sub');if(fs)fs.textContent='~'+km+'km × KSh '+(window._ADMIN_PER_KM||20)+' + base';
     window._finalDf=fee;
   }
+  // Wire saved place chips
+  pg().querySelectorAll('.loc-chip').forEach(function(chip){
+    chip.addEventListener('click',function(){
+      var name=this.getAttribute('data-name');
+      var lat=parseFloat(this.getAttribute('data-lat')||'0');
+      var lng=parseFloat(this.getAttribute('data-lng')||'0');
+      var pfr=document.getElementById('pfr');
+      if(pfr&&!pfr.value){pfr.value=name;if(lat&&lng){window._gpsLat=lat;window._gpsLng=lng;updateFare();}}
+      else{var pto=document.getElementById('pto');if(pto){pto.value=name;if(lat&&lng){window._dropLat=lat;window._dropLng=lng;updateFare();}}}
+    });
+  });
+
+  // Geocode search function
+  function geoSearch(inputId,suggestId,setLat,setLng,onDone){
+    var inp=document.getElementById(inputId);var sug=document.getElementById(suggestId);
+    if(!inp||!inp.value.trim()){toast('Type a place name first');return;}
+    var query=inp.value.trim();
+    // Check community locations first
+    var locs=getCommunityLocs();
+    var local=locs.filter(function(l){return l.name.toLowerCase().includes(query.toLowerCase());});
+    if(local.length){
+      var h='';local.slice(0,4).forEach(function(l){h+='<button class="geo-res" data-lat="'+l.lat+'" data-lng="'+l.lng+'" data-name="'+l.name+'" style="width:100%;text-align:left;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:7px 10px;font-size:12px;color:#10b981;cursor:pointer;font-family:inherit;margin-bottom:4px">&#x1F4CD; '+l.name+'</button>';});
+      if(sug)sug.innerHTML=h;
+      if(sug)sug.querySelectorAll('.geo-res').forEach(function(btn){btn.addEventListener('click',function(){
+        var n=this.getAttribute('data-name');var la=parseFloat(this.getAttribute('data-lat'));var ln=parseFloat(this.getAttribute('data-lng'));
+        if(inp)inp.value=n;if(sug)sug.innerHTML='';
+        window[setLat]=la;window[setLng]=ln;
+        saveCommunityLoc(n,la,ln);saveAddr(n,la,ln);updateFare();if(onDone)onDone(n,la,ln);
+        toast('Location set: '+n);
+      });});
+      return;
+    }
+    // Nominatim geocoding
+    if(sug)sug.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.4);padding:4px 0">Searching...</div>';
+    geocodePlace(query,function(err,results){
+      if(err||!results.length){if(sug)sug.innerHTML='<div style="font-size:11px;color:#ef4444;padding:4px 0">Not found — try a different name</div>';return;}
+      var h='';results.slice(0,4).forEach(function(r){h+='<button class="geo-res" data-lat="'+r.lat+'" data-lng="'+r.lng+'" data-name="'+r.name+'" style="width:100%;text-align:left;background:#1a1a22;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px 10px;font-size:12px;color:#fff;cursor:pointer;font-family:inherit;margin-bottom:4px">&#x1F4CD; '+r.name+'<div style="font-size:10px;color:rgba(255,255,255,.35)">'+r.fullName.slice(0,60)+'</div></button>';});
+      if(sug)sug.innerHTML=h;
+      if(sug)sug.querySelectorAll('.geo-res').forEach(function(btn){btn.addEventListener('click',function(){
+        var n=this.getAttribute('data-name');var la=parseFloat(this.getAttribute('data-lat'));var ln=parseFloat(this.getAttribute('data-lng'));
+        if(inp)inp.value=n;if(sug)sug.innerHTML='';
+        window[setLat]=la;window[setLng]=ln;
+        saveCommunityLoc(n,la,ln);saveAddr(n,la,ln);updateFare();if(onDone)onDone(n,la,ln);
+        toast('Location confirmed: '+n);
+      });});
+    });
+  }
+
+  document.getElementById('geo-pick').addEventListener('click',function(){geoSearch('pfr','pfr-suggest','_gpsLat','_gpsLng',null);});
+  document.getElementById('geo-drop').addEventListener('click',function(){geoSearch('pto','pto-suggest','_dropLat','_dropLng',null);});
+
+  // Also search on Enter key
+  var pfrEl=document.getElementById('pfr');var ptoEl=document.getElementById('pto');
+  if(pfrEl)pfrEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();geoSearch('pfr','pfr-suggest','_gpsLat','_gpsLng',null);}});
+  if(ptoEl)ptoEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();geoSearch('pto','pto-suggest','_dropLat','_dropLng',null);}});
+
   document.getElementById('gps-pick').addEventListener('click',function(){
-    var btn=this;btn.disabled=true;btn.textContent='Getting location...';
-    getGPSRobust(function(la,ln,acc){window._gpsLat=la;window._gpsLng=ln;var f=document.getElementById('pfr');if(f&&!f.value)f.value='My GPS Location (±'+acc+'m)';btn.disabled=false;btn.textContent='GPS captured';updateFare();},function(msg){btn.disabled=false;btn.textContent='Use GPS';var st=document.getElementById('gps-pick-st');if(st)st.textContent=msg||'GPS failed';},document.getElementById('gps-pick-st'));
+    var btn=this;btn.disabled=true;btn.textContent='Getting GPS...';
+    getGPSRobust(function(la,ln,acc){window._gpsLat=la;window._gpsLng=ln;var f=document.getElementById('pfr');if(f&&!f.value)f.value='My GPS (±'+acc+'m)';btn.disabled=false;btn.textContent='GPS captured';updateFare();},function(msg){btn.disabled=false;btn.textContent='GPS Unavailable';var st=document.getElementById('gps-pick-st');if(st)st.textContent=msg||'GPS failed';},document.getElementById('gps-pick-st'));
   });
   document.getElementById('gps-drop').addEventListener('click',function(){
-    var btn=this;btn.disabled=true;btn.textContent='Getting location...';
-    getGPSRobust(function(la,ln,acc){window._dropLat=la;window._dropLng=ln;var f=document.getElementById('pto');if(f&&!f.value)f.value='Drop-off GPS (±'+acc+'m)';btn.disabled=false;btn.textContent='GPS captured';updateFare();},function(msg){btn.disabled=false;btn.textContent='Use GPS';var st=document.getElementById('gps-drop-st');if(st)st.textContent=msg||'GPS failed';},document.getElementById('gps-drop-st'));
+    var btn=this;btn.disabled=true;btn.textContent='Getting GPS...';
+    getGPSRobust(function(la,ln,acc){window._dropLat=la;window._dropLng=ln;var f=document.getElementById('pto');if(f&&!f.value)f.value='Dropoff GPS (±'+acc+'m)';btn.disabled=false;btn.textContent='GPS captured';updateFare();},function(msg){btn.disabled=false;btn.textContent='GPS Unavailable';var st=document.getElementById('gps-drop-st');if(st)st.textContent=msg||'GPS failed';},document.getElementById('gps-drop-st'));
   });
   document.getElementById('reqb').addEventListener('click',function(){
     var from=(document.getElementById('pfr').value||'').trim();var to=(document.getElementById('pto').value||'').trim();
@@ -2995,7 +3154,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v54 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v55 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
