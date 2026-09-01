@@ -176,7 +176,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="loading">
   <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
   <div style="font-size:13px;color:#6b7280;margin-top:2px">Chemelil Fast Delivery</div>
-  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v53 Jul 2026 | Tumana</div>
+  <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-top:4px">v54 Jul 2026 | Tumana</div>
   <div class="spin" style="margin-top:10px;border-color:rgba(16,185,129,.15);border-top-color:#10b981"></div>
   <div id="boot-err" style="display:none;margin-top:14px;padding:0 24px;text-align:center"></div>
   <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -283,6 +283,18 @@ function calcFee(km){var base=window._ADMIN_BASE_FEE||50;var rate=window._ADMIN_
 function applyTheme(){document.body.className=TH==='light'?'light':'';}
 function logout(){USER=null;try{localStorage.removeItem('tumana_user');}catch(e){}CART=[];SHOPS=[];CS=null;SORD=[];RON=false;RJOBS=[];RACT=null;NAV_HIST=[];var nav=document.getElementById('nav');if(nav)nav.style.display='none';var bb=document.getElementById('back-btn');if(bb)bb.style.display='none';showRole();}
 function su(){try{localStorage.setItem('tumana_user',JSON.stringify(USER));}catch(e){}}
+function getSavedAddrs(){try{return JSON.parse(localStorage.getItem('tumana_saved_addrs_'+(USER&&USER.phone||''))||'[]');}catch(e){return[];}}
+function saveAddr(addr,lat,lng){
+  if(!addr||!addr.trim()||addr.length<5)return;
+  var key='tumana_saved_addrs_'+(USER&&USER.phone||'');
+  var list=getSavedAddrs();
+  var existing=list.find(function(a){return a.addr===addr;});
+  if(existing){existing.count=(existing.count||0)+1;existing.last_used=Date.now();if(lat)existing.lat=lat;if(lng)existing.lng=lng;}
+  else list.push({addr:addr,lat:lat||null,lng:lng||null,count:1,last_used:Date.now()});
+  list.sort(function(a,b){return(b.count||0)-(a.count||0);});
+  list=list.slice(0,8);
+  try{localStorage.setItem(key,JSON.stringify(list));}catch(e){}
+}
 // Global PIN checker — tries all known hash formats
 function tryPin(stored,pin,normPhone,rawPhone){
   if(!stored||!stored.length)return true; // no hash stored = first login
@@ -724,6 +736,7 @@ function showCart(){
   document.getElementById('clear-cart').addEventListener('click',function(){if(!confirm('Clear your cart?'))return;CART=[];showHome();});
   document.getElementById('proceed-checkout').addEventListener('click',function(){
     showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4CD; Delivery Location</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Enter where to deliver — fee is calculated from your GPS</div>'
+      +(getSavedAddrs().length?'<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">&#x1F4CD; Saved Locations</div><div id="saved-addrs-list" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>':'')
       +'<div class="fld"><label>Your Address / House</label><input id="del-addr" type="text" placeholder="e.g. House No.5, Kisumu Road" autocomplete="off"></div>'
       +'<div class="fld"><label>Nearest Landmark</label><input id="del-land" type="text" placeholder="e.g. Opposite Market, near school gate" autocomplete="off"></div>'
       +'<button id="del-gps-btn" style="width:100%;padding:10px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:rgba(255,255,255,.7);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">&#x1F4CD; Use My GPS Location (auto-calculates fee)</button>'
@@ -738,6 +751,20 @@ function showCart(){
       +'<button id="del-cancel" class="btn bo" style="margin-top:6px">Cancel</button>'
     );
     document.getElementById('del-cancel').addEventListener('click',hideSh);
+    // Render saved address buttons
+    var salEl=document.getElementById('saved-addrs-list');
+    if(salEl){
+      getSavedAddrs().forEach(function(a){
+        var btn=document.createElement('button');
+        btn.style.cssText='background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:6px 10px;font-size:11px;color:#10b981;cursor:pointer;font-family:inherit;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        btn.textContent='&#x1F4CD; '+a.addr;
+        btn.addEventListener('click',function(){
+          var addrEl=document.getElementById('del-addr');if(addrEl)addrEl.value=a.addr;
+          if(a.lat&&a.lng){window._custLat=a.lat;window._custLng=a.lng;autoCalcFee();}
+        });
+        salEl.appendChild(btn);
+      });
+    }
     document.getElementById('del-gps-btn').addEventListener('click',function(){
       var btn=this;btn.disabled=true;btn.textContent='Getting location...';
       getGPSRobust(function(lat,lng,acc){
@@ -764,7 +791,9 @@ function showCart(){
     document.getElementById('del-next').addEventListener('click',function(){
       var addr=(document.getElementById('del-addr').value||'').trim();var land=(document.getElementById('del-land').value||'').trim();
       if(!addr){toast('Enter delivery address first');return;}
-      window._deliveryAddr=[addr,land].filter(Boolean).join(' — ');
+      var fullAddr=[addr,land].filter(Boolean).join(' — ');
+      window._deliveryAddr=fullAddr;
+      saveAddr(fullAddr,window._custLat,window._custLng);
       var df=window._finalDf||calcFee(CART[0].shopDist||0.5);
       hideSh();showPaymentSheet(sub,df);
     });
@@ -978,6 +1007,8 @@ function showPickup(){
   document.getElementById('reqb').addEventListener('click',function(){
     var from=(document.getElementById('pfr').value||'').trim();var to=(document.getElementById('pto').value||'').trim();
     if(!from){toast('Enter pickup location');return;}if(!to){toast('Enter drop-off location');return;}
+    saveAddr(from,window._gpsLat,window._gpsLng);
+    saveAddr(to,window._dropLat,window._dropLng);
     var btn=this;btn.textContent='Requesting...';btn.disabled=true;
     var df=window._finalDf||calcFee(1);
     var orderData={type:'pickup',customer_phone:USER.phone,customer_name:USER.name,pickup_from:from,delivery_address:to,item_description:'Pickup: '+from+' to '+to,distance:1,delivery_fee:df,total:df,rider_earnings:df,platform_earnings:0,status:'confirmed',rider_phone:null,rider_name:null};
@@ -1216,55 +1247,107 @@ function syncOfflineQueue(){
 
 // ── Robust GPS with retry + save to Firestore ─────────────────────────
 function getGPSRobust(onSuccess,onFail,statusEl){
-  function setS(msg,col){if(statusEl&&statusEl.textContent!==undefined){statusEl.textContent=msg;if(col)statusEl.style.color=col;}}
-  // Always show cached immediately as a starting point
-  try{
-    var g=JSON.parse(localStorage.getItem('tumana_gps')||'null');
-    if(g&&g.ts&&(Date.now()-g.ts)<3600000){
-      window._custLat=g.lat;window._custLng=g.lng;
-      setS('Last location: '+(Math.round((Date.now()-g.ts)/60000))+'min ago','#f59e0b');
+  function setS(msg,col){
+    if(statusEl&&statusEl.textContent!==undefined){
+      statusEl.textContent=msg;
+      if(col)statusEl.style.color=col;
     }
-  }catch(e){}
-  if(!navigator.geolocation){
-    setS('GPS not available on this device','#ef4444');
-    if(onFail)onFail('not supported');return;
   }
-  setS('Getting location...','rgba(255,255,255,.5)');
-  // maximumAge:0 = always fresh. enableHighAccuracy:false = use network (fast, indoors)
-  navigator.geolocation.getCurrentPosition(
-    function(pos){
-      var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-      setS('±'+acc+'m captured','#10b981');
-      saveG(lat,lng);onSuccess(lat,lng,acc);
-    },
-    function(err){
-      // If failed, try once more with longer timeout
-      navigator.geolocation.getCurrentPosition(
-        function(pos){
-          var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-          setS('±'+acc+'m captured','#10b981');
-          saveG(lat,lng);onSuccess(lat,lng,acc);
-        },
-        function(){
-          // Use cached if available
-          if(window._custLat&&window._custLng){
-            setS('Using last saved location','#f59e0b');
-            onSuccess(window._custLat,window._custLng,999);
-          } else {
-            setS('Location unavailable — type address above','#f59e0b');
-            if(onFail)onFail('unavailable');
-          }
-        },
-        {enableHighAccuracy:false,timeout:30000,maximumAge:0}
-      );
-    },
-    {enableHighAccuracy:false,timeout:15000,maximumAge:0}
-  );
   function saveG(lat,lng){
     window._custLat=lat;window._custLng=lng;
     try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
-    if(USER&&USER.phone){loadFB(function(db){if(!db)return;var col=USER.role==='rider'?'riders':'tumana_users';db.collection(col).doc(USER.role==='rider'?USER.phone:USER.phone+'_'+USER.role).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});});}
+    if(USER&&USER.phone){
+      loadFB(function(db){
+        if(!db)return;
+        var col=USER.role==='rider'?'riders':'tumana_users';
+        var did=USER.role==='rider'?USER.phone:USER.phone+'_'+USER.role;
+        db.collection(col).doc(did).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});
+      });
+    }
   }
+
+  // Load cached immediately — show as pre-fill while fetching fresh
+  var cached=null;
+  try{cached=JSON.parse(localStorage.getItem('tumana_gps')||'null');}catch(e){}
+  if(cached&&cached.ts){
+    var ageMin=Math.round((Date.now()-cached.ts)/60000);
+    window._custLat=cached.lat;window._custLng=cached.lng;
+    if(ageMin<60){
+      // Fresh enough — return immediately, still try refresh in background
+      setS('Location ready (±~500m, '+ageMin+'min ago)','#f59e0b');
+      onSuccess(cached.lat,cached.lng,500);
+      // Background refresh — silent
+      if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(
+          function(pos){saveG(pos.coords.latitude,pos.coords.longitude);},
+          function(){},{enableHighAccuracy:false,timeout:20000,maximumAge:10000}
+        );
+      }
+      return;
+    }
+  }
+
+  if(!navigator.geolocation){
+    if(cached){
+      setS('GPS not supported — using saved location','#f59e0b');
+      onSuccess(cached.lat,cached.lng,999);
+    } else {
+      setS('Location not supported — type address above','#ef4444');
+      if(onFail)onFail('not supported');
+    }
+    return;
+  }
+
+  setS('Getting location...','rgba(255,255,255,.5)');
+
+  // Strategy 1: Network location, accept 30s old cache (fastest on Android)
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      setS('±'+Math.round(pos.coords.accuracy)+'m','#10b981');
+      saveG(pos.coords.latitude,pos.coords.longitude);
+      onSuccess(pos.coords.latitude,pos.coords.longitude,Math.round(pos.coords.accuracy));
+    },
+    function(e1){
+      setS('Retrying...','rgba(255,255,255,.4)');
+      // Strategy 2: Network location, force fresh (no cache allowed)
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          setS('±'+Math.round(pos.coords.accuracy)+'m','#10b981');
+          saveG(pos.coords.latitude,pos.coords.longitude);
+          onSuccess(pos.coords.latitude,pos.coords.longitude,Math.round(pos.coords.accuracy));
+        },
+        function(e2){
+          setS('GPS signal weak, trying harder...','rgba(255,255,255,.4)');
+          // Strategy 3: High accuracy GPS (forces GPS hardware — slower but precise)
+          navigator.geolocation.getCurrentPosition(
+            function(pos){
+              setS('±'+Math.round(pos.coords.accuracy)+'m GPS','#10b981');
+              saveG(pos.coords.latitude,pos.coords.longitude);
+              onSuccess(pos.coords.latitude,pos.coords.longitude,Math.round(pos.coords.accuracy));
+            },
+            function(e3){
+              // All strategies failed
+              var code=e3?e3.code:e2?e2.code:e1?e1.code:0;
+              // Strategy 4: Use any cached location regardless of age
+              if(cached&&cached.lat){
+                var ageH=Math.round((Date.now()-cached.ts)/3600000);
+                setS('Using saved location ('+ageH+'hr ago)','#f59e0b');
+                onSuccess(cached.lat,cached.lng,999);
+              } else {
+                var errMsg=code===1?'Location permission denied — allow location in browser settings':
+                  'Location signal not found (code '+code+') — type address above';
+                setS(errMsg,'#ef4444');
+                if(onFail)onFail(errMsg);
+              }
+            },
+            {enableHighAccuracy:true,timeout:25000,maximumAge:0}
+          );
+        },
+        {enableHighAccuracy:false,timeout:20000,maximumAge:0}
+      );
+    },
+    {enableHighAccuracy:false,timeout:12000,maximumAge:30000}
+  );
 }
 function getLocalSales(){try{return JSON.parse(localStorage.getItem('tumana_sales_'+USER.phone)||'[]');}catch(e){return[];}}
 function saveLocalSale(sale){
@@ -2912,7 +2995,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v53 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v54 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
