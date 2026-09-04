@@ -29,7 +29,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#08080c;color:#ff
 .spin{width:32px;height:32px;border:3px solid rgba(255,255,255,.1);border-top-color:#10b981;border-radius:50%;animation:sp .8s linear infinite;display:block}
 #toast{position:fixed;top:48px;left:50%;transform:translateX(-50%);background:#fff;color:#000;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.5);white-space:nowrap;max-width:90vw;text-align:center}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:flex-end;z-index:9998}
-.ov.show{display:flex}
+.ov{display:none}.ov.show{display:flex}
 .sh{background:#111116;border:1.5px solid rgba(16,185,129,.2);border-radius:20px 20px 0 0;padding:20px 20px 40px;width:100%;max-height:88vh;overflow-y:auto}
 .hd{width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:0 auto 14px}
 .btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px;display:block;text-align:center}
@@ -195,9 +195,8 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <div id="toast" style="display:none;position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,.95);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;z-index:9998;max-width:320px;text-align:center;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
 
 <!-- Bottom sheet overlay -->
-<div id="ov" class="ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9990;align-items:flex-end;justify-content:center">
-  <div id="sh" class="sh" style="background:#0d0d14;border-radius:18px 18px 0 0;padding:0 0 env(safe-area-inset-bottom);width:100%;max-width:430px;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(env(safe-area-inset-bottom)+16px)">
-    <div class="hd" style="width:40px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:10px auto 0"></div>
+<div id="ov" class="ov">
+  <div id="sh" class="sh"></div>
     <div style="padding:0 18px 20px"></div>
   </div>
 </div>
@@ -245,7 +244,6 @@ setTimeout(function(){
 </script>
 
 <script>
-
 
 
 var U
@@ -410,7 +408,7 @@ function setNav(role,tab){
     customer:[['home','&#x1F3EA;','Shops'],['search','&#x1F50D;','Search'],['orders','&#x1F4CB;','Orders'],['pickup','&#x1F6F5;','Pickup'],['profile','&#x1F464;','Me']],
     shop:[['orders','&#x1F4CB;','Orders'],['sales','&#x1F4B0;','Sales'],['stock','&#x1F4E6;','Stock'],['insights','&#x1F4CA;','Biz'],['settings','&#x2699;','More']],
     rider:[['jobs','&#x1F4E6;','Jobs'],['earn','&#x1F4B0;','Earn'],['profile','&#x1F464;','Me']],
-    admin:[['overview','&#x1F4CA;','Ov'],['orders','&#x1F4CB;','Orders'],['riders','&#x1F6F5;','Riders'],['shops','&#x1F3EA;','Shops'],['users','&#x1F464;','Users']]
+    admin:[['overview','&#x1F4CA;','Ov'],['orders','&#x1F4CB;','Orders'],['riders','&#x1F6F5;','Riders'],['shops','&#x1F3EA;','Shops'],['settings','&#x2699;','Settings']]
   };
   var items=NAVS[role]||[];
   nav.style.display='flex';
@@ -430,7 +428,7 @@ function setNav(role,tab){
       if(role==='customer'){if(t==='home')showHome();else if(t==='search')showItemSearch();else if(t==='orders')showOrds();else if(t==='pickup')showPickup();else showProfile();}
       else if(role==='shop'){if(t==='orders')showSOrd();else if(t==='sales')showSSales();else if(t==='stock')showSStock();else if(t==='insights')showSInsights();else showSSet();}
       else if(role==='rider'){if(t==='jobs')showJobs();else if(t==='earn')showEarn();else showRProfile();}
-      else if(role==='admin'){if(t==='overview')showAOv();else if(t==='orders')showAOrds();else if(t==='riders')showARiders();else if(t==='shops')showAShops();else showAdminUsers();}
+      else if(role==='admin'){if(t==='overview')showAOv();else if(t==='orders')showAOrds();else if(t==='riders')showARiders();else if(t==='shops')showAShops();else showASet();}
     });
   });
 }
@@ -2471,6 +2469,7 @@ function showEarn(){
 }
 
 function showAOv(){
+  navPush(showAOv);
   setTitle('ADMIN','#8b5cf6');setNav('admin','overview');
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">Platform Overview</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">Tumana Chemelil</div></div><div id="ab" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
   loadFB(function(db){
@@ -2676,6 +2675,7 @@ function showAOrds(initFilter){
   document.getElementById('ord-done').addEventListener('click',function(){setActive('done');renderOrdsAndWire(allOrds.filter(filters.done));});
 }
 function showARiders(){
+  navPush(showARiders);
   setNav('admin','riders');
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">All Riders</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Unverified shown first</div></div><div id="ab" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
   dbAll('riders',function(riders){
@@ -2746,6 +2746,7 @@ function showARiders(){
   });
 }
 function showAShops(){
+  navPush(showAShops);
   setNav('admin','shops');
   pg().innerHTML='<div style="padding:16px 18px 0"><div style="font-size:19px;font-weight:800;margin-bottom:4px">All Shops</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Verify real shops</div></div><div id="ab" style="padding:0 18px 100px"><div style="text-align:center;padding:40px"><div class="spin" style="margin:0 auto"></div></div></div>';
   dbAll('shops',function(shops){
@@ -2872,7 +2873,102 @@ function showPinResets(){
   });
 }
 
+
+function showASet(){
+  navPush(showASet);
+  setTitle('SETTINGS','#8b5cf6');setNav('admin','settings');
+  pg().innerHTML='<div style="padding:14px 18px 100px">'
+    +'<div style="font-size:19px;font-weight:800;margin-bottom:14px">Admin Settings</div>'
+    +'<button class="btn bg" style="margin-bottom:8px" onclick="showPlatformConfig()">&#x2699; Platform Config (Fees)</button>'
+    +'<button class="btn bp" style="margin-bottom:8px" onclick="showAccessControl()">&#x1F510; Access Control</button>'
+    +'<button class="btn ba" style="margin-bottom:8px" onclick="showAdminUsers()">&#x1F464; All Users</button>'
+    +'<button id="admin-logout-btn" class="btn br">Logout</button>'
+    +'</div>';
+}
+  var alb=document.getElementById('admin-logout-btn');
+  if(alb)alb.addEventListener('click',function(){if(confirm('Logout?'))logout();});
+
+function showPlatformConfig(){
+  navPush(showPlatformConfig);
+  setTitle('PLATFORM CONFIG','#8b5cf6');
+  loadFB(function(db){
+    if(!db){toast('No connection');return;}
+    db.collection('platform_config').doc('fees').get().then(function(snap){
+      var d=snap.exists?snap.data():{};
+      pg().innerHTML='<div style="padding:14px 18px 100px">'
+        +'<div style="font-size:19px;font-weight:800;margin-bottom:14px">Platform Config</div>'
+        +'<div class="sbox"><div class="sboxt">Delivery Fees</div>'
+        +'<div class="fld"><label>Base Fee (KSh)</label><input id="af-base" type="number" value="'+(d.base_fee||50)+'"></div>'
+        +'<div class="fld"><label>Per KM Rate (KSh)</label><input id="af-km" type="number" value="'+(d.per_km_rate||20)+'"></div>'
+        +'</div>'
+        +'<div class="sbox"><div class="sboxt">Platform Cut</div>'
+        +'<div class="fld"><label>Rider Cut % (0 = free)</label><input id="af-cut" type="number" value="'+(d.rider_cut_percent||0)+'" min="0" max="50"></div>'
+        +'<div class="fld"><label>Shop Sub Fee (KSh/month)</label><input id="af-sub" type="number" value="'+(d.shop_subscription_fee||0)+'"></div>'
+        +'</div>'
+        +'<div class="sbox"><div class="sboxt">M-Pesa</div>'
+        +'<div class="fld"><label>Platform Till</label><input id="af-till" type="tel" value="'+(d.mpesa_till||MP)+'"></div>'
+        +'</div>'
+        +'<button id="af-save" class="btn bg" style="font-size:15px;padding:15px">Save Config</button>'
+        +'</div>';
+      document.getElementById('af-save').addEventListener('click',function(){
+        var cfg={
+          base_fee:parseFloat(document.getElementById('af-base').value)||50,
+          per_km_rate:parseFloat(document.getElementById('af-km').value)||20,
+          rider_cut_percent:parseFloat(document.getElementById('af-cut').value)||0,
+          shop_subscription_fee:parseFloat(document.getElementById('af-sub').value)||0,
+          mpesa_till:(document.getElementById('af-till').value||MP).trim(),
+          updated_at:Date.now()
+        };
+        db.collection('platform_config').doc('fees').set(cfg).then(function(){toast('Config saved!');loadFeeConfig();}).catch(function(){toast('Error saving');});
+      });
+    });
+  });
+}
+function showAccessControl(){
+  navPush(showAccessControl);
+  setTitle('ACCESS CONTROL','#8b5cf6');
+  pg().innerHTML='<div style="padding:14px 18px 100px">'
+    +'<div style="font-size:19px;font-weight:800;margin-bottom:14px">Access Control</div>'
+    +'<div class="sbox"><div class="sboxt">Verify Riders & Shops</div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:10px">Unverified accounts are highlighted below. Tap Verify to approve them.</div></div>'
+    +'<div id="ac-body"><div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div></div>';
+  loadFB(function(db){
+    if(!db)return;
+    Promise.all([
+      db.collection('riders').where('verified','==',false).get(),
+      db.collection('shops').where('verified','==',false).get()
+    ]).then(function(results){
+      var el=document.getElementById('ac-body');if(!el)return;
+      var riders=results[0].docs.map(function(d){return Object.assign({id:d.id,_type:'rider'},d.data());});
+      var shops=results[1].docs.map(function(d){return Object.assign({id:d.id,_type:'shop'},d.data());});
+      var all=[].concat(riders,shops);
+      if(!all.length){el.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4)">All verified ✅</div>';return;}
+      var h='';
+      all.forEach(function(u){
+        h+='<div class="card" style="margin-bottom:10px;border-left:3px solid #f59e0b">'
+          +'<div style="font-weight:800">'+(u.name||u.id)+'</div>'
+          +'<div style="font-size:12px;color:rgba(255,255,255,.4)">'+(u._type==='rider'?'&#x1F6F5; Rider':'&#x1F3EA; Shop')+' · '+(u.phone||u.owner_phone||u.id)+'</div>'
+          +(u.mpesa_phone?'<div style="font-size:12px;color:#10b981">M-Pesa: '+u.mpesa_phone+'</div>':'')
+          +(u.location?'<div style="font-size:12px;color:rgba(255,255,255,.4)">&#x1F4CD; '+u.location+'</div>':'')
+          +'<button class="verify-btn btn bg" data-id="'+u.id+'" data-type="'+u._type+'" style="margin-top:8px;font-size:13px;padding:10px">&#x2705; Verify</button>'
+          +'</div>';
+      });
+      el.innerHTML=h;
+      el.querySelectorAll('.verify-btn').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var id=this.getAttribute('data-id');var type=this.getAttribute('data-type');
+          var col=type==='rider'?'riders':'shops';var b=this;b.textContent='Verifying...';b.disabled=true;
+          db.collection(col).doc(id).update({verified:true,verify_notified:false}).then(function(){
+            if(type==='shop'){db.collection('shops').doc(id).update({subscription_paid:true}).catch(function(){});}
+            toast('Verified!');showAccessControl();
+          }).catch(function(){b.textContent='Verify';b.disabled=false;toast('Error');});
+        });
+      });
+    });
+  });
+}
 function showAdminUsers(){
+  navPush(showAdminUsers);
   if(!USER||!USER.is_master){toast('Master admin only');return;}
   showSh('<div class="hd"></div>'
     +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">Admin Users</div>'
@@ -3215,7 +3311,6 @@ function boot(){
   else{showRole();}
 }
 boot();
-
 
 
 </script>
