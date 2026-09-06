@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  TUMANA v57
+  TUMANA v59
   Copyright (c) 2026 David Kwach, Chemelil, Kenya
 -->
 <html lang="en">
@@ -13,7 +13,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tumana">
 <link rel="manifest" href="/Tumana/manifest.json">
-<link rel="icon" type="image/png" href="/Tumana/tumana-logo.png">
 <title>Tumana Delivery - Chemelil</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -29,7 +28,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#08080c;color:#ff
 .spin{width:32px;height:32px;border:3px solid rgba(255,255,255,.1);border-top-color:#10b981;border-radius:50%;animation:sp .8s linear infinite;display:block}
 #toast{position:fixed;top:48px;left:50%;transform:translateX(-50%);background:#fff;color:#000;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.5);white-space:nowrap;max-width:90vw;text-align:center}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:flex-end;z-index:9998}
-.ov{display:none}.ov.show{display:flex}
+.ov{display:none}.ov:not(.show){display:none!important}.ov.show{display:flex!important}
 .sh{background:#111116;border:1.5px solid rgba(16,185,129,.2);border-radius:20px 20px 0 0;padding:20px 20px 40px;width:100%;max-height:88vh;overflow-y:auto}
 .hd{width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:0 auto 14px}
 .btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px;display:block;text-align:center}
@@ -167,39 +166,25 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 <body>
 
 <div id="loading" style="position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999">
-  <img src="/Tumana/tumana-splash.png" alt="Tumana" width="340" height="92" style="width:78%;max-width:340px;height:auto;margin-bottom:6px" loading="eager" onerror="this.style.display='none'">
-  <div style="font-size:32px;font-weight:900;color:#10b981;letter-spacing:-1px;margin-bottom:6px">TUMANA</div>
+  <div style="font-size:36px;font-weight:900;color:#10b981;letter-spacing:-1px;margin-bottom:6px">TUMANA</div>
   <div style="font-size:13px;color:rgba(0,0,0,.4);margin-bottom:24px">Chemelil Local Delivery</div>
   <div class="spin"></div>
   <div id="boot-err" style="display:none;max-width:320px;text-align:center;padding:16px;font-size:13px;color:#ef4444;margin-top:16px;line-height:1.6"></div>
 </div>
 
-<div id="app" style="display:none;flex-direction:column;width:100%;max-width:430px;min-height:100vh;min-height:100dvh;margin:0 auto;position:relative;background:#08080c;overflow:hidden">
-
-  <!-- Status bar -->
+<div id="app" style="display:none;flex-direction:column;width:100%;max-width:430px;min-height:100dvh;margin:0 auto;position:relative;background:#08080c;overflow:hidden">
   <div id="sb" style="display:flex;align-items:center;padding:10px 14px 6px;background:#000;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);gap:8px;min-height:44px">
     <button id="back-btn" style="background:none;border:none;font-size:22px;cursor:pointer;color:rgba(255,255,255,.5);padding:0 4px;display:none;flex-shrink:0">&#x2190;</button>
     <div id="sbt" style="flex:1;font-size:16px;font-weight:800;color:#10b981;letter-spacing:-.3px">TUMANA</div>
     <button id="tbtn" style="background:none;border:none;font-size:18px;cursor:pointer;color:rgba(255,255,255,.5);padding:2px 4px;flex-shrink:0">&#x2600;&#xFE0F;</button>
   </div>
-
-  <!-- Main content page -->
-  <div id="pg" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;padding-bottom:env(safe-area-inset-bottom)"></div>
-
-  <!-- Bottom navigation -->
-  <div id="nav" style="display:none;flex-shrink:0;background:#000;border-top:1px solid rgba(255,255,255,.08);padding-bottom:env(safe-area-inset-bottom)"></div>
-
+  <div id="pg" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none"></div>
+  <div id="nav" style="display:none;flex-shrink:0;background:#000;border-top:1px solid rgba(255,255,255,.08)"></div>
 </div>
 
-<!-- Toast notification -->
-<div id="toast" style="display:none;position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,.95);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;z-index:9998;max-width:320px;text-align:center;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+<div id="toast"></div>
 
-<!-- Bottom sheet overlay -->
-<div id="ov" class="ov">
-  <div id="sh" class="sh"></div>
-    <div style="padding:0 18px 20px"></div>
-  </div>
-</div>
+<div id="ov" class="ov"><div id="sh" class="sh"></div></div>
 
 <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
 <script>
@@ -246,6 +231,7 @@ setTimeout(function(){
 <script>
 
 
+
 var U
 
 
@@ -263,7 +249,22 @@ var U
           hh+='<div style="background:#1a1a22;border-radius:9px;padding:10px;margin-bottom:8px"><div style="font-weight:700">'+d.display_name+' ('+d.role+')</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+d.phone+'</div><div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:7px;padding:8px 12px;margin:6px 0;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:rgba(255,255,255,.5)">Code:</span><span style="font-size:24px;font-weight:900;letter-spacing:5px;color:#8b5cf6">'+c2+'</span></div><div style="font-size:11px;color:rgba(255,255,255,.35)">WhatsApp this code. Changes every 10min.</div><button class="dismiss-pr btn bo" data-id="'+doc.id+'" style="margin-top:6px;font-size:11px;padding:7px">Mark Handled</button></div>';
         });
         box.innerHTML=hh;
-        box.querySelectorAll('.dismiss-pr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db2){db2.collection('pin_resets').doc(id).update({status:'dismissed'}).then(function(){showAOv();}).catch(function(){});});});});
+        box.querySelectorAll('.dismiss-pr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db2){db2.collection('pin_resets').doc(id).update({status:'dismissed'}).then(function(){showAOv();}).catch(function(){});});
+        box.querySelectorAll('.set-tmp').forEach(function(btn){
+          btn.addEventListener('click',function(){
+            var id=this.getAttribute('data-id');
+            var ph=this.getAttribute('data-ph');
+            var rl=this.getAttribute('data-rl');
+            var tmp=ph.slice(-4);
+            tmp=window.prompt('Set temp PIN for '+ph+' (4 digits, default: last 4):',tmp)||tmp;
+            if(!tmp||tmp.length!==4||!/^\d+$/.test(tmp)){toast('Must be 4 digits');return;}
+            loadFB(function(db2){
+              db2.collection('pin_resets').doc(id).update({temp_pin:tmp,temp_set_at:Date.now()}).then(function(){
+                toast('Temp PIN "'+tmp+'" set. Send to user via WhatsApp!');showAOv();
+              }).catch(function(){toast('Error');});
+            });
+          });
+        });});});
       }).catch(function(){});
     });
   },400);
@@ -1068,12 +1069,51 @@ function showPinResetRequest(phone,role,displayName){
 }
 function showProfile(){
   setTitle('ME','#10b981');setNav('customer','profile');
-  pg().innerHTML='<div style="padding:20px"><div style="text-align:center;margin-bottom:24px"><div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 10px">&#x1F464;</div><div style="font-size:18px;font-weight:800">'+(USER.name||'Me')+'</div><div style="font-size:13px;color:rgba(255,255,255,.4)">'+(USER.phone||'')+'</div></div>'
-    +'<div class="sbox"><div class="sboxt">Account</div><div style="font-size:14px;font-weight:700;margin-bottom:4px">Customer Account</div><div style="font-size:12px;color:rgba(255,255,255,.4)">Phone: '+(USER.phone||'')+'</div></div>'
-    +'<button onclick="if(confirm(\'Logout?\'))logout()" class="btn br" style="margin-top:12px">Logout</button>'
-    +'</div>';
+  var photoHtml=USER.profile_photo?'<img src="'+USER.profile_photo+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #10b981">':'<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:32px">&#x1F464;</div>';
+  pg().innerHTML='<div style="padding:16px 18px 100px">'
+    +'<div style="text-align:center;margin-bottom:20px"><div id="photo-wrap" style="position:relative;display:inline-block;cursor:pointer">'+photoHtml
+    +'<div style="position:absolute;bottom:2px;right:2px;width:24px;height:24px;background:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #fff">&#x270F;</div></div>'
+    +'<input type="file" id="photo-inp" accept="image/*" style="display:none">'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">Tap photo to change</div></div>'
+    +'<div class="sbox"><div class="sboxt">Edit Profile</div>'
+    +'<div class="fld"><label>Full Name</label><input id="prof-name" type="text" value="'+(USER.name||'')+'"></div>'
+    +'<div class="fld"><label>Bio / About Me (optional)</label><textarea id="prof-bio" style="width:100%;background:#1a1a22;border:1.5px solid rgba(255,255,255,.13);border-radius:10px;padding:10px;font-size:14px;color:#fff;font-family:inherit;outline:none;resize:none;min-height:70px">'+(USER.bio||'')+'</textarea></div>'
+    +'<div class="fld"><label>Location (optional)</label><input id="prof-loc" type="text" value="'+(USER.location||'')+'" placeholder="e.g. Chemelil, Kisumu"></div>'
+    +'<button id="prof-save" class="btn bg" style="margin-top:4px">Save Profile</button>'
+    +'</div>'
+    +'<div class="sbox"><div class="sboxt">Account Info</div>'
+    +'<div style="font-size:13px;margin-bottom:4px"><span style="color:rgba(255,255,255,.4)">Phone: </span>'+(USER.phone||'')+'</div>'
+    +'<div style="font-size:13px;margin-bottom:8px"><span style="color:rgba(255,255,255,.4)">Member since: </span>'+(USER.created_at?new Date(USER.created_at).toLocaleDateString('en-KE',{month:'short',year:'numeric'}):'—')+'</div>'
+    +'<button id="prof-logout" class="btn br" style="font-size:13px;padding:10px">Logout</button>'
+    +'</div></div>';
+  var pw=document.getElementById('photo-wrap');var pi=document.getElementById('photo-inp');
+  if(pw)pw.addEventListener('click',function(){if(pi)pi.click();});
+  if(pi)pi.addEventListener('change',function(){
+    var file=this.files[0];if(!file)return;
+    if(file.size>2097152){toast('Photo must be under 2MB');return;}
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var img=new Image();img.onload=function(){
+        var canvas=document.createElement('canvas');canvas.width=200;canvas.height=200;
+        var ctx=canvas.getContext('2d');var s=Math.min(img.width,img.height);
+        ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,200,200);
+        var compressed=canvas.toDataURL('image/jpeg',0.75);
+        USER.profile_photo=compressed;su();
+        loadFB(function(db){if(db)db.collection('tumana_users').doc(USER.phone+'_customer').set({profile_photo:compressed},{merge:true}).catch(function(){});});
+        showProfile();
+      };img.src=e.target.result;
+    };reader.readAsDataURL(file);
+  });
+  document.getElementById('prof-save').addEventListener('click',function(){
+    var name=(document.getElementById('prof-name').value||'').trim();
+    var bio=(document.getElementById('prof-bio').value||'').trim();
+    var loc=(document.getElementById('prof-loc').value||'').trim();
+    if(!name){toast('Name cannot be empty');return;}
+    USER.name=name;USER.bio=bio;USER.location=loc;su();
+    loadFB(function(db){if(db)db.collection('tumana_users').doc(USER.phone+'_customer').set({name:name,bio:bio,location:loc},{merge:true}).then(function(){toast('Profile saved!');}).catch(function(){toast('Error saving');});});
+  });
+  document.getElementById('prof-logout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
 }
-// ── ITEM SEARCH ──────────────────────────────────────────────────────
 function showItemSearch(){
   setTitle('SEARCH','#10b981');setNav('customer','search');
   pg().innerHTML='<div style="padding:14px 18px"><div style="font-size:19px;font-weight:700;margin-bottom:10px">Search Items</div>'
@@ -3293,7 +3333,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v58 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v59 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3311,6 +3351,7 @@ function boot(){
   else{showRole();}
 }
 boot();
+
 
 
 </script>
