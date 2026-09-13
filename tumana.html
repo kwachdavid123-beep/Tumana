@@ -1,8 +1,4 @@
 <!DOCTYPE html>
-<!--
-  TUMANA v59
-  Copyright (c) 2026 David Kwach, Chemelil, Kenya
--->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -10,7 +6,6 @@
 <meta name="theme-color" content="#10b981">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tumana">
 <link rel="manifest" href="/Tumana/manifest.json">
 <title>Tumana Delivery - Chemelil</title>
@@ -165,12 +160,7 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 </head>
 <body>
 
-<div id="loading" style="position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999">
-  <div style="font-size:36px;font-weight:900;color:#10b981;letter-spacing:-1px;margin-bottom:6px">TUMANA</div>
-  <div style="font-size:13px;color:rgba(0,0,0,.4);margin-bottom:24px">Chemelil Local Delivery</div>
-  <div class="spin"></div>
-  <div id="boot-err" style="display:none;max-width:320px;text-align:center;padding:16px;font-size:13px;color:#ef4444;margin-top:16px;line-height:1.6"></div>
-</div>
+<div id="loading" style="position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999"><div style="font-size:38px;font-weight:900;color:#10b981;letter-spacing:-1px;margin-bottom:6px">TUMANA</div><div style="font-size:13px;color:rgba(0,0,0,.4);margin-bottom:24px">Chemelil Local Delivery</div><div class="spin"></div><div id="boot-err" style="display:none;max-width:300px;text-align:center;padding:16px;font-size:13px;color:#ef4444;margin-top:16px"></div></div>
 
 <div id="app" style="display:none;flex-direction:column;width:100%;max-width:430px;min-height:100dvh;margin:0 auto;position:relative;background:#08080c;overflow:hidden">
   <div id="sb" style="display:flex;align-items:center;padding:10px 14px 6px;background:#000;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);gap:8px;min-height:44px">
@@ -183,7 +173,6 @@ body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 </div>
 
 <div id="toast"></div>
-
 <div id="ov" class="ov"><div id="sh" class="sh"></div></div>
 
 <script>setTimeout(function(){var e=document.getElementById('boot-err');var a=document.getElementById('app');if(e&&(!a||a.style.display==='none')){e.style.display='block';e.innerHTML='<div style="font-size:13px;color:#6b7280;line-height:1.7">Slow connection.<br>Please wait or check your data.</div>';}},8000);</script>
@@ -232,6 +221,8 @@ setTimeout(function(){
 
 
 
+
+
 var U
 
 
@@ -256,14 +247,19 @@ var U
             var ph=this.getAttribute('data-ph');
             var rl=this.getAttribute('data-rl');
             var tmp=ph.slice(-4);
-            tmp=window.prompt('Set temp PIN for '+ph+' (4 digits, default: last 4):',tmp)||tmp;
-            if(!tmp||tmp.length!==4||!/^\d+$/.test(tmp)){toast('Must be 4 digits');return;}
-            loadFB(function(db2){
-              db2.collection('pin_resets').doc(id).update({temp_pin:tmp,temp_set_at:Date.now()}).then(function(){
-                toast('Temp PIN "'+tmp+'" set. Send to user via WhatsApp!');showAOv();
-              }).catch(function(){toast('Error');});
-            });
-          });
+            showSh('<div class="hd"></div><div style="font-size:17px;font-weight:800;margin-bottom:8px">Set Temp PIN</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:12px">For <b style="color:#fff">'+ph+'</b> ('+rl+')</div><div class="fld"><label>4-digit Temp PIN for User</label><input id="adm-tmp" type="tel" inputmode="numeric" maxlength="4" value="'+tmp+'" style="letter-spacing:8px;font-size:28px;text-align:center;font-weight:800"></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Save then WhatsApp this PIN to the user.</div><button id="adm-tmp-ok" class="btn bg" style="font-size:15px;padding:15px">Save Temp PIN</button><button class="btn bo" onclick="hideSh()" style="margin-top:8px">Cancel</button>');
+            document.getElementById('adm-tmp-ok').addEventListener('click',function(){
+              var pv=(document.getElementById('adm-tmp').value||'').trim();
+              if(!pv||pv.length!==4){toast('Must be 4 digits');return;}
+              var b2=this;b2.textContent='Saving...';b2.disabled=true;
+              loadFB(function(db2){
+                db2.collection('pin_resets').doc(id).update({temp_pin:pv,temp_set_at:Date.now(),status:'temp_set'}).then(function(){
+                  var waMsg=encodeURIComponent('Your Tumana temp PIN: '+pv+'. Open app > Login > Forgot PIN, enter this to reset.');
+                  hideSh();
+                  showSh('<div class="hd"></div><div style="text-align:center;padding:12px 0"><div style="font-size:44px">&#x2705;</div><div style="font-size:18px;font-weight:800;color:#10b981;margin:8px 0">Temp PIN Set!</div><div style="font-size:14px;color:rgba(255,255,255,.5);margin-bottom:14px">WhatsApp to '+ph+':</div><div style="font-size:50px;font-weight:900;letter-spacing:12px;color:#fff;background:#1a1a22;border-radius:12px;padding:16px;margin-bottom:14px">'+pv+'</div></div><a href="https://wa.me/'+ph.replace(/^0/,'254')+'?text='+waMsg+'" class="btn bg" style="display:block;text-align:center;font-size:15px;padding:14px;text-decoration:none">&#x1F4F1; Open WhatsApp</a><button class="btn bo" onclick="hideSh();showAOv()" style="margin-top:8px">Done</button>');
+                }).catch(function(){b2.textContent='Save Temp PIN';b2.disabled=false;toast('Error saving');});
+              });
+            });          });
         });});});
       }).catch(function(){});
     });
@@ -290,7 +286,7 @@ function navPush(fn,args){
   var bb=document.getElementById('back-btn');
   if(bb)bb.style.display=NAV_HIST.length>1?'block':'none';
   // Push a real browser history entry so Android back button fires popstate
-  try{window.history.pushState({navDepth:NAV_HIST.length},'',' ');}catch(e){}
+  try{window.history.pushState({navDepth:NAV_HIST.length},'',window.location.href);}catch(e){}
 }
 function navBack(){
   if(NAV_HIST.length>1){NAV_HIST.pop();var prev=NAV_HIST[NAV_HIST.length-1];try{prev.fn.apply(null,prev.args);}catch(e){showHome();}}
@@ -1039,34 +1035,44 @@ function renderOrderHistory(orders){
 }
 
 function showPinResetRequest(phone,role,displayName){
-  var seed=phone+Math.floor(Date.now()/600000);
-  var hh=0;for(var ii=0;ii<seed.length;ii++){hh=((hh<<5)-hh)+seed.charCodeAt(ii);hh|=0;}
-  var code=String(Math.abs(hh)%900000+100000);
-  loadFB(function(db){if(db)db.collection('pin_resets').doc(phone+'_'+role).set({phone:phone,role:role,display_name:displayName,reset_code:code,requested_at:Date.now(),status:'pending'}).catch(function(){});});
+  loadFB(function(db){if(db)db.collection('pin_resets').doc(phone+'_'+role).set({phone:phone,role:role,display_name:displayName||phone,requested_at:Date.now(),status:'pending'},{merge:true}).catch(function(){});});
   showSh('<div class="hd"></div>'
     +'<div style="font-size:18px;font-weight:800;margin-bottom:8px">Reset PIN</div>'
-    +'<div style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:14px;line-height:1.6">Contact admin 0799878872 on WhatsApp and ask for your reset code. Enter it below once received.</div>'
-    +'<div class="fld"><label>6-Digit Code from Admin</label><input id="rst-code" type="tel" inputmode="numeric" maxlength="6" placeholder="000000" style="letter-spacing:6px;font-size:20px;text-align:center"></div>'
-    +'<div class="fld"><label>New 4-Digit PIN</label><input id="rst-pin" type="password" inputmode="numeric" maxlength="4" placeholder="****" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
-    +'<div class="fld"><label>Confirm PIN</label><input id="rst-pin2" type="password" inputmode="numeric" maxlength="4" placeholder="****" style="letter-spacing:8px;font-size:20px;text-align:center"></div>'
-    +'<button id="rst-submit" class="btn bp" style="font-size:15px;padding:15px">Reset My PIN</button>'
-    +'<button class="btn bo" onclick="hideSh()" style="margin-top:6px">Cancel</button>');
+    +'<div style="background:rgba(139,92,246,.07);border:1.5px solid rgba(139,92,246,.2);border-radius:11px;padding:12px;margin-bottom:14px">'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:6px">Request sent! WhatsApp admin:</div>'
+    +'<a href="tel:0799878872" style="font-size:17px;font-weight:800;color:#10b981;display:block;margin-bottom:4px">0799878872</a>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.5)">Tell them: phone <b style="color:#fff">'+phone+'</b> role <b style="color:#fff">'+role+'</b></div>'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">Admin sends you a 4-digit temp PIN via WhatsApp.</div></div>'
+    +'<div class="fld"><label>Temp PIN from Admin (4 digits)</label><input id="rst-tmp" type="tel" inputmode="numeric" maxlength="4" placeholder="e.g. 5678" style="letter-spacing:8px;font-size:26px;text-align:center;font-weight:800"></div>'
+    +'<div class="fld"><label>New PIN (4 digits)</label><input id="rst-new" type="password" inputmode="numeric" maxlength="4" placeholder="****" style="letter-spacing:8px;font-size:22px;text-align:center"></div>'
+    +'<div class="fld"><label>Confirm New PIN</label><input id="rst-new2" type="password" inputmode="numeric" maxlength="4" placeholder="****" style="letter-spacing:8px;font-size:22px;text-align:center"></div>'
+    +'<button id="rst-submit" class="btn bp" style="font-size:16px;padding:16px">Set New PIN</button>'
+    +'<button class="btn bo" onclick="hideSh()" style="margin-top:8px">Cancel</button>');
   document.getElementById('rst-submit').addEventListener('click',function(){
-    var entered=(document.getElementById('rst-code').value||'').trim();
-    var np=(document.getElementById('rst-pin').value||'').trim();
-    var np2=(document.getElementById('rst-pin2').value||'').trim();
-    if(entered!==code){toast('Wrong code - ask admin for the current one');return;}
-    if(!np||np.length!==4){toast('PIN must be 4 digits');return;}
+    var tmp=(document.getElementById('rst-tmp').value||'').trim();
+    var np=(document.getElementById('rst-new').value||'').trim();
+    var np2=(document.getElementById('rst-new2').value||'').trim();
+    if(!tmp||tmp.length<4){toast('Enter the 4-digit temp PIN from admin');return;}
+    if(!np||np.length!==4){toast('New PIN must be 4 digits');return;}
     if(np!==np2){toast('PINs do not match');return;}
-    var newHash=btoa(phone+':'+np);
-    var btn4=this;btn4.textContent='Resetting...';btn4.disabled=true;
-    loadFB(function(db){if(!db){btn4.textContent='Reset PIN';btn4.disabled=false;toast('No connection');return;}
-      db.collection('tumana_users').doc(phone+'_'+role).set({pin_hash:newHash,pin_reset_at:Date.now()},{merge:true})
-        .then(function(){db.collection('pin_resets').doc(phone+'_'+role).update({status:'completed'}).catch(function(){});hideSh();toast('PIN reset! Login with your new PIN.');})
-        .catch(function(){btn4.textContent='Reset PIN';btn4.disabled=false;toast('Error');});
+    var btn=this;btn.textContent='Verifying...';btn.disabled=true;
+    loadFB(function(db){
+      if(!db){btn.textContent='Set New PIN';btn.disabled=false;toast('No connection');return;}
+      db.collection('pin_resets').doc(phone+'_'+role).get().then(function(snap){
+        if(!snap.exists){btn.textContent='Set New PIN';btn.disabled=false;toast('Request not found. Try again.');return;}
+        var d=snap.data();
+        if(!d.temp_pin){btn.textContent='Set New PIN';btn.disabled=false;toast('Admin has not set your temp PIN yet. Wait for WhatsApp.');return;}
+        if(d.temp_pin!==tmp){btn.textContent='Set New PIN';btn.disabled=false;toast('Wrong temp PIN. Check WhatsApp from admin.');return;}
+        var newHash=btoa(phone+':'+np);
+        db.collection('tumana_users').doc(phone+'_'+role).set({pin_hash:newHash,pin_reset_at:Date.now()},{merge:true}).then(function(){
+          db.collection('pin_resets').doc(phone+'_'+role).update({status:'completed',completed_at:Date.now()}).catch(function(){});
+          hideSh();toast('PIN updated! Login with your new PIN.');
+        }).catch(function(){btn.textContent='Set New PIN';btn.disabled=false;toast('Error saving PIN');});
+      }).catch(function(){btn.textContent='Set New PIN';btn.disabled=false;toast('Connection error');});
     });
   });
 }
+
 function showProfile(){
   setTitle('ME','#10b981');setNav('customer','profile');
   var photoHtml=USER.profile_photo?'<img src="'+USER.profile_photo+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #10b981">':'<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:32px">&#x1F464;</div>';
@@ -2919,14 +2925,14 @@ function showASet(){
   setTitle('SETTINGS','#8b5cf6');setNav('admin','settings');
   pg().innerHTML='<div style="padding:14px 18px 100px">'
     +'<div style="font-size:19px;font-weight:800;margin-bottom:14px">Admin Settings</div>'
-    +'<button class="btn bg" style="margin-bottom:8px" onclick="showPlatformConfig()">&#x2699; Platform Config (Fees)</button>'
-    +'<button class="btn bp" style="margin-bottom:8px" onclick="showAccessControl()">&#x1F510; Access Control</button>'
-    +'<button class="btn ba" style="margin-bottom:8px" onclick="showAdminUsers()">&#x1F464; All Users</button>'
-    +'<button id="admin-logout-btn" class="btn br">Logout</button>'
+    +'<button class="btn bg" style="margin-bottom:8px;width:100%" onclick="showPlatformConfig()">&#x2699; Platform Config</button>'
+    +'<button class="btn bp" style="margin-bottom:8px;width:100%" onclick="showAccessControl()">&#x1F510; Access Control</button>'
+    +'<button class="btn ba" style="margin-bottom:8px;width:100%" onclick="showAdminUsers()">&#x1F464; All Users</button>'
+    +'<button id="adm-logout" class="btn br" style="width:100%">&#x1F6AA; Logout</button>'
     +'</div>';
+  var lb=document.getElementById('adm-logout');
+  if(lb)lb.addEventListener('click',function(){if(confirm('Logout?'))logout();});
 }
-  var alb=document.getElementById('admin-logout-btn');
-  if(alb)alb.addEventListener('click',function(){if(confirm('Logout?'))logout();});
 
 function showPlatformConfig(){
   navPush(showPlatformConfig);
@@ -3333,7 +3339,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v59 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v60 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3351,6 +3357,8 @@ function boot(){
   else{showRole();}
 }
 boot();
+
+
 
 
 
