@@ -223,6 +223,9 @@ setTimeout(function(){
 
 
 
+
+
+
 var U
 
 
@@ -606,11 +609,28 @@ function renderAuth(){
       function addForgotBtn(){
         loginDone();
         var pg3=document.getElementById('pg');if(!pg3||pg3.querySelector('.forgot-btn'))return;
-        var fb=document.createElement('button');fb.className='btn bo forgot-btn';
-        fb.style.cssText='width:100%;margin-top:8px;font-size:13px;padding:11px';
-        fb.textContent='Forgot PIN? Request Reset from Admin';
-        fb.addEventListener('click',function(){showPinResetRequest(normP,AR.id,normP);});
+        var fb=document.createElement('div');fb.className='forgot-btn';
+        fb.style.cssText='margin-top:8px';
+        fb.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:6px">Forgot your PIN? Choose how to reset:</div>'
+          +'<button id="rst-opt1" class="btn bg" style="width:100%;margin-bottom:6px;font-size:13px;padding:11px">&#x1F511; Reset to last 4 digits of my phone</button>'
+          +'<button id="rst-opt2" class="btn bo" style="width:100%;font-size:13px;padding:11px">&#x1F4F1; Request reset code from Admin</button>';
         var ab2=pg3.querySelector('#ab');if(ab2&&ab2.parentNode)ab2.parentNode.insertBefore(fb,ab2.nextSibling);
+        // Option 1: instant reset to last 4 digits
+        document.getElementById('rst-opt1').addEventListener('click',function(){
+          var last4=normP.slice(-4);
+          var newHash=btoa(normP+':'+last4);
+          var btn=this;btn.textContent='Resetting...';btn.disabled=true;
+          loadFB(function(db){
+            if(!db){btn.textContent='Reset to last 4 digits';btn.disabled=false;toast('No connection');return;}
+            db.collection('tumana_users').doc(docId2).set({pin_hash:newHash,pin_reset_at:Date.now()},{merge:true})
+              .then(function(){
+                toast('PIN reset to last 4 digits: '+last4+'. Login with it now.');
+                btn.textContent='Done! PIN is '+last4;
+              }).catch(function(){btn.textContent='Reset to last 4 digits';btn.disabled=false;toast('Error — check connection');});
+          });
+        });
+        // Option 2: admin reset flow
+        document.getElementById('rst-opt2').addEventListener('click',function(){showPinResetRequest(normP,AR.id,normP);});
       }
       // Fast path: localStorage
       var lsU=null;
@@ -2157,16 +2177,53 @@ function showJobs(){
   });
   renderRBody();if(RON)startJL();startAL();
 }
+
+var _liveLocWatcher=null;
+var _liveLocInterval=null;
+function startLiveLocation(){
+  stopLiveLocation();
+  if(!navigator.geolocation)return;
+  // Start continuous location tracking (WhatsApp-style)
+  _liveLocWatcher=navigator.geolocation.watchPosition(function(pos){
+    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
+    window._custLat=lat;window._custLng=lng;
+    try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
+    // Update Firestore every 30s max (debounce)
+    var now=Date.now();
+    if(!window._lastGpsUpload||now-window._lastGpsUpload>30000){
+      window._lastGpsUpload=now;
+      loadFB(function(db){
+        if(!db)return;
+        db.collection('riders').doc(USER.phone).set({
+          lat:lat,lng:lng,acc:acc,gps_at:now,online:true
+        },{merge:true}).catch(function(){});
+      });
+    }
+  },function(){
+    // watchPosition failed — try single getGPSRobust
+    getGPSRobust(function(lat,lng){
+      loadFB(function(db){if(db)db.collection('riders').doc(USER.phone).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});});
+    },function(){},null);
+  },{enableHighAccuracy:false,timeout:20000,maximumAge:10000});
+  // Also update every 60s as backup
+  _liveLocInterval=setInterval(function(){
+    if(!RON)return;
+    getGPSRobust(function(lat,lng){
+      window._custLat=lat;window._custLng=lng;
+      loadFB(function(db){if(db)db.collection('riders').doc(USER.phone).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});});
+    },function(){},null);
+  },60000);
+  toast('Live location sharing started');
+}
+function stopLiveLocation(){
+  if(_liveLocWatcher!==null){try{navigator.geolocation.clearWatch(_liveLocWatcher);}catch(e){}  _liveLocWatcher=null;}
+  if(_liveLocInterval){clearInterval(_liveLocInterval);_liveLocInterval=null;}
+}
 function startJL(){
   if(RUNSUB){RUNSUB();RUNSUB=null;}
   if(!RACT){
     dbSet('riders',USER.phone,{busy:false,online:true,name:USER.name,phone:USER.phone});
-    // Capture GPS when going online — saved to Firestore for proximity matching
-    getGPSRobust(function(lat,lng){
-      loadFB(function(db){
-        if(db)db.collection('riders').doc(USER.phone).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});
-      });
-    },function(){},null); // silent fail — still goes online
+    startLiveLocation();
   }
   var prevJobCount=RJOBS.length;
   RUNSUB=dbListenIn('delivery_orders','status',['confirmed'],function(jobs){
@@ -2746,6 +2803,7 @@ function showARiders(){
         +'<div style="font-weight:800;font-size:15px">'+(r.name||r.id)+'</div>'
         +'<div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px">&#x1F4DE; '+(r.phone||r.id)+'</div>'
         +(r.mpesa_phone?'<div style="font-size:12px;color:#10b981;margin-top:2px">&#x1F4F1; M-Pesa: '+r.mpesa_phone+'</div>':'<div style="font-size:11px;color:#ef4444;margin-top:2px">&#x26A0; No M-Pesa saved</div>')
+        +(r.lat?'<div style="font-size:11px;color:#10b981;margin-top:4px;font-weight:700">&#x1F4CD; Live '+r.lat.toFixed(4)+','+r.lng.toFixed(4)+(r.gps_at?' ('+Math.round((Date.now()-r.gps_at)/60000)+'min ago)':'')+' <b style=\"background:#10b981;color:#fff;border-radius:3px;padding:1px 4px;font-size:9px\">LIVE</b></div>':'')
         +'<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:2px">Registered: '+(r.created_at?new Date(r.created_at).toLocaleDateString():'Unknown')+'</div>'
         +'<div style="display:flex;gap:8px;margin-top:4px">'
         +'<span style="font-size:11px;color:'+(r.online?'#10b981':'rgba(255,255,255,.3)')+'">&#x25CF; '+(r.online?'Online':'Offline')+'</span>'
@@ -3339,7 +3397,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v60 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v61 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3357,6 +3415,9 @@ function boot(){
   else{showRole();}
 }
 boot();
+
+
+
 
 
 
