@@ -1160,10 +1160,15 @@ function showPinResetRequest(phone,role,displayName){
       db.collection('pin_resets').doc(phone+'_'+role).get().then(function(snap){
         if(!snap.exists){btn.textContent='Set New PIN';btn.disabled=false;toast('Request not found. Try again.');return;}
         var d=snap.data();
-        if(!d.temp_pin){btn.textContent='Set New PIN';btn.disabled=false;toast('Admin has not set your temp PIN yet. Wait for WhatsApp.');return;}
+        if(d.status!=='approved'){btn.textContent='Set New PIN';btn.disabled=false;toast(d.status==='declined'?'Reset request was declined. Request again.':'Admin has not approved the reset yet.');return;}
+        if(d.expires_at && Date.now()>d.expires_at){
+          db.collection('pin_resets').doc(phone+'_'+role).update({status:'expired',expired_at:Date.now()}).catch(function(){});
+          btn.textContent='Set New PIN';btn.disabled=false;toast('Temporary PIN has expired. Request a new reset.');return;
+        }
         if(d.temp_pin!==tmp){btn.textContent='Set New PIN';btn.disabled=false;toast('Wrong temp PIN. Check WhatsApp from admin.');return;}
         var newHash=btoa(phone+':'+np);
-        db.collection('tumana_users').doc(phone+'_'+role).set({pin_hash:newHash,pin_reset_at:Date.now()},{merge:true}).then(function(){
+        db.collection('tumana_users').doc(phone+'_'+role).set({pin_hash:newHash,pin_reset_at:Date.now(),reset_notice:null,reset_temp_pin:null},{merge:true}).then(function(){
+          try{var cached=JSON.parse(localStorage.getItem('tumana_user')||'null');if(cached&&cached.phone===phone&&cached.role===role){cached.pin_hash=newHash;localStorage.setItem('tumana_user',JSON.stringify(cached));}}catch(e){}
           db.collection('pin_resets').doc(phone+'_'+role).update({status:'completed',completed_at:Date.now()}).catch(function(){});
           hideSh();toast('PIN updated! Login with your new PIN.');
         }).catch(function(){btn.textContent='Set New PIN';btn.disabled=false;toast('Error saving PIN');});
@@ -3130,13 +3135,11 @@ function showPinResets(){
           var reqId=ph+'_'+(function(){var q=s.docs.find(function(x){return (x.data().phone||'')===ph;});return q?q.data().role:'customer';})();
           loadFB(function(db){
             if(!db){b.disabled=false;b.textContent='Approve Reset';toast('No connection');return;}
-            db.collection('pin_resets').doc(reqId).set({status:'approved',temp_pin:tmp,approved_at:Date.now(),approved_by:USER.phone,expires_at:Date.now()+15*60*1000},{merge:true})
+            db.collection('pin_resets').doc(reqId).set({status:'approved',temp_pin:tmp,approved_at:Date.now(),approved_by:USER.phone,expires_at:Date.now()+15*60*1000,whatsapp_status:'queued'},{merge:true})
               .then(function(){
                 var role=reqId.slice(ph.length+1);
                 db.collection('tumana_users').doc(ph+'_'+role).set({reset_notice:'approved',reset_temp_pin:tmp,reset_approved_at:Date.now()},{merge:true}).catch(function(){});
-                var wa='Tumana PIN reset approved. Your temporary PIN is '+tmp+'. It expires in 15 minutes. Open Tumana > Forgot PIN to set a new PIN.';
-                var waUrl='https://wa.me/'+ph.replace(/^0/,'254')+'?text='+encodeURIComponent(wa);
-                showSh('<div class="hd"></div><div style="text-align:center;padding:12px 0"><div style="font-size:44px">&#x2705;</div><div style="font-size:19px;font-weight:800;color:#10b981;margin:8px 0">Reset Approved</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:12px">Temporary PIN for '+ph+'</div><div style="font-size:42px;font-weight:900;letter-spacing:10px;background:#1a1a22;border-radius:12px;padding:14px;margin-bottom:12px">'+tmp+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.6;margin-bottom:14px">The request is approved in Firestore. The browser cannot silently send a WhatsApp message, so use the button below to open WhatsApp with the message ready.</div></div><a href="'+waUrl+'" target="_blank" rel="noopener" class="btn bg" style="display:block;text-align:center;text-decoration:none;padding:14px">&#x1F4F1; Send WhatsApp to User</a><button class="btn bo" onclick="hideSh();showPinResets()">Done</button>');
+                showSh('<div class="hd"></div><div style="text-align:center;padding:12px 0"><div style="font-size:44px">&#x2705;</div><div style="font-size:19px;font-weight:800;color:#10b981;margin:8px 0">Reset Approved</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:12px">Temporary PIN for '+ph+'</div><div style="font-size:42px;font-weight:900;letter-spacing:10px;background:#1a1a22;border-radius:12px;padding:14px;margin-bottom:12px">'+tmp+'</div><div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.6;margin-bottom:14px">WhatsApp delivery is now handled automatically by Firebase. The user will receive the approved PIN through the Tumana WhatsApp Business account.</div></div><button class="btn bo" onclick="hideSh();showPinResets()">Done</button>');
               }).catch(function(e){b.disabled=false;b.textContent='Approve Reset';toast('Approval failed: '+(e&&e.message?e.message:'check rules/connection'));});
           });
         });
