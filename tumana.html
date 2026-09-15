@@ -228,6 +228,8 @@ setTimeout(function(){
 
 
 
+
+
 var U
 
 
@@ -246,25 +248,21 @@ var U
         });
         box.innerHTML=hh;
         box.querySelectorAll('.dismiss-pr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db2){db2.collection('pin_resets').doc(id).update({status:'dismissed'}).then(function(){showAOv();}).catch(function(){});});
-        box.querySelectorAll('.set-tmp').forEach(function(btn){
+        box        .querySelectorAll('.set-tmp').forEach(function(btn){
           btn.addEventListener('click',function(){
             var id=this.getAttribute('data-id');
             var ph=this.getAttribute('data-ph');
             var rl=this.getAttribute('data-rl');
             var tmp=ph.slice(-4);
-            showSh('<div class="hd"></div><div style="font-size:17px;font-weight:800;margin-bottom:8px">Set Temp PIN</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:12px">For <b style="color:#fff">'+ph+'</b> ('+rl+')</div><div class="fld"><label>4-digit Temp PIN for User</label><input id="adm-tmp" type="tel" inputmode="numeric" maxlength="4" value="'+tmp+'" style="letter-spacing:8px;font-size:28px;text-align:center;font-weight:800"></div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Save then WhatsApp this PIN to the user.</div><button id="adm-tmp-ok" class="btn bg" style="font-size:15px;padding:15px">Save Temp PIN</button><button class="btn bo" onclick="hideSh()" style="margin-top:8px">Cancel</button>');
-            document.getElementById('adm-tmp-ok').addEventListener('click',function(){
-              var pv=(document.getElementById('adm-tmp').value||'').trim();
-              if(!pv||pv.length!==4){toast('Must be 4 digits');return;}
-              var b2=this;b2.textContent='Saving...';b2.disabled=true;
-              loadFB(function(db2){
-                db2.collection('pin_resets').doc(id).update({temp_pin:pv,temp_set_at:Date.now(),status:'temp_set'}).then(function(){
-                  var waMsg=encodeURIComponent('Your Tumana temp PIN: '+pv+'. Open app > Login > Forgot PIN, enter this to reset.');
-                  hideSh();
-                  showSh('<div class="hd"></div><div style="text-align:center;padding:12px 0"><div style="font-size:44px">&#x2705;</div><div style="font-size:18px;font-weight:800;color:#10b981;margin:8px 0">Temp PIN Set!</div><div style="font-size:14px;color:rgba(255,255,255,.5);margin-bottom:14px">WhatsApp to '+ph+':</div><div style="font-size:50px;font-weight:900;letter-spacing:12px;color:#fff;background:#1a1a22;border-radius:12px;padding:16px;margin-bottom:14px">'+pv+'</div></div><a href="https://wa.me/'+ph.replace(/^0/,'254')+'?text='+waMsg+'" class="btn bg" style="display:block;text-align:center;font-size:15px;padding:14px;text-decoration:none">&#x1F4F1; Open WhatsApp</a><button class="btn bo" onclick="hideSh();showAOv()" style="margin-top:8px">Done</button>');
-                }).catch(function(){b2.textContent='Save Temp PIN';b2.disabled=false;toast('Error saving');});
-              });
-            });          });
+            var b=this;b.textContent='Approving...';b.disabled=true;
+            loadFB(function(db2){
+              db2.collection('pin_resets').doc(id).update({temp_pin:tmp,temp_set_at:Date.now(),status:'temp_set'}).then(function(){
+                b.textContent='Approve & Send';b.disabled=false;
+                var waMsg=encodeURIComponent('Hi! Your Tumana temp PIN: '+tmp+'\nSteps: Open app > Login > enter phone > tap wrong PIN > Forgot PIN > enter '+tmp+' as temp PIN > choose new PIN.');
+                showSh('<div class="hd"></div><div style="text-align:center;padding:16px 0"><div style="font-size:44px">&#x2705;</div><div style="font-size:20px;font-weight:900;color:#10b981;margin:8px 0">Approved!</div><div style="font-size:14px;color:rgba(255,255,255,.5);margin-bottom:14px">Temp PIN for <b style="color:#fff">'+ph+'</b>:</div><div style="font-size:54px;font-weight:900;letter-spacing:12px;color:#fff;background:#1a1a22;border-radius:14px;padding:18px;margin-bottom:14px">'+tmp+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Last 4 of their phone number.</div></div><a href="https://wa.me/'+ph.replace(/^0/,'254')+'?text='+waMsg+'" class="btn bg" style="display:block;text-align:center;font-size:15px;padding:15px;text-decoration:none;font-weight:800">&#x1F4F1; Send via WhatsApp</a><button class="btn bo" onclick="hideSh();showAOv()" style="margin-top:8px;width:100%">Done</button>');
+              }).catch(function(){b.textContent='Approve & Send';b.disabled=false;toast('Error');});
+            });
+          });
         });});});
       }).catch(function(){});
     });
@@ -307,7 +305,8 @@ function setTitle(t,col){var el=document.getElementById('sbt');if(el){el.textCon
 function haversineKm(a,b,x,y){var R=6371,dL=(x-a)*Math.PI/180,dG=(y-b)*Math.PI/180,z=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(x*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(z),Math.sqrt(1-z));}
 function calcFee(km){var base=window._ADMIN_BASE_FEE||50;var rate=window._ADMIN_PER_KM||20;return Math.max(base,Math.round((base+rate*(km||0.5))/5)*5);}
 function applyTheme(){document.body.className=TH==='light'?'light':'';}
-function logout(){USER=null;try{localStorage.removeItem('tumana_user');}catch(e){}CART=[];SHOPS=[];CS=null;SORD=[];RON=false;RJOBS=[];RACT=null;NAV_HIST=[];var nav=document.getElementById('nav');if(nav)nav.style.display='none';var bb=document.getElementById('back-btn');if(bb)bb.style.display='none';showRole();}
+function logout(){
+  try{localStorage.removeItem('tumana_user');localStorage.removeItem('tu');}catch(e){}USER=null;try{localStorage.removeItem('tumana_user');}catch(e){}CART=[];SHOPS=[];CS=null;SORD=[];RON=false;RJOBS=[];RACT=null;NAV_HIST=[];var nav=document.getElementById('nav');if(nav)nav.style.display='none';var bb=document.getElementById('back-btn');if(bb)bb.style.display='none';showRole();}
 function su(){try{localStorage.setItem('tumana_user',JSON.stringify(USER));}catch(e){}}
 function getSavedAddrs(){try{return JSON.parse(localStorage.getItem('tumana_saved_addrs_'+(USER&&USER.phone||''))||'[]');}catch(e){return[];}}
 
@@ -626,8 +625,10 @@ function renderAuth(){
             if(!db){btn.textContent='Reset to last 4 digits';btn.disabled=false;toast('No connection');return;}
             db.collection('tumana_users').doc(docId2).set({pin_hash:newHash,pin_reset_at:Date.now()},{merge:true})
               .then(function(){
-                toast('PIN reset to last 4 digits: '+last4+'. Login with it now.');
-                btn.textContent='Done! PIN is '+last4;
+                // Clear localStorage so next login reads fresh from Firestore
+                try{localStorage.removeItem('tumana_user');}catch(e){}
+                toast('PIN reset! Login with PIN: '+last4);
+                btn.textContent='Done ✅ PIN = '+last4;
               }).catch(function(){btn.textContent='Reset to last 4 digits';btn.disabled=false;toast('Error — check connection');});
           });
         });
@@ -638,7 +639,8 @@ function renderAuth(){
       var lsU=null;
       try{var lsRaw=localStorage.getItem('tumana_user');if(lsRaw){var lsp2=JSON.parse(lsRaw);if(lsp2&&lsp2.phone===normP&&lsp2.role===AR.id)lsU=lsp2;}}catch(e){}
       if(lsU&&tryPin(lsU.pin_hash,pin,normP,phone)){USER=Object.assign({},lsU,{pin_hash:pinHash});loginDone();su();startApp();return;}
-      if(lsU&&lsU.pin_hash&&!tryPin(lsU.pin_hash,pin,normP,phone)){addForgotBtn();toast('Wrong PIN');return;}
+      // NOTE: If localStorage check fails, we still go to Firestore
+      // This handles PIN resets where Firestore was updated but localStorage has old hash
       // Firestore lookup
       loadFB(function(db){
         if(!db){loginDone();toast('No internet connection');return;}
@@ -772,6 +774,16 @@ function wireCartButtons(){
     if(a&&window._shopProds&&window._shopProds.length){
       renderProds(window._shopProds,a);wireCartButtons();
     }
+    updateCartFloat();
+  }
+  function updateCartFloat(){
+    var btn=document.getElementById('cart-float');
+    if(!btn)return;
+    if(!CART.length){btn.style.display='none';return;}
+    var total=CART.reduce(function(s,i){return s+(i.price||0)*(i.qty||1);},0);
+    var qty=CART.reduce(function(s,i){return s+(i.qty||1);},0);
+    btn.style.display='flex';
+    btn.innerHTML='<span style="font-size:18px">&#x1F6D2;</span><div style="flex:1;text-align:center"><div style="font-size:13px;font-weight:800">View Cart ('+qty+' item'+(qty>1?'s':'')+')</div><div style="font-size:11px;opacity:.8">KSh '+total+' + delivery</div></div><span style="font-size:16px">&#x276F;</span>';
   }
   area.querySelectorAll('.ca').forEach(function(btn){
     btn.addEventListener('click',function(){
@@ -879,9 +891,15 @@ function showCart(){
         });});
       }
       if(local.length){showResults(local,true);return;}
-      if(sug)sug.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.4)">Searching OpenStreetMap...</div>';
+      var localM=searchLocalPlaces(q);
+      if(localM.length){showResults(localM,true);return;}
+      if(sug)sug.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.4)">Searching online...</div>';
       geocodePlace(q,function(err,results){
-        if(err||!results.length){if(sug)sug.innerHTML='<div style="font-size:11px;color:#ef4444">Not found — try shorter name</div>';return;}
+        if(err||!results.length){
+          if(sug)sug.innerHTML='<div style="font-size:11px;color:#f59e0b;margin-bottom:6px">Not found. Pick a nearby place:</div>';
+          showResults(CHEMELIL_PLACES.slice(0,5),true);
+          return;
+        }
         results.forEach(function(r){saveCommunityLoc(r.name,r.lat,r.lng);});
         showResults(results,false);
       });
@@ -1154,6 +1172,7 @@ function showPinResetRequest(phone,role,displayName){
         var newHash=btoa(phone+':'+np);
         db.collection('tumana_users').doc(phone+'_'+role).set({pin_hash:newHash,pin_reset_at:Date.now()},{merge:true}).then(function(){
           db.collection('pin_resets').doc(phone+'_'+role).update({status:'completed',completed_at:Date.now()}).catch(function(){});
+          try{localStorage.removeItem('tumana_user');}catch(e){}
           hideSh();toast('PIN updated! Login with your new PIN.');
         }).catch(function(){btn.textContent='Set New PIN';btn.disabled=false;toast('Error saving PIN');});
       }).catch(function(){btn.textContent='Set New PIN';btn.disabled=false;toast('Connection error');});
@@ -1165,6 +1184,39 @@ function showPinResetRequest(phone,role,displayName){
 // Chemelil default center
 var CHEMELIL_LAT=-0.0915,CHEMELIL_LNG=35.0224;
 var _leafletLoaded=false;
+
+// Chemelil area hardcoded locations (no internet needed)
+var CHEMELIL_PLACES=[
+  {name:'Chemelil Market',lat:-0.0925,lng:35.0210},
+  {name:'Chemelil Sugar Factory',lat:-0.0856,lng:35.0289},
+  {name:'Chemelil Town Centre',lat:-0.0915,lng:35.0224},
+  {name:'Chemelil Health Centre',lat:-0.0902,lng:35.0198},
+  {name:'Chemelil Primary School',lat:-0.0931,lng:35.0215},
+  {name:'Chemelil Secondary School',lat:-0.0888,lng:35.0231},
+  {name:'Kachakwama',lat:-0.1020,lng:35.0150},
+  {name:'Kandolo',lat:-0.1054,lng:35.0098},
+  {name:'Miwani',lat:-0.0750,lng:35.0310},
+  {name:'Fort Ternan',lat:-0.1282,lng:35.1045},
+  {name:'Kibos',lat:-0.0412,lng:34.9823},
+  {name:'Muhoroni',lat:-0.1561,lng:35.1921},
+  {name:'Awasi',lat:-0.0820,lng:34.9710},
+  {name:'Chemelil Bridge',lat:-0.0944,lng:35.0235},
+  {name:'Sugar Belt Road',lat:-0.0900,lng:35.0260},
+  {name:'Chemelil Police Post',lat:-0.0919,lng:35.0208},
+  {name:'Chemelil Bus Stage',lat:-0.0920,lng:35.0218},
+  {name:'Chemelil Catholic Church',lat:-0.0930,lng:35.0200},
+  {name:'Nyakach',lat:-0.1200,lng:34.9800},
+  {name:'Kisumu CBD',lat:-0.1020,lng:34.7617},
+];
+function searchLocalPlaces(query){
+  var q=query.toLowerCase().trim();
+  // Search pre-loaded + community locs
+  var combined=CHEMELIL_PLACES.concat(getCommunityLocs());
+  return combined.filter(function(p){
+    return p.name.toLowerCase().includes(q)||q.includes(p.name.toLowerCase().split(' ')[0].toLowerCase());
+  });
+}
+
 
 function showMapPicker(onConfirm,defaultLat,defaultLng){
   var lat=defaultLat||window._custLat||CHEMELIL_LAT;
@@ -1310,8 +1362,8 @@ function showPickup(){
   setTitle('PICKUP','#10b981');setNav('customer','pickup');
   window._gpsLat=null;window._gpsLng=null;window._dropLat=null;window._dropLng=null;
   var estDf=calcFee(1);
-  var savedLocs=getCommunityLocs();
-  var topLocs=savedLocs.slice(0,5);
+  var savedLocs=CHEMELIL_PLACES.concat(getCommunityLocs());
+  var topLocs=savedLocs.slice(0,6);
   var locsHtml=topLocs.length?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">'+topLocs.map(function(l){return '<button class="loc-chip" data-lat="'+l.lat+'" data-lng="'+l.lng+'" data-name="'+l.name+'" style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;color:#10b981;cursor:pointer;font-family:inherit">&#x1F4CD; '+l.name+'</button>';}).join('')+'</div>':'';
   pg().innerHTML='<div style="padding:14px 18px 100px">'
     +'<div style="font-size:19px;font-weight:700;margin-bottom:14px">Request a Rider</div>'
@@ -3550,7 +3602,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v62 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v63 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3568,6 +3620,8 @@ function boot(){
   else{showRole();}
 }
 boot();
+
+
 
 
 
