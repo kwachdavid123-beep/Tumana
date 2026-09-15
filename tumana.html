@@ -230,6 +230,8 @@ setTimeout(function(){
 
 
 
+
+
 var U
 
 
@@ -256,11 +258,12 @@ var U
             var tmp=ph.slice(-4);
             var b=this;b.textContent='Approving...';b.disabled=true;
             loadFB(function(db2){
+              // Also pre-save the temp pin to tumana_users as fallback
               db2.collection('pin_resets').doc(id).update({temp_pin:tmp,temp_set_at:Date.now(),status:'temp_set'}).then(function(){
                 b.textContent='Approve & Send';b.disabled=false;
                 var waMsg=encodeURIComponent('Hi! Your Tumana temp PIN: '+tmp+'\nSteps: Open app > Login > enter phone > tap wrong PIN > Forgot PIN > enter '+tmp+' as temp PIN > choose new PIN.');
                 showSh('<div class="hd"></div><div style="text-align:center;padding:16px 0"><div style="font-size:44px">&#x2705;</div><div style="font-size:20px;font-weight:900;color:#10b981;margin:8px 0">Approved!</div><div style="font-size:14px;color:rgba(255,255,255,.5);margin-bottom:14px">Temp PIN for <b style="color:#fff">'+ph+'</b>:</div><div style="font-size:54px;font-weight:900;letter-spacing:12px;color:#fff;background:#1a1a22;border-radius:14px;padding:18px;margin-bottom:14px">'+tmp+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Last 4 of their phone number.</div></div><a href="https://wa.me/'+ph.replace(/^0/,'254')+'?text='+waMsg+'" class="btn bg" style="display:block;text-align:center;font-size:15px;padding:15px;text-decoration:none;font-weight:800">&#x1F4F1; Send via WhatsApp</a><button class="btn bo" onclick="hideSh();showAOv()" style="margin-top:8px;width:100%">Done</button>');
-              }).catch(function(){b.textContent='Approve & Send';b.disabled=false;toast('Error');});
+              }).catch(function(err){b.textContent='Approve & Send';b.disabled=false;toast('Error saving: check internet connection');console.error('pin_reset update failed:',err);});
             });
           });
         });});});
@@ -396,6 +399,14 @@ function tryPin(stored,pin,normPhone,rawPhone){
   return fmts.some(function(h){return h===stored;});
 }
 // ── FIRESTORE HELPERS ────────────────────────────────────────────────
+// tryPinDoc: checks plain 'pin' field FIRST, then hash (most reliable)
+function tryPinDoc(d,pin,normP,rawPhone){
+  if(!pin)return false;
+  // Plain PIN check — new reliable method
+  if(d.pin&&String(d.pin)===String(pin))return true;
+  // Hash check — backward compatible with old registrations
+  return tryPin(d.pin_hash,pin,normP,rawPhone);
+}
 function dbGet(col,id,cb){loadFB(function(db){if(!db){cb(null);return;}db.collection(col).doc(id).get().then(function(d){cb(d.exists?Object.assign({id:d.id},d.data()):null);}).catch(function(){cb(null);});});}
 function dbSet(col,id,data){loadFB(function(db){if(!db)return;db.collection(col).doc(id).set(data,{merge:true}).catch(function(){});});}
 function dbAll(col,cb){loadFB(function(db){if(!db){cb([]);return;}db.collection(col).limit(200).get().then(function(s){cb(s.docs.map(function(d){return Object.assign({id:d.id},d.data());}));}).catch(function(){cb([]);});});}
@@ -623,11 +634,10 @@ function renderAuth(){
           var btn=this;btn.textContent='Resetting...';btn.disabled=true;
           loadFB(function(db){
             if(!db){btn.textContent='Reset to last 4 digits';btn.disabled=false;toast('No connection');return;}
-            db.collection('tumana_users').doc(docId2).set({pin_hash:newHash,pin_reset_at:Date.now()},{merge:true})
+            db.collection('tumana_users').doc(docId2).set({pin:last4,pin_hash:newHash,pin_reset_at:Date.now()},{merge:true})
               .then(function(){
-                // Clear localStorage so next login reads fresh from Firestore
                 try{localStorage.removeItem('tumana_user');}catch(e){}
-                toast('PIN reset! Login with PIN: '+last4);
+                toast('PIN reset! Your new PIN is: '+last4);
                 btn.textContent='Done ✅ PIN = '+last4;
               }).catch(function(){btn.textContent='Reset to last 4 digits';btn.disabled=false;toast('Error — check connection');});
           });
@@ -638,7 +648,7 @@ function renderAuth(){
       // Fast path: localStorage
       var lsU=null;
       try{var lsRaw=localStorage.getItem('tumana_user');if(lsRaw){var lsp2=JSON.parse(lsRaw);if(lsp2&&lsp2.phone===normP&&lsp2.role===AR.id)lsU=lsp2;}}catch(e){}
-      if(lsU&&tryPin(lsU.pin_hash,pin,normP,phone)){USER=Object.assign({},lsU,{pin_hash:pinHash});loginDone();su();startApp();return;}
+      if(lsU&&tryPinDoc(lsU,pin,normP,phone)){USER=Object.assign({},lsU,{pin_hash:pinHash});loginDone();su();startApp();return;}
       // NOTE: If localStorage check fails, we still go to Firestore
       // This handles PIN resets where Firestore was updated but localStorage has old hash
       // Firestore lookup
@@ -650,21 +660,25 @@ function renderAuth(){
               .then(function(q){
                 if(q.empty){loginDone();toast('No account yet - create one below');var sw=document.getElementById('sw');if(sw)sw.click();return;}
                 var dd=Object.assign({id:q.docs[0].id},q.docs[0].data());
-                if(!tryPin(dd.pin_hash,pin,normP,phone)){addForgotBtn();toast('Wrong PIN');return;}
+                if(!tryPinDoc(dd,pin,normP,phone)){addForgotBtn();toast('Wrong PIN');return;}
                 USER=Object.assign({},dd,{role:AR.id,pin_hash:pinHash,verified:dd.verified||false});loginDone();su();startApp();
               }).catch(function(){loginDone();toast('Login error - check connection');});
             return;
           }
           var d=Object.assign({id:snap.id},snap.data());
-          if(!tryPin(d.pin_hash,pin,normP,phone)){addForgotBtn();toast('Wrong PIN');return;}
-          USER=Object.assign({},d,{role:AR.id,pin_hash:pinHash,verified:d.verified||false});loginDone();su();startApp();
+          if(!tryPinDoc(d,pin,normP,phone)){addForgotBtn();toast('Wrong PIN');return;}
+          d.pin=pin;d.pin_hash=pinHash; // update to canonical format
+          db.collection('tumana_users').doc(phone+'_'+AR.id).set({pin:pin,pin_hash:pinHash},{merge:true}).catch(function(){});
+          // Save canonical formats back to Firestore (silent migration)
+          db.collection('tumana_users').doc(docId2).set({pin:pin,pin_hash:pinHash},{merge:true}).catch(function(){});
+          USER=Object.assign({},d,{role:AR.id,pin:pin,pin_hash:pinHash,verified:d.verified||false});loginDone();su();startApp();
         }).catch(function(){loginDone();toast('Login failed - check connection');});
       });
     } else {
       // Register
       if(!name){toast('Enter your full name');return;}
       var docId2=normP+'_'+AR.id;
-      var userData={role:AR.id,name:name,phone:normP,pin_hash:pinHash,created_at:Date.now()};
+      var userData={role:AR.id,name:name,phone:normP,pin:pin,pin_hash:pinHash,created_at:Date.now()};
       var regBtn=document.getElementById('ab');if(regBtn){regBtn.disabled=true;regBtn.textContent='Creating...';}
       function regFail(msg){toast(msg);if(regBtn){regBtn.disabled=false;regBtn.innerHTML='Create Account &#x2192;';}}
       loadFB(function(db){
@@ -785,6 +799,15 @@ function wireCartButtons(){
     btn.style.display='flex';
     btn.innerHTML='<span style="font-size:18px">&#x1F6D2;</span><div style="flex:1;text-align:center"><div style="font-size:13px;font-weight:800">View Cart ('+qty+' item'+(qty>1?'s':'')+')</div><div style="font-size:11px;opacity:.8">KSh '+total+' + delivery</div></div><span style="font-size:16px">&#x276F;</span>';
   }
+  // Create floating cart button if not exists
+  if(!document.getElementById('cart-float')){
+    var cf=document.createElement('div');
+    cf.id='cart-float';
+    cf.style.cssText='display:none;position:fixed;bottom:76px;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:400px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:15px 18px;border-radius:16px;cursor:pointer;align-items:center;gap:12px;z-index:10000;box-shadow:0 6px 32px rgba(16,185,129,.5);font-family:inherit;box-sizing:border-box';
+    cf.addEventListener('click',function(){showCart();});
+    document.body.appendChild(cf);
+  }
+  updateCartFloat();
   area.querySelectorAll('.ca').forEach(function(btn){
     btn.addEventListener('click',function(){
       var id=this.getAttribute('data-id'),n=this.getAttribute('data-n');
@@ -1170,7 +1193,7 @@ function showPinResetRequest(phone,role,displayName){
         if(!d.temp_pin){btn.textContent='Set New PIN';btn.disabled=false;toast('Admin has not set your temp PIN yet. Wait for WhatsApp.');return;}
         if(d.temp_pin!==tmp){btn.textContent='Set New PIN';btn.disabled=false;toast('Wrong temp PIN. Check WhatsApp from admin.');return;}
         var newHash=btoa(phone+':'+np);
-        db.collection('tumana_users').doc(phone+'_'+role).set({pin_hash:newHash,pin_reset_at:Date.now()},{merge:true}).then(function(){
+        db.collection('tumana_users').doc(phone+'_'+role).set({pin:np,pin_hash:newHash,pin_reset_at:Date.now()},{merge:true}).then(function(){
           db.collection('pin_resets').doc(phone+'_'+role).update({status:'completed',completed_at:Date.now()}).catch(function(){});
           try{localStorage.removeItem('tumana_user');}catch(e){}
           hideSh();toast('PIN updated! Login with your new PIN.');
@@ -3602,7 +3625,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v63 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v64 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3620,6 +3643,8 @@ function boot(){
   else{showRole();}
 }
 boot();
+
+
 
 
 
