@@ -232,45 +232,8 @@ setTimeout(function(){
 
 
 
-var U
 
-
-var U
-  setTimeout(function(){
-    loadFB(function(db){if(!db)return;
-      db.collection('pin_resets').where('status','==','pending').get().then(function(snap){
-        var box=document.getElementById('pin-resets-box');if(!box)return;
-        if(snap.empty){box.innerHTML='<div class="sboxt">PIN Resets</div><div style="font-size:12px;color:rgba(255,255,255,.4)">No pending requests</div>';return;}
-        var hh='<div class="sboxt">PIN Reset Requests</div>';
-        snap.docs.forEach(function(doc){
-          var d=doc.data();var s2=d.phone+Math.floor(Date.now()/600000);
-          var hv=0;for(var j=0;j<s2.length;j++){hv=((hv<<5)-hv)+s2.charCodeAt(j);hv|=0;}
-          var c2=String(Math.abs(hv)%900000+100000);
-          hh+='<div style="background:#1a1a22;border-radius:9px;padding:10px;margin-bottom:8px"><div style="font-weight:700">'+d.display_name+' ('+d.role+')</div><div style="font-size:12px;color:rgba(255,255,255,.4)">'+d.phone+'</div><div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:7px;padding:8px 12px;margin:6px 0;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:rgba(255,255,255,.5)">Code:</span><span style="font-size:24px;font-weight:900;letter-spacing:5px;color:#8b5cf6">'+c2+'</span></div><div style="font-size:11px;color:rgba(255,255,255,.35)">WhatsApp this code. Changes every 10min.</div><button class="dismiss-pr btn bo" data-id="'+doc.id+'" style="margin-top:6px;font-size:11px;padding:7px">Mark Handled</button></div>';
-        });
-        box.innerHTML=hh;
-        box.querySelectorAll('.dismiss-pr').forEach(function(btn){btn.addEventListener('click',function(){var id=this.getAttribute('data-id');loadFB(function(db2){db2.collection('pin_resets').doc(id).update({status:'dismissed'}).then(function(){showAOv();}).catch(function(){});});
-        box        .querySelectorAll('.set-tmp').forEach(function(btn){
-          btn.addEventListener('click',function(){
-            var id=this.getAttribute('data-id');
-            var ph=this.getAttribute('data-ph');
-            var rl=this.getAttribute('data-rl');
-            var tmp=ph.slice(-4);
-            var b=this;b.textContent='Approving...';b.disabled=true;
-            loadFB(function(db2){
-              // Also pre-save the temp pin to tumana_users as fallback
-              db2.collection('pin_resets').doc(id).update({temp_pin:tmp,temp_set_at:Date.now(),status:'temp_set'}).then(function(){
-                b.textContent='Approve & Send';b.disabled=false;
-                var waMsg=encodeURIComponent('Hi! Your Tumana temp PIN: '+tmp+'\nSteps: Open app > Login > enter phone > tap wrong PIN > Forgot PIN > enter '+tmp+' as temp PIN > choose new PIN.');
-                showSh('<div class="hd"></div><div style="text-align:center;padding:16px 0"><div style="font-size:44px">&#x2705;</div><div style="font-size:20px;font-weight:900;color:#10b981;margin:8px 0">Approved!</div><div style="font-size:14px;color:rgba(255,255,255,.5);margin-bottom:14px">Temp PIN for <b style="color:#fff">'+ph+'</b>:</div><div style="font-size:54px;font-weight:900;letter-spacing:12px;color:#fff;background:#1a1a22;border-radius:14px;padding:18px;margin-bottom:14px">'+tmp+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">Last 4 of their phone number.</div></div><a href="https://wa.me/'+ph.replace(/^0/,'254')+'?text='+waMsg+'" class="btn bg" style="display:block;text-align:center;font-size:15px;padding:15px;text-decoration:none;font-weight:800">&#x1F4F1; Send via WhatsApp</a><button class="btn bo" onclick="hideSh();showAOv()" style="margin-top:8px;width:100%">Done</button>');
-              }).catch(function(err){b.textContent='Approve & Send';b.disabled=false;toast('Error saving: check internet connection');console.error('pin_reset update failed:',err);});
-            });
-          });
-        });});});
-      }).catch(function(){});
-    });
-  },400);
-SER=null,CART=[],SHOPS=[],CS=null;
+var USER=null,CART=[],SHOPS=[],CS=null;
 var _db=null,_fn=null,_fbL=false,_fbQ=[];
 var SORD=[],SDON=false,SUNSUB=null;
 var RON=false,RJOBS=[],RACT=null,REARN=0;
@@ -2880,6 +2843,51 @@ function showAOv(){
       });
     }).catch(function(){});
   });
+
+  setTimeout(function(){
+    loadFB(function(db){if(!db)return;
+      db.collection('pin_resets').where('status','==','pending').get().then(function(snap){
+        var box=document.getElementById('pin-resets-box');if(!box)return;
+        if(snap.empty){box.innerHTML='<div class="sboxt">PIN Resets</div><div style="font-size:12px;color:rgba(255,255,255,.4)">No pending requests</div>';return;}
+        var hh='<div class="sboxt">PIN Reset Requests</div>';
+        snap.docs.forEach(function(doc){
+          var d=doc.data();
+          hh+='<div style="background:#1a1a22;border-radius:9px;padding:10px;margin-bottom:8px">'
+            +'<div style="font-weight:700">'+d.display_name+' ('+d.role+')</div>'
+            +'<div style="font-size:12px;color:rgba(255,255,255,.4)">'+d.phone+'</div>'
+            +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">'
+            +'<button class="set-tmp btn bg" data-id="'+doc.id+'" data-ph="'+d.phone+'" data-rl="'+d.role+'" style="font-size:11px;padding:10px;font-weight:800">Approve &amp; Send</button>'
+            +'<button class="dismiss-pr btn br" data-id="'+doc.id+'" style="font-size:11px;padding:10px">Decline</button></div></div>';
+        });
+        box.innerHTML=hh;
+        box.querySelectorAll('.dismiss-pr').forEach(function(b2){
+          b2.addEventListener('click',function(){
+            var id=this.getAttribute('data-id');
+            loadFB(function(db2){db2.collection('pin_resets').doc(id).update({status:'dismissed'}).then(showAOv).catch(function(){});});
+          });
+        });
+        box.querySelectorAll('.set-tmp').forEach(function(b2){
+          b2.addEventListener('click',function(){
+            var id=this.getAttribute('data-id');var ph=this.getAttribute('data-ph');
+            var tmp=ph.slice(-4);var b3=this;b3.textContent='Approving...';b3.disabled=true;
+            loadFB(function(db2){
+              db2.collection('pin_resets').doc(id).update({temp_pin:tmp,temp_set_at:Date.now(),status:'temp_set'}).then(function(){
+                b3.textContent='Approve & Send';b3.disabled=false;
+                var wm=encodeURIComponent('Your Tumana temp PIN: '+tmp+'. Open app > Login > Forgot PIN > enter '+tmp+' > set new PIN.');
+                var waUrl='https://wa.me/'+ph.replace(/^0/,'254')+'?text='+wm;
+                showSh('<div class="hd"></div><div style="text-align:center;padding:16px 0">'
+                  +'<div style="font-size:44px">&#x2705;</div>'
+                  +'<div style="font-size:20px;font-weight:900;color:#10b981;margin:8px 0">Approved!</div>'
+                  +'<div style="font-size:56px;font-weight:900;letter-spacing:12px;color:#fff;background:#1a1a22;border-radius:14px;padding:16px;margin-bottom:14px">'+tmp+'</div>'
+                  +'</div><a href="'+waUrl+'" class="btn bg" style="display:block;text-align:center;font-size:15px;padding:15px;text-decoration:none">Send via WhatsApp</a>'
+                  +'<button class="btn bo" onclick="hideSh();showAOv()" style="margin-top:8px;width:100%">Done</button>');
+              }).catch(function(){b3.textContent='Approve & Send';b3.disabled=false;toast('Error');});
+            });
+          });
+        });
+      }).catch(function(){});
+    });
+  },500);
 }
 
 function showUserBreakdown(){
@@ -3625,7 +3633,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v64 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v65 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3643,6 +3651,7 @@ function boot(){
   else{showRole();}
 }
 boot();
+
 
 
 
