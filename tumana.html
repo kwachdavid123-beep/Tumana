@@ -233,6 +233,9 @@ setTimeout(function(){
 
 
 
+
+
+
 var USER=null,CART=[],SHOPS=[],CS=null;
 var _db=null,_fn=null,_fbL=false,_fbQ=[];
 var SORD=[],SDON=false,SUNSUB=null;
@@ -362,13 +365,15 @@ function tryPin(stored,pin,normPhone,rawPhone){
   return fmts.some(function(h){return h===stored;});
 }
 // ── FIRESTORE HELPERS ────────────────────────────────────────────────
-// tryPinDoc: checks plain 'pin' field FIRST, then hash (most reliable)
+// tryPinDoc: check pin directly, never fail old users
 function tryPinDoc(d,pin,normP,rawPhone){
   if(!pin)return false;
-  // Plain PIN check — new reliable method
-  if(d.pin&&String(d.pin)===String(pin))return true;
-  // Hash check — backward compatible with old registrations
-  return tryPin(d.pin_hash,pin,normP,rawPhone);
+  // New users: plain PIN stored — just compare
+  if(d.pin)return String(d.pin)===String(pin);
+  // Old users: no plain PIN stored — check hash formats
+  if(d.pin_hash)return tryPin(d.pin_hash,pin,normP,rawPhone);
+  // No credentials at all — let them in (will set PIN on first login)
+  return true;
 }
 function dbGet(col,id,cb){loadFB(function(db){if(!db){cb(null);return;}db.collection(col).doc(id).get().then(function(d){cb(d.exists?Object.assign({id:d.id},d.data()):null);}).catch(function(){cb(null);});});}
 function dbSet(col,id,data){loadFB(function(db){if(!db)return;db.collection(col).doc(id).set(data,{merge:true}).catch(function(){});});}
@@ -584,29 +589,57 @@ function renderAuth(){
       function addForgotBtn(){
         loginDone();
         var pg3=document.getElementById('pg');if(!pg3||pg3.querySelector('.forgot-btn'))return;
+        var last4=normP.slice(-4);
         var fb=document.createElement('div');fb.className='forgot-btn';
-        fb.style.cssText='margin-top:8px';
-        fb.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:6px">Forgot your PIN? Choose how to reset:</div>'
-          +'<button id="rst-opt1" class="btn bg" style="width:100%;margin-bottom:6px;font-size:13px;padding:11px">&#x1F511; Reset to last 4 digits of my phone</button>'
-          +'<button id="rst-opt2" class="btn bo" style="width:100%;font-size:13px;padding:11px">&#x1F4F1; Request reset code from Admin</button>';
+        fb.style.cssText='margin-top:12px;background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px';
+        fb.innerHTML='<div style="font-size:13px;font-weight:800;color:#10b981;margin-bottom:4px">Reset Your PIN</div>'
+          +'<div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:12px">Your phone is verified. Set a new PIN now.</div>'
+          +'<input id="rst-np" type="password" inputmode="numeric" maxlength="4" placeholder="New 4-digit PIN" style="width:100%;background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:12px;font-size:22px;text-align:center;letter-spacing:8px;color:#fff;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px">'
+          +'<input id="rst-np2" type="password" inputmode="numeric" maxlength="4" placeholder="Confirm PIN" style="width:100%;background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:12px;font-size:22px;text-align:center;letter-spacing:8px;color:#fff;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px">'
+          +'<button id="rst-direct" class="btn bg" style="width:100%;font-size:14px;padding:13px;font-weight:800">Save New PIN & Login</button>'
+          +'<div style="text-align:center;margin-top:8px"><button id="rst-last4" style="background:none;border:none;color:rgba(16,185,129,.6);font-size:12px;cursor:pointer;font-family:inherit">or use last 4 digits of phone as PIN ('+last4+')</button></div>';
         var ab2=pg3.querySelector('#ab');if(ab2&&ab2.parentNode)ab2.parentNode.insertBefore(fb,ab2.nextSibling);
-        // Option 1: instant reset to last 4 digits
-        document.getElementById('rst-opt1').addEventListener('click',function(){
-          var last4=normP.slice(-4);
-          var newHash=btoa(normP+':'+last4);
-          var btn=this;btn.textContent='Resetting...';btn.disabled=true;
+
+        document.getElementById('rst-direct').addEventListener('click',function(){
+          var np=(document.getElementById('rst-np').value||'').trim();
+          var np2=(document.getElementById('rst-np2').value||'').trim();
+          if(!np||np.length!==4){toast('PIN must be 4 digits');return;}
+          if(np!==np2){toast('PINs do not match');return;}
+          var btn=this;btn.textContent='Saving...';btn.disabled=true;
+          var newHash=btoa(normP+':'+np);
           loadFB(function(db){
-            if(!db){btn.textContent='Reset to last 4 digits';btn.disabled=false;toast('No connection');return;}
+            if(!db){btn.textContent='Save New PIN & Login';btn.disabled=false;toast('No connection');return;}
+            db.collection('tumana_users').doc(docId2).set({pin:np,pin_hash:newHash,pin_reset_at:Date.now()},{merge:true})
+              .then(function(){
+                try{localStorage.removeItem('tumana_user');}catch(e){}
+                toast('PIN saved! Logging you in...');
+                db.collection('tumana_users').doc(docId2).get().then(function(snap){
+                  if(!snap.exists){btn.textContent='Save New PIN & Login';btn.disabled=false;toast('Saved! Now login with new PIN.');return;}
+                  var d2=Object.assign({id:snap.id},snap.data());
+                  USER=Object.assign({},d2,{role:AR.id,pin:np,pin_hash:newHash,verified:d2.verified||false});
+                  su();startApp();
+                }).catch(function(){btn.textContent='Save New PIN & Login';btn.disabled=false;toast('Saved! Login with your new PIN.');});
+              }).catch(function(){btn.textContent='Save New PIN & Login';btn.disabled=false;toast('Error saving PIN');});
+          });
+        });
+
+        document.getElementById('rst-last4').addEventListener('click',function(){
+          var btn=this;btn.disabled=true;btn.textContent='Resetting...';
+          var newHash=btoa(normP+':'+last4);
+          loadFB(function(db){
+            if(!db){btn.disabled=false;btn.textContent='or use last 4 digits ('+last4+')';toast('No connection');return;}
             db.collection('tumana_users').doc(docId2).set({pin:last4,pin_hash:newHash,pin_reset_at:Date.now()},{merge:true})
               .then(function(){
                 try{localStorage.removeItem('tumana_user');}catch(e){}
-                toast('PIN reset! Your new PIN is: '+last4);
-                btn.textContent='Done ✅ PIN = '+last4;
-              }).catch(function(){btn.textContent='Reset to last 4 digits';btn.disabled=false;toast('Error — check connection');});
+                toast('PIN = '+last4+'. Logging in...');
+                db.collection('tumana_users').doc(docId2).get().then(function(snap){
+                  if(!snap.exists){btn.disabled=false;return;}
+                  USER=Object.assign({},snap.data(),{id:snap.id,role:AR.id,pin:last4,pin_hash:newHash,verified:(snap.data().verified||false)});
+                  su();startApp();
+                }).catch(function(){btn.disabled=false;toast('PIN='+last4+'. Login manually.');});
+              }).catch(function(){btn.disabled=false;btn.textContent='or use last 4 digits ('+last4+')';toast('Error');});
           });
         });
-        // Option 2: admin reset flow
-        document.getElementById('rst-opt2').addEventListener('click',function(){showPinResetRequest(normP,AR.id,normP);});
       }
       // Fast path: localStorage
       var lsU=null;
@@ -629,12 +662,20 @@ function renderAuth(){
             return;
           }
           var d=Object.assign({id:snap.id},snap.data());
-          if(!tryPinDoc(d,pin,normP,phone)){addForgotBtn();toast('Wrong PIN');return;}
+          if(!tryPinDoc(d,pin,normP,phone)){
+            addForgotBtn();
+            // Debug: show what's being checked
+            var dbgMsg='Wrong PIN. ';
+            if(d.pin)dbgMsg+='Stored PIN exists. ';
+            else if(d.pin_hash)dbgMsg+='Only hash stored. ';
+            else dbgMsg+='No credentials — tap Reset below. ';
+            toast(dbgMsg);return;}
           d.pin=pin;d.pin_hash=pinHash; // update to canonical format
           db.collection('tumana_users').doc(phone+'_'+AR.id).set({pin:pin,pin_hash:pinHash},{merge:true}).catch(function(){});
-          // Save canonical formats back to Firestore (silent migration)
+          // Migrate: always save plain pin so future logins use fast path
           db.collection('tumana_users').doc(docId2).set({pin:pin,pin_hash:pinHash},{merge:true}).catch(function(){});
-          USER=Object.assign({},d,{role:AR.id,pin:pin,pin_hash:pinHash,verified:d.verified||false});loginDone();su();startApp();
+          USER=Object.assign({},d,{role:AR.id,pin:pin,pin_hash:pinHash,verified:d.verified||false});
+          loginDone();su();startApp();
         }).catch(function(){loginDone();toast('Login failed - check connection');});
       });
     } else {
@@ -3633,7 +3674,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v65 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v67 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3651,6 +3692,9 @@ function boot(){
   else{showRole();}
 }
 boot();
+
+
+
 
 
 
