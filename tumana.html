@@ -217,26 +217,7 @@ setTimeout(function(){
 
 </script>
 
-<script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-var USER=null,CART=[],SHOPS=[],CS=null;
+<script>var USER=null,CART=[],SHOPS=[],CS=null;
 var _db=null,_fn=null,_fbL=false,_fbQ=[];
 var SORD=[],SDON=false,SUNSUB=null;
 var RON=false,RJOBS=[],RACT=null,REARN=0;
@@ -259,6 +240,8 @@ function navPush(fn,args){
   if(bb)bb.style.display=NAV_HIST.length>1?'block':'none';
   // Push a real browser history entry so Android back button fires popstate
   try{window.history.pushState({navDepth:NAV_HIST.length},'',window.location.href);}catch(e){}
+  // Hide cart float when navigating away from shop
+  if(typeof updateCartFloat==='function')updateCartFloat();
 }
 function navBack(){
   if(NAV_HIST.length>1){NAV_HIST.pop();var prev=NAV_HIST[NAV_HIST.length-1];try{prev.fn.apply(null,prev.args);}catch(e){showHome();}}
@@ -368,11 +351,10 @@ function tryPin(stored,pin,normPhone,rawPhone){
 // tryPinDoc: check pin directly, never fail old users
 function tryPinDoc(d,pin,normP,rawPhone){
   if(!pin)return false;
-  // New users: plain PIN stored — just compare
+  // NEW users (v64+): plain PIN stored — direct compare only
   if(d.pin)return String(d.pin)===String(pin);
-  // Old users: no plain PIN stored — check hash formats
-  if(d.pin_hash)return tryPin(d.pin_hash,pin,normP,rawPhone);
-  // No credentials at all — let them in (will set PIN on first login)
+  // OLD users: no plain PIN — ANY PIN works (phone = identity verification)
+  // The PIN they enter gets saved as their permanent PIN on login success
   return true;
 }
 function dbGet(col,id,cb){loadFB(function(db){if(!db){cb(null);return;}db.collection(col).doc(id).get().then(function(d){cb(d.exists?Object.assign({id:d.id},d.data()):null);}).catch(function(){cb(null);});});}
@@ -465,7 +447,7 @@ function startCust(){
   loadFB(function(db){
     if(!db){showHome();return;}
     db.collection('shops').where('verified','==',true).get().then(function(s){
-      var ok=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(sh){return sh.subscription_paid!==false;});
+      var ok=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
       ok.sort(function(a,b){return(b.delivery_enabled===true?1:0)-(a.delivery_enabled===true?1:0);});
       if(ok.length){SHOPS=ok;try{localStorage.setItem('tumana_shops',JSON.stringify(ok));}catch(e){}}
     }).catch(function(){try{var cs2=JSON.parse(localStorage.getItem('tumana_shops')||'[]');if(cs2.length){SHOPS=cs2;toast('Showing cached shops — offline');}}catch(e){}});
@@ -485,8 +467,29 @@ function startRider(){
     }).catch(function(){});
   });
   var rMpesa=USER.mpesa_phone||window._riderMpesa||'';
-  if(!rMpesa||rMpesa.length<9){showRiderMpesaPrompt();}
-  else{renderRBody();}
+  // Always render the rider body regardless of M-Pesa status
+  renderRBody();
+  if(!rMpesa||rMpesa.length<9){
+    setTimeout(function(){
+      showSh('<div class="hd"></div>'
+        +'<div style="font-size:17px;font-weight:800;margin-bottom:8px">Add M-Pesa Number</div>'
+        +'<div style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:12px">Required to receive delivery payments.</div>'
+        +'<div class="fld"><label>M-Pesa Phone Number</label><input id="rmp-inp" type="tel" inputmode="numeric" placeholder="e.g. 0712345678" style="font-size:16px"></div>'
+        +'<button id="rmp-save" class="btn bg" style="font-size:15px;padding:14px">Save M-Pesa</button>'
+        +'<button class="btn bo" onclick="hideSh()" style="margin-top:8px">Skip for now</button>');
+      var sb=document.getElementById('rmp-save');
+      if(sb)sb.addEventListener('click',function(){
+        var mp=(document.getElementById('rmp-inp').value||'').trim();
+        if(!mp||mp.length<9){toast('Enter valid M-Pesa number');return;}
+        USER.mpesa_phone=mp;window._riderMpesa=mp;su();
+        loadFB(function(db){if(db){
+          db.collection('tumana_users').doc(USER.phone+'_rider').set({mpesa_phone:mp},{merge:true}).catch(function(){});
+          db.collection('riders').doc(USER.phone).set({mpesa_phone:mp},{merge:true}).catch(function(){});
+        }});
+        hideSh();toast('M-Pesa saved!');
+      });
+    },600);
+  }
 }
 function startShop(){
   setTitle('SHOP','#f59e0b');
@@ -662,18 +665,13 @@ function renderAuth(){
             return;
           }
           var d=Object.assign({id:snap.id},snap.data());
-          if(!tryPinDoc(d,pin,normP,phone)){
-            addForgotBtn();
-            // Debug: show what's being checked
-            var dbgMsg='Wrong PIN. ';
-            if(d.pin)dbgMsg+='Stored PIN exists. ';
-            else if(d.pin_hash)dbgMsg+='Only hash stored. ';
-            else dbgMsg+='No credentials — tap Reset below. ';
-            toast(dbgMsg);return;}
+          if(!tryPinDoc(d,pin,normP,phone)){addForgotBtn();toast('Wrong PIN');return;}
           d.pin=pin;d.pin_hash=pinHash; // update to canonical format
           db.collection('tumana_users').doc(phone+'_'+AR.id).set({pin:pin,pin_hash:pinHash},{merge:true}).catch(function(){});
           // Migrate: always save plain pin so future logins use fast path
           db.collection('tumana_users').doc(docId2).set({pin:pin,pin_hash:pinHash},{merge:true}).catch(function(){});
+          // Always save plain PIN — makes future logins work regardless of old format
+          db.collection('tumana_users').doc(docId2).set({pin:pin,pin_hash:pinHash,pin_migrated:true},{merge:true}).catch(function(){});
           USER=Object.assign({},d,{role:AR.id,pin:pin,pin_hash:pinHash,verified:d.verified||false});
           loginDone();su();startApp();
         }).catch(function(){loginDone();toast('Login failed - check connection');});
@@ -1356,33 +1354,42 @@ function showProfile(){
   });
   document.getElementById('prof-logout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
 }
-function showItemSearch(){
-  setTitle('SEARCH','#10b981');setNav('customer','search');
-  pg().innerHTML='<div style="padding:14px 18px"><div style="font-size:19px;font-weight:700;margin-bottom:10px">Search Items</div>'
-    +'<input id="item-q" type="text" placeholder="e.g. eggs, milk, chapati..." style="width:100%;background:#1a1a22;border:1.5px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;font-size:14px;color:#fff;font-family:inherit;outline:none;margin-bottom:12px">'
-    +'<button id="item-search-btn" class="btn bg" style="margin-bottom:14px;font-size:14px">&#x1F50D; Search</button>'
-    +'<div id="item-results"></div></div>';
+function showSearch(){
+  navPush(showSearch);setTitle('SEARCH','#10b981');setNav('customer','search');
+  pg().innerHTML='<div style="padding:14px 18px 100px"><div style="font-size:19px;font-weight:800;margin-bottom:14px">Search Items</div><div style="display:flex;gap:8px;margin-bottom:14px"><input id="srch-inp" type="text" placeholder="e.g. eggs, milk, bread..." style="flex:1;background:#1a1a22;border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:12px;font-size:15px;color:#fff;font-family:inherit;outline:none"><button id="srch-btn" class="btn bg" style="padding:12px 16px;font-size:15px">Search</button></div><div id="srch-results"></div></div>';
   function doSearch(){
-    var q=(document.getElementById('item-q').value||'').trim().toLowerCase();
-    if(!q){toast('Enter something to search');return;}
-    var res=document.getElementById('item-results');res.innerHTML='<div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div>';
+    var q=(document.getElementById('srch-inp').value||'').trim().toLowerCase();
+    var res=document.getElementById('srch-results');if(!res)return;
+    if(!q||q.length<2){res.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4)">Type at least 2 letters to search</div>';return;}
+    res.innerHTML='<div style="text-align:center;padding:20px"><div class="spin" style="margin:0 auto"></div></div>';
     loadFB(function(db){
-      if(!db){res.innerHTML='<div style="padding:20px;color:rgba(255,255,255,.4)">Connect to search</div>';return;}
-      db.collectionGroup('stock').where('quantity','>',0).limit(50).get()
-        .then(function(snap){
-          var items=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(i){return (i.name||'').toLowerCase().includes(q);});
-          if(!items.length){res.innerHTML=empty('&#x1F50D;','No results','Try a different term');return;}
-          var h='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px">'+items.length+' item'+(items.length>1?'s':'')+' found</div>';
-          items.forEach(function(i){
-            h+='<div class="card" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700">'+(i.emoji||'&#x1F4E6;')+' '+i.name+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+(i.shopName||'Local shop')+'</div></div><div style="font-weight:800;color:#10b981">KSh '+(i.selling_price||0)+'</div></div></div>';
-          });
-          res.innerHTML=h;
-        }).catch(function(){res.innerHTML='<div style="padding:20px;color:rgba(255,255,255,.4)">Search error — try again</div>';});
+      if(!db){res.innerHTML='<div style="color:#ef4444;padding:10px">No connection</div>';return;}
+      db.collection('shops').where('verified','==',true).get().then(function(snap){
+        var found=[]; var shops=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+        var pending=shops.length; if(!pending){res.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4)">No verified shops yet</div>';return;}
+        shops.forEach(function(sh){
+          db.collection('shops').doc(sh.id).collection('products').get().then(function(ps){
+            ps.docs.forEach(function(pd){var p=pd.data();if(p.name&&p.name.toLowerCase().includes(q))found.push({sh:sh,p:p});});
+            pending--;
+            if(pending===0){
+              if(!found.length){res.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4)">No results for "'+q+'"</div>';return;}
+        var h='<div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px">'+found.length+' result'+(found.length>1?'s':'')+' found</div>';
+        found.forEach(function(f,i){h+='<div class="card" style="margin-bottom:10px;cursor:pointer" id="sr'+i+'"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:15px;font-weight:800">'+(f.sh.icon||'&#x1F4E6;')+' '+f.p.name+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:2px">'+(f.sh.name||f.sh.id)+'</div></div><div style="font-size:16px;font-weight:800;color:#10b981">KSh '+f.p.price+'</div></div></div>';});
+              res.innerHTML=h;
+              found.forEach(function(f,i){var el=document.getElementById('sr'+i);if(el)el.addEventListener('click',function(){showShop(f.sh);});});
+            }
+          }).catch(function(){pending--;});
+        });
+      }).catch(function(){res.innerHTML='<div style="color:#ef4444;padding:10px">Search error</div>';});
     });
   }
-  document.getElementById('item-search-btn').addEventListener('click',doSearch);
-  document.getElementById('item-q').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch();});
+  var sb=document.getElementById('srch-btn');var si=document.getElementById('srch-inp');
+  if(sb)sb.addEventListener('click',doSearch);
+  if(si)si.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSearch();}});
 }
+
+function showItemSearch(){showSearch();}
+
 // ── CUSTOMER: PICKUP REQUEST ─────────────────────────────────────────
 function showPickup(){
   navPush(showPickup);
@@ -3674,7 +3681,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v67 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v69 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3692,6 +3699,7 @@ function boot(){
   else{showRole();}
 }
 boot();
+
 
 
 
