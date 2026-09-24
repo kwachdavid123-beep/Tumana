@@ -455,7 +455,7 @@ function startCust(){
   showHome();
 }
 function startRider(){
-  // Sync verified status from riders collection
+  // Sync from riders collection in background
   loadFB(function(db){
     if(!db)return;
     db.collection('riders').doc(USER.phone).get().then(function(doc){
@@ -466,9 +466,9 @@ function startRider(){
       if(changed)su();
     }).catch(function(){});
   });
+  // showJobs creates the #rbody element then calls renderRBody
+  showJobs();
   var rMpesa=USER.mpesa_phone||window._riderMpesa||'';
-  // Always render the rider body regardless of M-Pesa status
-  renderRBody();
   if(!rMpesa||rMpesa.length<9){
     setTimeout(function(){
       showSh('<div class="hd"></div>'
@@ -1368,8 +1368,8 @@ function showSearch(){
         var found=[]; var shops=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
         var pending=shops.length; if(!pending){res.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4)">No verified shops yet</div>';return;}
         shops.forEach(function(sh){
-          db.collection('shops').doc(sh.id).collection('products').get().then(function(ps){
-            ps.docs.forEach(function(pd){var p=pd.data();if(p.name&&p.name.toLowerCase().includes(q))found.push({sh:sh,p:p});});
+          db.collection('shops').doc(sh.id).collection('stock').get().then(function(ps){
+            ps.docs.forEach(function(pd){var p=pd.data();if(p.name&&p.name.toLowerCase().includes(q))found.push({sh:sh,p:{name:p.name,price:p.selling_price||p.price||0,emoji:p.emoji||'&#x1F4E6;'}});});
             pending--;
             if(pending===0){
               if(!found.length){res.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4)">No results for "'+q+'"</div>';return;}
@@ -3681,7 +3681,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v69 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v70 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
