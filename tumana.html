@@ -389,7 +389,7 @@ function setNav(role,tab){
       var t=this.getAttribute('data-nav');
       if(role==='customer'){if(t==='home')showHome();else if(t==='search')showItemSearch();else if(t==='orders')showOrds();else if(t==='pickup')showPickup();else showProfile();}
       else if(role==='shop'){if(t==='orders')showSOrd();else if(t==='sales')showSSales();else if(t==='stock')showSStock();else if(t==='insights')showSInsights();else showSSet();}
-      else if(role==='rider'){if(t==='jobs')showJobs();else if(t==='earn')showEarn();else showRProfile();}
+      else if(role==='rider'){try{if(t==='jobs')showJobs();else if(t==='earn')showEarn();else showRProfile();}catch(e){toast('Navigation error');}}
       else if(role==='admin'){if(t==='overview')showAOv();else if(t==='orders')showAOrds();else if(t==='riders')showARiders();else if(t==='shops')showAShops();else showASet();}
     });
   });
@@ -463,7 +463,9 @@ function startRider(){
       var rd=doc.data();var changed=false;
       if(rd.verified===true&&USER.verified!==true){USER.verified=true;changed=true;}
       if(rd.mpesa_phone&&!USER.mpesa_phone){USER.mpesa_phone=rd.mpesa_phone;window._riderMpesa=rd.mpesa_phone;changed=true;}
+      if(rd.online===true&&rd.online_since&&(Date.now()-rd.online_since)<43200000){if(!RON){RON=true;changed=true;}}
       if(changed)su();
+      if(RON&&!RUNSUB)setTimeout(startJL,800);
     }).catch(function(){});
   });
   // showJobs creates the #rbody element then calls renderRBody
@@ -2409,7 +2411,9 @@ function showJobs(){
     }
     RON=!RON;
     var busyState=RON?(!!RACT):false;
-    dbSet('riders',USER.phone,{online:RON,name:USER.name,phone:USER.phone,busy:busyState});
+    var rOD={online:RON,name:USER.name,phone:USER.phone,busy:busyState};
+    if(RON)rOD.online_since=Date.now();else rOD.online_since=null;
+    dbSet('riders',USER.phone,rOD);
     toast(RON?'Online — jobs incoming!':'Offline');
     if(RON)startJL();else{if(RUNSUB){RUNSUB();RUNSUB=null;}RJOBS=[];}
     showJobs();
@@ -2461,7 +2465,7 @@ function stopLiveLocation(){
 function startJL(){
   if(RUNSUB){RUNSUB();RUNSUB=null;}
   if(!RACT){
-    dbSet('riders',USER.phone,{busy:false,online:true,name:USER.name,phone:USER.phone});
+    dbSet('riders',USER.phone,{busy:false,online:true,name:USER.name,phone:USER.phone,online_since:Date.now()});
     startLiveLocation();
   }
   var prevJobCount=RJOBS.length;
@@ -2606,12 +2610,21 @@ function renderRBody(){
   });});
 }
 function accJob(jobId){
-  
-  if(RACT){
-    toast('Complete your current delivery first');
-    return;
+  if(RACT){toast('Complete your current delivery first');return;}
+  var job=null;RJOBS.forEach(function(j){if(j.id===jobId)job=j;});
+  if(!job){
+    loadFB(function(db){if(!db){toast('No connection');return;}
+      db.collection('delivery_orders').doc(jobId).get().then(function(snap){
+        if(!snap.exists){toast('Job no longer available');return;}
+        var jb=Object.assign({id:snap.id},snap.data());
+        if(jb.rider_phone&&jb.rider_phone!==USER.phone){toast('Job already taken by another rider');return;}
+        _doAccept(jb);
+      }).catch(function(){toast('Error - try again');});
+    });return;
   }
-  var job=null;RJOBS.forEach(function(j){if(j.id===jobId)job=j;});if(!job)return;
+  _doAccept(job);}
+function _doAccept(job){
+  var jobId=job.id;
   var rMpesaToSave=USER.mpesa_phone||window._riderMpesa||'';
   dbUpd('delivery_orders',jobId,{rider_phone:USER.phone,rider_name:USER.name,rider_mpesa:rMpesaToSave,status:'assigned'},function(ok){
     if(!ok){toast('Error accepting - try again');return;}
@@ -2777,6 +2790,72 @@ function completeDelivery(order,riderEarn,payMethod,mpesaCode){
   });
 }
 
+function showRProfile(){
+  setTitle('RIDER','#8b5cf6');setNav('rider','profile');
+  var rMpesa=USER.mpesa_phone||window._riderMpesa||'';
+  var photoHtml=USER.profile_photo
+    ?'<img src="'+USER.profile_photo+'" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #8b5cf6">'
+    :'<div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:flex;align-items:center;justify-content:center;font-size:36px">&#x1F6F5;</div>';
+  pg().innerHTML='<div style="padding:16px 18px 100px">'
+    +'<div style="text-align:center;margin-bottom:20px">'
+    +'<div id="rphoto-wrap" style="position:relative;display:inline-block;cursor:pointer">'+photoHtml
+    +'<div style="position:absolute;bottom:2px;right:2px;width:26px;height:26px;background:#8b5cf6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #08080c">&#x270F;</div></div>'
+    +'<input type="file" id="rphoto-inp" accept="image/*" style="display:none">'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">Tap to change photo</div>'
+    +'<div style="font-size:18px;font-weight:800;color:#fff;margin-top:6px">'+(USER.name||USER.phone)+'</div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.45)">'+(USER.phone||'')+'</div>'
+    +'</div>'
+    +'<div class="sbox"><div class="sboxt">Edit Profile</div>'
+    +'<div class="fld"><label>Full Name</label><input id="rp-name" type="text" value="'+(USER.name||'')+'" placeholder="Your name"></div>'
+    +'<div class="fld"><label>M-Pesa Number</label><input id="rp-mpesa" type="tel" value="'+(rMpesa||'')+'" placeholder="07XX — customers pay delivery here"></div>'
+    +'<button id="rp-save" class="btn bg" style="margin-top:4px">Save Changes</button>'
+    +'</div>'
+    +'<div class="sbox"><div class="sboxt">Account Info</div>'
+    +'<div style="font-size:13px;color:rgba(255,255,255,.4);line-height:2">'
+    +'&#x1F4DE; <strong style="color:#fff">'+(USER.phone||'')+'</strong><br>'
+    +'&#x2705; Status: <strong style="color:'+(USER.verified?'#10b981':'#f59e0b')+'">'+(USER.verified?'Verified':'Pending Verification')+'</strong><br>'
+    +'&#x1F4B0; Today earnings: <strong style="color:#10b981">KSh '+REARN+'</strong>'
+    +'</div></div>'
+    +'<button id="rp-logout" class="btn br" style="font-size:14px;padding:14px;margin-top:4px">&#x1F6AA; Logout</button>'
+    +'</div>';
+  var pw=document.getElementById('rphoto-wrap');var pi=document.getElementById('rphoto-inp');
+  if(pw)pw.addEventListener('click',function(){if(pi)pi.click();});
+  if(pi)pi.addEventListener('change',function(){
+    var file=this.files[0];if(!file)return;
+    if(file.size>2097152){toast('Photo must be under 2MB');return;}
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var img=new Image();img.onload=function(){
+        var cv=document.createElement('canvas');cv.width=200;cv.height=200;
+        var ctx=cv.getContext('2d');var s=Math.min(img.width,img.height);
+        ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,200,200);
+        var data=cv.toDataURL('image/jpeg',0.75);
+        USER.profile_photo=data;su();
+        loadFB(function(db){if(db)db.collection('tumana_users').doc(USER.phone+'_rider').set({profile_photo:data},{merge:true}).catch(function(){});});
+        showRProfile();
+      };img.src=e.target.result;
+    };reader.readAsDataURL(file);
+  });
+  document.getElementById('rp-save').addEventListener('click',function(){
+    var nm=(document.getElementById('rp-name').value||'').trim();
+    var mp=(document.getElementById('rp-mpesa').value||'').trim();
+    if(!nm){toast('Enter your name');return;}
+    if(mp&&mp.length<9){toast('Enter valid M-Pesa number');return;}
+    var btn=this;btn.textContent='Saving...';btn.disabled=true;
+    if(mp){USER.mpesa_phone=mp;window._riderMpesa=mp;}
+    USER.name=nm;su();
+    loadFB(function(db){
+      if(!db){btn.textContent='Save Changes';btn.disabled=false;toast('No connection');return;}
+      var upd={name:nm};if(mp)upd.mpesa_phone=mp;
+      db.collection('tumana_users').doc(USER.phone+'_rider').set(upd,{merge:true})
+        .then(function(){
+          if(mp)db.collection('riders').doc(USER.phone).set({mpesa_phone:mp,name:nm},{merge:true}).catch(function(){});
+          toast('Profile saved!');btn.textContent='Save Changes';btn.disabled=false;
+        }).catch(function(){toast('Error saving');btn.textContent='Save Changes';btn.disabled=false;});
+    });
+  });
+  document.getElementById('rp-logout').addEventListener('click',function(){if(confirm('Logout?'))logout();});
+}
 function showEarn(){
   setTitle('RIDER','#8b5cf6');setNav('rider','earnings');
   var rMpesaCurrent=USER.mpesa_phone||window._riderMpesa||'';
@@ -3681,7 +3760,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v70 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v71 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
