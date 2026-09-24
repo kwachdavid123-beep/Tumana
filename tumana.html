@@ -394,6 +394,15 @@ function setNav(role,tab){
     });
   });
 }
+function dbUpd(col,docId,data,cb){
+  loadFB(function(db){
+    if(!db){if(cb)cb(false);return;}
+    db.collection(col).doc(docId).update(data)
+      .then(function(){if(cb)cb(true);})
+      .catch(function(e){console.error('dbUpd error:',e);if(cb)cb(false);});
+  });
+}
+
 // ── APP BOOT ─────────────────────────────────────────────────────────
 var SADMIN='0799878872',MP='0799878872';
 var MSHOPS=[{id:'demo',name:'Demo Shop',category:'Groceries',location:'Chemelil',icon:'&#x1F3EA;',delivery_enabled:true,verified:true,subscription_paid:true,distance_km:.5}];
@@ -3760,7 +3769,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v71 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v72 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
