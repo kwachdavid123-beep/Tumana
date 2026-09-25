@@ -362,6 +362,56 @@ function dbGet(col,id,cb){loadFB(function(db){if(!db){cb(null);return;}db.collec
 
 var _rbTimer=null;
 function renderRBodySoon(){clearTimeout(_rbTimer);_rbTimer=setTimeout(function(){if(typeof renderRBody==='function')renderRBody();},200);}
+
+var _isOnline=navigator.onLine;
+function showConnBanner(){
+  var bar=document.getElementById('conn-banner');
+  if(!bar){
+    bar=document.createElement('div');bar.id='conn-banner';
+    bar.style.cssText='position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#000;font-size:11px;font-weight:800;text-align:center;padding:5px 8px;z-index:99999;transition:opacity .3s';
+    document.body.appendChild(bar);
+  }
+  bar.textContent='\u1F4F4 Offline \u2014 showing cached data. Sync when connected.';
+  bar.style.opacity='1';bar.style.display='block';
+}
+function hideConnBanner(){
+  var bar=document.getElementById('conn-banner');
+  if(bar){bar.style.opacity='0';setTimeout(function(){bar.style.display='none';},400);}
+}
+window.addEventListener('online',function(){
+  _isOnline=true;
+  hideConnBanner();
+  toast('\u2705 Back online \u2014 syncing data...');
+});
+window.addEventListener('offline',function(){
+  _isOnline=false;
+  showConnBanner();
+  toast('\u1F4F4 Offline \u2014 changes will sync when connected');
+});
+if(!navigator.onLine){showConnBanner();}
+
+var _syncQueue=[];
+try{_syncQueue=JSON.parse(localStorage.getItem('tumana_sync_queue')||'[]');}catch(e){}
+function queueSync(action){
+  _syncQueue.push(Object.assign({ts:Date.now()},action));
+  try{localStorage.setItem('tumana_sync_queue',JSON.stringify(_syncQueue.slice(-50)));}catch(e){}
+}
+function processSyncQueue(){
+  if(!_syncQueue.length)return;
+  var q=_syncQueue.slice();_syncQueue=[];
+  try{localStorage.removeItem('tumana_sync_queue');}catch(e){}
+  loadFB(function(db){
+    if(!db)return;
+    q.forEach(function(action){
+      try{
+        if(action.type==='set'){db.collection(action.col).doc(action.id).set(action.data,{merge:true}).catch(function(){});}
+        else if(action.type==='upd'){db.collection(action.col).doc(action.id).update(action.data).catch(function(){});}
+      }catch(e){}
+    });
+    if(q.length)toast('\u2705 Synced '+q.length+' offline change'+(q.length>1?'s':''));
+  });
+}
+window.addEventListener('online',function(){setTimeout(processSyncQueue,2000);});
 function cleanListeners(){
   if(typeof OUNSUB==='function'){try{OUNSUB();}catch(e){}OUNSUB=null;}
   if(typeof SUNSUB==='function'){try{SUNSUB();}catch(e){}SUNSUB=null;}
@@ -425,6 +475,10 @@ function loadFB(cb){
       firebase.initializeApp({apiKey:'AIzaSyB_C61rcssdlvqbyUK_QcHkl4HxbwcQBOI',authDomain:'chawkpro1.firebaseapp.com',projectId:'chawkpro1',storageBucket:'chawkpro1.firebasestorage.app',messagingSenderId:'897807998371',appId:'1:897807998371:web:33770a8ee5950c54860e16'});
     }catch(e){}
     _db=firebase.firestore();
+    // Enable offline persistence — writes queue when offline, auto-sync on reconnect
+    _db.enablePersistence({synchronizeTabs:false}).catch(function(e){
+      console.log('Offline persistence:',e.code);
+    });
     cb(_db);_fbQ.forEach(function(f){f(_db);});_fbQ=[];
   }
   if(typeof firebase!=='undefined'){init();}
@@ -1264,69 +1318,142 @@ function searchLocalPlaces(query){
 
 
 function showMapPicker(onConfirm,defaultLat,defaultLng){
+  // Best starting point: passed default → window cache → localStorage cache → Chemelil center
   var lat=defaultLat||window._custLat||CHEMELIL_LAT;
   var lng=defaultLng||window._custLng||CHEMELIL_LNG;
+  try{
+    var cg=JSON.parse(localStorage.getItem('tumana_gps')||'null');
+    if(cg&&cg.lat&&!defaultLat){lat=cg.lat;lng=cg.lng;}
+  }catch(e){}
+
   showSh('<div class="hd"></div>'
-    +'<div style="font-size:16px;font-weight:800;margin:8px 18px 8px">Pin Your Location</div>'
-    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:0 18px 10px">Tap the map to set your exact location. Drag pin to adjust.</div>'
-    +'<div id="map-pick-wrap" style="position:relative;width:100%;height:320px;background:#1a1a22;border-radius:0">'
-    +'<div id="map-pick" style="width:100%;height:320px"></div>'
-    +'<div id="map-pin-info" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;font-size:11px;padding:4px 12px;border-radius:20px;white-space:nowrap;pointer-events:none;z-index:9999"></div>'
+    +'<div style="font-size:16px;font-weight:800;margin:8px 18px 6px">Pin Your Location</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:0 18px 8px">GPS auto-finds you. Drag pin or tap map to adjust.</div>'
+    +'<div id="map-pick-wrap" style="position:relative;width:100%;height:310px;background:#1a1a22">'
+    +'<div id="map-pick" style="width:100%;height:310px"></div>'
+    // GPS status badge — shown over map
+    +'<div id="map-gps-badge" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;white-space:nowrap;z-index:9999;pointer-events:none">&#x1F4E1; Getting your GPS...</div>'
+    // My Location button
+    +'<button id="map-my-loc" style="position:absolute;top:8px;right:8px;z-index:9999;background:#10b981;border:none;color:#fff;font-size:18px;width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.4)" title="Go to my location">&#x1F3AF;</button>'
+    +'<div id="map-pin-info" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:3px 10px;border-radius:20px;pointer-events:none;z-index:9999"></div>'
     +'</div>'
     +'<div style="padding:10px 18px 0;display:flex;gap:8px">'
-    +'<button id="map-confirm" class="btn bg" style="flex:1;font-size:14px;padding:13px">Confirm This Location</button>'
-    +'<button class="btn bo" onclick="hideSh()" style="padding:13px 16px">Cancel</button>'
+    +'<button id="map-confirm" class="btn bg" style="flex:1;font-size:14px;padding:13px">&#x2714; Confirm This Location</button>'
+    +'<button class="btn bo" onclick="hideSh()" style="padding:13px 14px">Cancel</button>'
     +'</div>');
-  // Load Leaflet CSS + JS from CDN if not already loaded
+
   function initMap(){
     var L=window.L;
-    if(!L||!document.getElementById('map-pick')){return;}
-    // Clear any existing map
-    var wrap=document.getElementById('map-pick');
-    wrap._leaflet_id=null;
-    var map=L.map('map-pick',{zoomControl:true,attributionControl:false}).setView([lat,lng],15);
+    var el=document.getElementById('map-pick');
+    if(!L||!el)return;
+    // Clear stale Leaflet state
+    if(el._leaflet_id)try{el._leaflet_id=null;}catch(e){}
+    var map=L.map('map-pick',{zoomControl:true,attributionControl:false}).setView([lat,lng],16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-    var pin=L.marker([lat,lng],{draggable:true}).addTo(map);
+    var pin=L.marker([lat,lng],{draggable:true,
+      icon:L.divIcon({html:'<div style="font-size:32px;margin-top:-32px;margin-left:-16px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))">&#x1F4CD;</div>',className:'',iconSize:[32,32]})
+    }).addTo(map);
     var curLat=lat,curLng=lng;
+
     function updateInfo(la,ln){
       curLat=la;curLng=ln;
-      var el=document.getElementById('map-pin-info');
-      if(el)el.textContent=la.toFixed(5)+', '+ln.toFixed(5);
+      var e=document.getElementById('map-pin-info');
+      if(e)e.textContent=la.toFixed(5)+', '+ln.toFixed(5);
     }
+    function setBadge(msg,color){
+      var b=document.getElementById('map-gps-badge');
+      if(!b)return;
+      b.textContent=msg;b.style.background=color||'rgba(0,0,0,.75)';b.style.display='block';
+    }
+    function hideBadge(delay){
+      setTimeout(function(){
+        var b=document.getElementById('map-gps-badge');if(b)b.style.display='none';
+      },delay||2000);
+    }
+    function flyToGPS(gLat,gLng,acc){
+      map.flyTo([gLat,gLng],17,{animate:true,duration:1.2});
+      setTimeout(function(){
+        pin.setLatLng([gLat,gLng]);
+        updateInfo(gLat,gLng);
+      },400);
+      window._custLat=gLat;window._custLng=gLng;
+      try{localStorage.setItem('tumana_gps',JSON.stringify({lat:gLat,lng:gLng,ts:Date.now()}));}catch(e){}
+      setBadge('&#x2705; GPS ±'+acc+'m','rgba(16,185,129,.9)');
+      hideBadge(3000);
+    }
+
+    function tryGPS(showFail){
+      if(!navigator.geolocation){
+        setBadge('&#x1F4CD; Drag pin to your spot','rgba(245,158,11,.85)');
+        hideBadge(3000);return;
+      }
+      setBadge('&#x1F4E1; Getting GPS...','rgba(0,0,0,.75)');
+      navigator.geolocation.getCurrentPosition(
+        function(pos){flyToGPS(pos.coords.latitude,pos.coords.longitude,Math.round(pos.coords.accuracy));},
+        function(){
+          // Try high-accuracy as fallback
+          navigator.geolocation.getCurrentPosition(
+            function(pos){flyToGPS(pos.coords.latitude,pos.coords.longitude,Math.round(pos.coords.accuracy));},
+            function(){
+              setBadge('&#x1F4CD; GPS blocked — drag pin to your spot','rgba(245,158,11,.85)');
+              hideBadge(4000);
+            },
+            {enableHighAccuracy:true,timeout:12000,maximumAge:0}
+          );
+        },
+        {enableHighAccuracy:false,timeout:8000,maximumAge:60000}
+      );
+    }
+
     updateInfo(lat,lng);
     pin.on('dragend',function(e){var p=e.target.getLatLng();updateInfo(p.lat,p.lng);});
-    map.on('click',function(e){pin.setLatLng(e.latlng);updateInfo(e.latlng.lat,e.latlng.lng);});
-    document.getElementById('map-confirm').addEventListener('click',function(){
+    map.on('click',function(e){
+      pin.setLatLng(e.latlng);
+      updateInfo(e.latlng.lat,e.latlng.lng);
+      var b=document.getElementById('map-gps-badge');if(b)b.style.display='none';
+    });
+
+    // My Location button
+    var mlBtn=document.getElementById('map-my-loc');
+    if(mlBtn)mlBtn.addEventListener('click',function(){tryGPS(true);});
+
+    // Auto-trigger GPS on open
+    tryGPS(false);
+
+    // Confirm
+    var cb=document.getElementById('map-confirm');
+    if(cb)cb.addEventListener('click',function(){
       hideSh();
-      // Reverse geocode
       fetch('https://nominatim.openstreetmap.org/reverse?lat='+curLat+'&lon='+curLng+'&format=json')
         .then(function(r){return r.json();})
         .then(function(d){
-          var addr=d.address?((d.address.village||d.address.town||d.address.suburb||d.address.county||'')+(d.address.road?' - '+d.address.road:'')):'Pinned Location';
+          var addr='Pinned Location';
+          if(d.address){
+            addr=(d.address.village||d.address.town||d.address.suburb||d.address.county||'Chemelil');
+            if(d.address.road)addr+=' - '+d.address.road;
+          }
           saveCommunityLoc(addr,curLat,curLng);
           saveAddr(addr,curLat,curLng);
-          onConfirm(curLat,curLng,addr||'Pinned location');
-        }).catch(function(){
-          onConfirm(curLat,curLng,'Pinned location');
-        });
+          onConfirm(curLat,curLng,addr);
+        }).catch(function(){onConfirm(curLat,curLng,'Pinned location');});
     });
   }
+
   if(window.L){
     setTimeout(initMap,200);
   } else {
-    // Load Leaflet CSS
     if(!document.getElementById('leaflet-css')){
       var lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';
       lc.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
       document.head.appendChild(lc);
     }
-    // Load Leaflet JS
     var ls=document.createElement('script');
     ls.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-    ls.onload=function(){_leafletLoaded=true;setTimeout(initMap,300);};
+    ls.onload=function(){setTimeout(initMap,300);};
     document.head.appendChild(ls);
   }
 }
+
 function showProfile(){
   setTitle('ME','#10b981');setNav('customer','profile');
   var photoHtml=USER.profile_photo?'<img src="'+USER.profile_photo+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #10b981">':'<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:32px">&#x1F464;</div>';
@@ -3777,7 +3904,7 @@ function renderCurrentView(){
 function boot(){
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v73 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v75 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
