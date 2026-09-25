@@ -483,13 +483,57 @@ function loadFB(cb){
   }
   if(typeof firebase!=='undefined'){init();}
   else{
-    var s=document.createElement('script');
-    s.src='https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
-    s.onload=function(){
+    function showOfflineBootMsg(){
+      var be=document.getElementById('boot-err');
+      if(be){be.style.display='block';be.innerHTML='&#x1F4F4; No internet connection.<br><small>Open Tumana once with internet to enable offline use. Data will load from cache next time.</small>';}
+      var sp=document.querySelector('.spin');if(sp)sp.style.display='none';
+    }
+    // Try local (bundled in repo/APK) first → fallback to CDN
+    var FB_LOCAL_APP='/Tumana/lib/firebase-app.js';
+    var FB_LOCAL_FS='/Tumana/lib/firebase-firestore.js';
+    var FB_CDN_APP='https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
+    var FB_CDN_FS='https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js';
+
+    function loadFS(src,fallback){
       var s2=document.createElement('script');
-      s2.src='https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js';
-      s2.onload=init;document.head.appendChild(s2);
-    };document.head.appendChild(s);
+      s2.src=src;
+      s2.onload=init;
+      s2.onerror=function(){
+        if(fallback){
+          var sf=document.createElement('script');sf.src=fallback;sf.onload=init;
+          sf.onerror=function(){showOfflineBootMsg();_fbL=false;};
+          document.head.appendChild(sf);
+        } else {showOfflineBootMsg();_fbL=false;}
+      };
+      document.head.appendChild(s2);
+    }
+
+    function onFbOnlineRetry(){
+      _fbL=false;
+      window.addEventListener('online',function onceOnline(){
+        window.removeEventListener('online',onceOnline);
+        var be=document.getElementById('boot-err');
+        if(be)be.style.display='none';
+        var sp=document.querySelector('.spin');if(sp)sp.style.display='block';
+        _fbQ.forEach(function(f){loadFB(f);});_fbQ=[];
+        loadFB(function(db){
+          if(db){var ld=document.getElementById('loading');if(ld)ld.style.display='none';boot();}
+        });
+      });
+    }
+
+    var s=document.createElement('script');
+    s.src=FB_LOCAL_APP;
+    s.onload=function(){loadFS(FB_LOCAL_FS,FB_CDN_FS);};
+    s.onerror=function(){
+      // Local not found — try CDN
+      var sc2=document.createElement('script');
+      sc2.src=FB_CDN_APP;
+      sc2.onload=function(){loadFS(FB_CDN_FS,null);};
+      sc2.onerror=function(){showOfflineBootMsg();onFbOnlineRetry();};
+      document.head.appendChild(sc2);
+    };
+    document.head.appendChild(s);
   }
 }
 function startApp(){
@@ -3902,9 +3946,29 @@ function renderCurrentView(){
 }
 
 function boot(){
+  // Try offline-first: if we have USER in localStorage, start immediately
+  // Firebase will connect in background and update data
+  try{
+    var ls=localStorage.getItem('tumana_user');
+    if(ls&&!navigator.onLine){
+      var lu=JSON.parse(ls);
+      if(lu&&lu.role&&lu.phone){
+        USER=lu;
+        var ld=document.getElementById('loading');
+        if(ld)ld.style.display='none';
+        var ap=document.getElementById('app');
+        if(ap)ap.style.display='flex';
+        toast('\u1F4F4 Offline mode \u2014 showing cached data');
+        startApp();
+        return;
+      }
+    }
+  }catch(e){}
+  // Normal online boot continues below
+
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v75 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v77 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
