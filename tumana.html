@@ -351,7 +351,21 @@ function tryPinDoc(d,pin,normP,rawPhone){
   // The PIN they enter gets saved as their permanent PIN on login success
   return true;
 }
-function dbGet(col,id,cb){loadFB(function(db){if(!db){cb(null);return;}db.collection(col).doc(id).get().then(function(d){cb(d.exists?Object.assign({id:d.id},d.data()):null);}).catch(function(){cb(null);});});}
+function dbGet(col,id,cb){
+  var _ck="_doc_"+col+"_"+id,_cac=null;
+  try{_cac=JSON.parse(localStorage.getItem(_ck)||"null");}catch(e){}
+  var _ok=false;
+  var _t=setTimeout(function(){if(!_ok){_ok=true;cb(_cac);}},6000);
+  loadFB(function(db){
+    if(!db){clearTimeout(_t);if(!_ok){_ok=true;cb(_cac);}return;}
+    db.collection(col).doc(id).get().then(function(d){
+      clearTimeout(_t);if(_ok)return;_ok=true;
+      var res=d.exists?Object.assign({id:d.id},d.data()):null;
+      if(res)try{localStorage.setItem(_ck,JSON.stringify(res));}catch(e){}
+      cb(res);
+    }).catch(function(){clearTimeout(_t);if(!_ok){_ok=true;cb(_cac);}});
+  });
+}
 
 var _rbTimer=null;
 function renderRBodySoon(){clearTimeout(_rbTimer);_rbTimer=setTimeout(function(){if(typeof renderRBody==='function')renderRBody();},200);}
@@ -444,6 +458,19 @@ function setNav(role,tab){
       else if(role==='admin'){if(t==='overview')showAOv();else if(t==='orders')showAOrds();else if(t==='riders')showARiders();else if(t==='shops')showAShops();else showASet();}
     });
   });
+}
+function dbQuery(q,cKey,cb){
+  var _cac=[];try{if(cKey)_cac=JSON.parse(localStorage.getItem(cKey)||"[]");}catch(e){}
+  var _ok=false;
+  var _t=setTimeout(function(){
+    if(!_ok){_ok=true;if(_cac.length)toast("\u26A1 Loaded from cache \u2014 slow connection");cb(_cac,true);}
+  },8000);
+  q.then(function(snap){
+    clearTimeout(_t);if(_ok)return;_ok=true;
+    var res=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    if(cKey&&res.length)try{localStorage.setItem(cKey,JSON.stringify(res.slice(0,50)));}catch(e){}
+    cb(res,false);
+  }).catch(function(){clearTimeout(_t);if(!_ok){_ok=true;cb(_cac,true);}});
 }
 function dbUpd(col,docId,data,cb){
   loadFB(function(db){
@@ -609,8 +636,17 @@ function startRider(){
   }
 }
 function startShop(){
-  setTitle('SHOP','#f59e0b');
-  dbGet('shops',USER.phone,function(shop){
+  setTitle("SHOP","#f59e0b");setNav("shop","home");
+  if(!window._shopDoc){
+    var sk="";
+    sk+='<div style="padding:18px;animation:pulse 1.5s ease-in-out infinite">';
+    sk+='<div style="height:20px;width:50%;background:rgba(245,158,11,.18);border-radius:8px;margin-bottom:14px"></div>';
+    sk+='<div style="height:90px;background:rgba(245,158,11,.1);border-radius:12px;margin-bottom:10px"></div>';
+    sk+='<div style="height:90px;background:rgba(245,158,11,.07);border-radius:12px;margin-bottom:10px"></div>';
+    sk+='<div style="height:90px;background:rgba(245,158,11,.05);border-radius:12px"></div></div>';
+    pg().innerHTML=sk;
+  }
+  dbGet("shops",USER.phone,function(shop){
     if(shop){
       SDON=shop.delivery_enabled||false;
       window._shopType=shop.shop_type||'goods';
@@ -3977,14 +4013,25 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v79 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v80 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
   }catch(e){try{localStorage.removeItem('tu');}catch(ex){}}
   applyTheme();
   updateOnlineStatus();
-  if('serviceWorker' in navigator){navigator.serviceWorker.register('/Tumana/sw.js',{scope:'/Tumana/'}).catch(function(){});}
+  window._bootFromCache=function(){
+    try{
+      var ps=localStorage.getItem("tumana_user");if(!ps)return;
+      var lu=JSON.parse(ps);if(!lu||!lu.role)return;
+      USER=lu;
+      var ld=document.getElementById("loading");if(ld)ld.style.display="none";
+      var ap=document.getElementById("app");if(ap)ap.style.display="flex";
+      toast("\u26A1 Loaded from cache");
+      startApp();
+    }catch(e){}
+  };
+  if("serviceWorker" in navigator){navigator.serviceWorker.register('/Tumana/sw.js',{scope:'/Tumana/'}).catch(function(){});}
   window.addEventListener('online',function(){setTimeout(function(){if(USER&&USER.phone){if(typeof syncLocalSales==='function')syncLocalSales();if(typeof syncOfflineQueue==='function')syncOfflineQueue();}},2000);});
   loadFB(function(){});
   document.getElementById('loading').style.display='none';
