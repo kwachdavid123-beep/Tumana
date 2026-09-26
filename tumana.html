@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Tumana">
 <link rel="manifest" href="/Tumana/manifest.json">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="dns-prefetch" href="//tile.openstreetmap.org">
 <title>Tumana Delivery - Chemelil</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -156,6 +159,17 @@ body.light .sv{color:#0d2818!important}
 body.light [style*="font-weight:800;color:#fff"]{color:#0d2818!important}
 body.light [style*="font-weight:700;color:#fff"]{color:#0d2818!important}
 
+
+/* Performance */
+#pg{will-change:scroll-position;}
+.card{contain:layout style;}
+.sbox{contain:layout style;}
+#nav{contain:layout;}
+#sb{contain:layout;}
+img{content-visibility:auto;}
+
+.card{contain:layout style;}
+.sbox{contain:layout style;}
 </style>
 </head>
 <body>
@@ -189,35 +203,9 @@ setTimeout(function(){
 },8000);
 
 </script>
+
 <script>
-
-
-(function(){
-  var alreadyCleared = window.location.search.indexOf('_cleared=1') >= 0;
-  if (alreadyCleared) return; 
-
-  if ('serviceWorker' in navigator) {
-    Promise.all([
-      navigator.serviceWorker.getRegistrations().then(function(regs){
-        return Promise.all(regs.map(function(r){ return r.unregister(); }));
-      }),
-      ('caches' in window) ? caches.keys().then(function(keys){
-        return Promise.all(keys.map(function(k){ return caches.delete(k); }));
-      }) : Promise.resolve()
-    ]).then(function(){
-      var sep = window.location.href.indexOf('?') >= 0 ? '&' : '?';
-      window.location.replace(window.location.href + sep + '_cleared=1');
-    }).catch(function(){
-      var sep = window.location.href.indexOf('?') >= 0 ? '&' : '?';
-      window.location.replace(window.location.href + sep + '_cleared=1');
-    });
-  }
-})();
-
-
-</script>
-
-<script>var USER=null,CART=[],SHOPS=[],CS=null;
+var USER=null,CART=[],SHOPS=[],CS=null;
 var _db=null,_fn=null,_fbL=false,_fbQ=[];
 var SORD=[],SDON=false,SUNSUB=null;
 var RON=false,RJOBS=[],RACT=null,REARN=0;
@@ -249,12 +237,17 @@ function navBack(){
   else showHome();
 }
 // ── CORE UI UTILITIES ────────────────────────────────────────────────
-function pg(){return document.getElementById('pg');}
+var _pgEl=null;
+function pg(){
+  if(_pgEl&&_pgEl.isConnected)return _pgEl;
+  _pgEl=document.getElementById('pg');return _pgEl;
+}
 function toast(msg,dur){var t=document.getElementById('toast');if(!t)return;t.innerHTML=msg;t.style.display='block';clearTimeout(t._tm);t._tm=setTimeout(function(){t.style.display='none';},dur||2800);}
 function empty(ico,title,sub){return '<div class="empty"><div class="et">'+ico+'</div><div style="font-weight:700;margin-bottom:4px">'+title+'</div><div class="es">'+sub+'</div></div>';}
 function hideSh(){var o=document.getElementById('ov');if(o)o.classList.remove('show');}
 function showSh(html){var s=document.getElementById('sh');var o=document.getElementById('ov');if(!s||!o)return;s.innerHTML=html;o.classList.add('show');}
-function setTitle(t,col){var el=document.getElementById('sbt');if(el){el.textContent=t;if(col)el.style.color=col;}}
+var _sbtEl=null;
+function setTitle(t,col){if(!_sbtEl||!_sbtEl.isConnected)_sbtEl=document.getElementById('sbt');if(_sbtEl){_sbtEl.textContent=t;if(col)_sbtEl.style.color=col;}}
 function haversineKm(a,b,x,y){var R=6371,dL=(x-a)*Math.PI/180,dG=(y-b)*Math.PI/180,z=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(x*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(z),Math.sqrt(1-z));}
 function calcFee(km){var base=window._ADMIN_BASE_FEE||50;var rate=window._ADMIN_PER_KM||20;return Math.max(base,Math.round((base+rate*(km||0.5))/5)*5);}
 function applyTheme(){document.body.className=TH==='light'?'light':'';}
@@ -556,15 +549,22 @@ function startApp(){
 function startCust(){
   SHOPS=MSHOPS;
   // Load cached shops for instant display
-  try{var cs=JSON.parse(localStorage.getItem('tumana_shops')||'[]');if(cs.length)SHOPS=cs;}catch(e){}
+  try{var cs=JSON.parse(localStorage.getItem('tumana_shops')||'[]');if(cs.length){SHOPS=cs;window._shopFetchAt=Date.now()-110000;}}catch(e){}
   // Pre-load community locations for quick pickup
   loadCommunityLocs(function(){});
+  // Show cached shops immediately, refresh from Firestore in background
+  var _now=Date.now();
+  var _lastFetch=window._shopFetchAt||0;
+  var _stale=(_now-_lastFetch)>120000; // refresh if > 2 min old
+  if(!_stale&&SHOPS.length){renderShopList(SHOPS);return;}
   loadFB(function(db){
-    if(!db){showHome();return;}
+    if(!db){if(SHOPS.length)renderShopList(SHOPS);return;}
     db.collection('shops').where('verified','==',true).get().then(function(s){
       var ok=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      window._shopFetchAt=Date.now();
       ok.sort(function(a,b){return(b.delivery_enabled===true?1:0)-(a.delivery_enabled===true?1:0);});
-      if(ok.length){SHOPS=ok;try{localStorage.setItem('tumana_shops',JSON.stringify(ok));}catch(e){}}
+      if(ok.length){SHOPS=ok;window._shopFetchAt=Date.now();try{localStorage.setItem('tumana_shops',JSON.stringify(ok));}catch(e){}}
+      renderShopList(SHOPS);
     }).catch(function(){try{var cs2=JSON.parse(localStorage.getItem('tumana_shops')||'[]');if(cs2.length){SHOPS=cs2;toast('Showing cached shops — offline');}}catch(e){}});
   });
   showHome();
@@ -1742,6 +1742,15 @@ function showCreateShop(){
   });
 }
 function renderShopDash(){
+  if(renderShopDash._raf)return;
+  renderShopDash._raf=requestAnimationFrame(function(){renderShopDash._raf=null;_doRSD();});
+}
+function _doRSD(){
+  if(renderShopDash._pending)return;
+  renderShopDash._pending=true;
+  requestAnimationFrame(function(){renderShopDash._pending=false;_renderShopDash();});
+}
+function _renderShopDash(){
   if(window._shopType==='service'||(window._shopDoc&&window._shopDoc.shop_type==='service')){return renderServiceShopDash();}
   setTitle('SHOP','#f59e0b');
   var shopDoc=window._shopDoc||{};
@@ -3968,7 +3977,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v77 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v79 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -3986,25 +3995,6 @@ function boot(){
   else{showRole();}
 }
 boot();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 </script>
 </body>
 </html>
