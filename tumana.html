@@ -355,15 +355,16 @@ function dbGet(col,id,cb){
   var _ck="_doc_"+col+"_"+id,_cac=null;
   try{_cac=JSON.parse(localStorage.getItem(_ck)||"null");}catch(e){}
   var _ok=false;
-  var _t=setTimeout(function(){if(!_ok){_ok=true;cb(_cac);}},6000);
+  // Only time out if we have cached data to fall back to
+  var _t=_cac?setTimeout(function(){if(!_ok){_ok=true;cb(_cac);}},6000):null;
   loadFB(function(db){
-    if(!db){clearTimeout(_t);if(!_ok){_ok=true;cb(_cac);}return;}
+    if(!db){if(_t)clearTimeout(_t);if(!_ok){_ok=true;cb(_cac);}return;}
     db.collection(col).doc(id).get().then(function(d){
-      clearTimeout(_t);if(_ok)return;_ok=true;
+      if(_t)clearTimeout(_t);if(_ok)return;_ok=true;
       var res=d.exists?Object.assign({id:d.id},d.data()):null;
       if(res)try{localStorage.setItem(_ck,JSON.stringify(res));}catch(e){}
       cb(res);
-    }).catch(function(){clearTimeout(_t);if(!_ok){_ok=true;cb(_cac);}});
+    }).catch(function(){if(_t)clearTimeout(_t);if(!_ok){_ok=true;cb(_cac);}});
   });
 }
 
@@ -803,9 +804,14 @@ function renderAuth(){
       if(lsU&&tryPinDoc(lsU,pin,normP,phone)){USER=Object.assign({},lsU,{pin_hash:pinHash});loginDone();su();startApp();return;}
       // NOTE: If localStorage check fails, we still go to Firestore
       // This handles PIN resets where Firestore was updated but localStorage has old hash
-      // Firestore lookup
+      // Firestore lookup — 10s timeout re-enables button on slow net
+      var _lt=setTimeout(function(){
+        loginDone();
+        toast('\u231B Slow connection \u2014 tap Login again when ready');
+      },10000);
       loadFB(function(db){
-        if(!db){loginDone();toast('No internet connection');return;}
+        clearTimeout(_lt);
+        if(!db){loginDone();toast('No internet \u2014 check connection');return;}
         db.collection('tumana_users').doc(docId2).get().then(function(snap){
           if(!snap.exists){
             db.collection('tumana_users').where('phone','==',normP).where('role','==',AR.id).limit(1).get()
@@ -892,6 +898,59 @@ function showHome(){
       var name=(card.textContent||'').toLowerCase();
       card.style.display=(!q||name.includes(q))?'':'none';
     });
+  });
+  // Show skeleton if SHOPS empty (slow/no internet yet)
+  if(!SHOPS.length){
+    var _sa=document.getElementById('sarea');
+    if(_sa){
+      var _sk='<div style="padding:8px 0;animation:pulse 1.4s ease-in-out infinite">';
+      _sk+='<div style="height:76px;background:rgba(16,185,129,.1);border-radius:14px;margin-bottom:10px"></div>';
+      _sk+='<div style="height:76px;background:rgba(16,185,129,.07);border-radius:14px;margin-bottom:10px"></div>';
+      _sk+='<div style="height:76px;background:rgba(16,185,129,.04);border-radius:14px"></div></div>';
+      _sa.innerHTML=_sk;
+    }
+  }
+  // Stale-while-revalidate: only refresh Firestore if data older than 2 min
+  if(SHOPS.length&&window._shopFetchAt&&(Date.now()-window._shopFetchAt)<120000)return;
+  loadFB(function(db){
+    if(!db){
+      var sa2=document.getElementById('sarea');
+      if(!SHOPS.length&&sa2)sa2.innerHTML='<div style="text-align:center;padding:30px;color:rgba(255,255,255,.4)">&#x1F4F4; No internet &#x2014; shops load when connected</div>';
+      return;
+    }
+    db.collection('shops').where('verified','==',true).get().then(function(snap){
+      var ok=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      ok.sort(function(a,b){return(b.delivery_enabled===true?1:0)-(a.delivery_enabled===true?1:0);});
+      if(!ok.length)return;
+      SHOPS=ok;window._shopFetchAt=Date.now();
+      try{localStorage.setItem('tumana_shops',JSON.stringify(ok));}catch(e){}
+      // Update shop area in place without full page reload
+      var sa3=document.getElementById('sarea');if(!sa3)return;
+      var hh='';
+      ok.forEach(function(sh){
+        var isO=sh.delivery_enabled===true;
+        var ico=sh.icon_photo
+          ?'<img src="'+sh.icon_photo+'" style="width:50px;height:50px;border-radius:11px;object-fit:cover;flex-shrink:0">'
+          :'<div style="width:50px;height:50px;border-radius:11px;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+(sh.icon||'&#x1F3EA;')+'</div>';
+        var badge=isO
+          ?'<span style="font-size:9px;font-weight:800;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:4px;padding:2px 6px">Open</span>'
+          :'<span style="font-size:9px;font-weight:800;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25);border-radius:4px;padding:2px 6px">Closed</span>';
+        hh+='<div class="card sg" data-id="'+sh.id+'" style="cursor:pointer;'+(isO?'':'opacity:.55;pointer-events:none')+'">'
+          +'<div style="display:flex;gap:10px;align-items:center">'+ico
+          +'<div style="flex:1"><div style="font-size:15px;font-weight:700;margin-bottom:2px">'+sh.name+'</div>'
+          +'<div style="font-size:12px;color:rgba(255,255,255,.4)">'+(sh.category||'General')+' \xb7 '+(sh.location||'Chemelil')+'</div></div>'+badge
+          +'</div></div>';
+      });
+      sa3.innerHTML=hh;
+      sa3.querySelectorAll('.sg').forEach(function(card){
+        card.addEventListener('click',function(){
+          var sid=this.getAttribute('data-id');
+          CS=SHOPS.find(function(s){return s.id===sid;})||{};
+          if(CS.shop_type==='service'){showServiceShopDetail(CS);}
+          else{showShopDetail(sid,CS.name);}
+        });
+      });
+    }).catch(function(){});
   });
 }
 function showShopDetail(shopId,shopName){
@@ -4013,7 +4072,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v80 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v81 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
