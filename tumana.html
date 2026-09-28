@@ -496,10 +496,8 @@ function loadFB(cb){
       firebase.initializeApp({apiKey:'AIzaSyB_C61rcssdlvqbyUK_QcHkl4HxbwcQBOI',authDomain:'chawkpro1.firebaseapp.com',projectId:'chawkpro1',storageBucket:'chawkpro1.firebasestorage.app',messagingSenderId:'897807998371',appId:'1:897807998371:web:33770a8ee5950c54860e16'});
     }catch(e){}
     _db=firebase.firestore();
-    // Enable offline persistence — writes queue when offline, auto-sync on reconnect
-    _db.enablePersistence({synchronizeTabs:false}).catch(function(e){
-      console.log('Offline persistence:',e.code);
-    });
+    // No enablePersistence: causes race condition in AppGeyser WebView
+    // Offline handled by localStorage cache + service worker instead
     cb(_db);_fbQ.forEach(function(f){f(_db);});_fbQ=[];
   }
   if(typeof firebase!=='undefined'){init();}
@@ -814,13 +812,24 @@ function renderAuth(){
         if(!db){loginDone();toast('No internet \u2014 check connection');return;}
         db.collection('tumana_users').doc(docId2).get().then(function(snap){
           if(!snap.exists){
-            db.collection('tumana_users').where('phone','==',normP).where('role','==',AR.id).limit(1).get()
+            // Single where (no composite index needed), filter role client-side
+            db.collection('tumana_users').where('phone','==',normP).get()
               .then(function(q){
-                if(q.empty){loginDone();toast('No account yet - create one below');var sw=document.getElementById('sw');if(sw)sw.click();return;}
-                var dd=Object.assign({id:q.docs[0].id},q.docs[0].data());
+                var docs=q.docs.filter(function(d){return d.data().role===AR.id;});
+                if(!docs.length){
+                  loginDone();toast('No account yet - create one below');
+                  var sw=document.getElementById('sw');if(sw)sw.click();return;
+                }
+                var dd=Object.assign({id:docs[0].id},docs[0].data());
                 if(!tryPinDoc(dd,pin,normP,phone)){addForgotBtn();toast('Wrong PIN');return;}
-                USER=Object.assign({},dd,{role:AR.id,pin_hash:pinHash,verified:dd.verified||false});loginDone();su();startApp();
-              }).catch(function(){loginDone();toast('Login error - check connection');});
+                db.collection('tumana_users').doc(docs[0].id).set({pin:pin,pin_hash:pinHash},{merge:true}).catch(function(){});
+                USER=Object.assign({},dd,{role:AR.id,pin:pin,pin_hash:pinHash,verified:dd.verified||false});
+                loginDone();su();startApp();
+              }).catch(function(err){
+                loginDone();
+                var msg=err&&err.code==='permission-denied'?'Access denied \u2014 check Firestore rules':'Login failed \u2014 check connection';
+                toast(msg);
+              });
             return;
           }
           var d=Object.assign({id:snap.id},snap.data());
@@ -4072,7 +4081,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v81 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v82 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
