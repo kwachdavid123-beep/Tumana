@@ -205,6 +205,7 @@ setTimeout(function(){
 </script>
 
 <script>
+
 var USER=null,CART=[],SHOPS=[],CS=null;
 var _db=null,_fn=null,_fbL=false,_fbQ=[];
 var SORD=[],SDON=false,SUNSUB=null;
@@ -239,15 +240,15 @@ function navBack(){
 // ── CORE UI UTILITIES ────────────────────────────────────────────────
 var _pgEl=null;
 function pg(){
-  if(_pgEl&&_pgEl.isConnected)return _pgEl;
-  _pgEl=document.getElementById('pg');return _pgEl;
+  try{if(_pgEl&&_pgEl.parentNode)return _pgEl;}catch(e){_pgEl=null;}
+  return(_pgEl=document.getElementById('pg'));
 }
 function toast(msg,dur){var t=document.getElementById('toast');if(!t)return;t.innerHTML=msg;t.style.display='block';clearTimeout(t._tm);t._tm=setTimeout(function(){t.style.display='none';},dur||2800);}
 function empty(ico,title,sub){return '<div class="empty"><div class="et">'+ico+'</div><div style="font-weight:700;margin-bottom:4px">'+title+'</div><div class="es">'+sub+'</div></div>';}
 function hideSh(){var o=document.getElementById('ov');if(o)o.classList.remove('show');}
 function showSh(html){var s=document.getElementById('sh');var o=document.getElementById('ov');if(!s||!o)return;s.innerHTML=html;o.classList.add('show');}
 var _sbtEl=null;
-function setTitle(t,col){if(!_sbtEl||!_sbtEl.isConnected)_sbtEl=document.getElementById('sbt');if(_sbtEl){_sbtEl.textContent=t;if(col)_sbtEl.style.color=col;}}
+function setTitle(t,col){try{if(!_sbtEl||!_sbtEl.parentNode)_sbtEl=document.getElementById('sbt');if(_sbtEl){_sbtEl.textContent=t;if(col)_sbtEl.style.color=col;}}catch(e){}}
 function haversineKm(a,b,x,y){var R=6371,dL=(x-a)*Math.PI/180,dG=(y-b)*Math.PI/180,z=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(x*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(z),Math.sqrt(1-z));}
 function calcFee(km){var base=window._ADMIN_BASE_FEE||50;var rate=window._ADMIN_PER_KM||20;return Math.max(base,Math.round((base+rate*(km||0.5))/5)*5);}
 function applyTheme(){document.body.className=TH==='light'?'light':'';}
@@ -369,7 +370,7 @@ function dbGet(col,id,cb){
 }
 
 var _rbTimer=null;
-function renderRBodySoon(){clearTimeout(_rbTimer);_rbTimer=setTimeout(function(){if(typeof renderRBody==='function')renderRBody();},200);}
+function renderRBodySoon(){clearTimeout(_rbTimer);_rbTimer=setTimeout(function(){try{if(typeof renderRBody==='function')renderRBody();}catch(e){}},200);}
 
 var _isOnline=navigator.onLine;
 function showConnBanner(){
@@ -379,7 +380,7 @@ function showConnBanner(){
     bar.style.cssText='position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#000;font-size:11px;font-weight:800;text-align:center;padding:5px 8px;z-index:99999;transition:opacity .3s';
     document.body.appendChild(bar);
   }
-  bar.textContent='\u1F4F4 Offline \u2014 showing cached data. Sync when connected.';
+  bar.textContent=' Offline \u2014 showing cached data. Sync when connected.';
   bar.style.opacity='1';bar.style.display='block';
 }
 function hideConnBanner(){
@@ -394,7 +395,7 @@ window.addEventListener('online',function(){
 window.addEventListener('offline',function(){
   _isOnline=false;
   showConnBanner();
-  toast('\u1F4F4 Offline \u2014 changes will sync when connected');
+  toast(' Offline \u2014 changes will sync when connected');
 });
 if(!navigator.onLine){showConnBanner();}
 
@@ -4071,7 +4072,7 @@ function boot(){
         if(ld)ld.style.display='none';
         var ap=document.getElementById('app');
         if(ap)ap.style.display='flex';
-        toast('\u1F4F4 Offline mode \u2014 showing cached data');
+        toast('Offline mode \u2014 showing cached data');
         startApp();
         return;
       }
@@ -4081,7 +4082,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v82 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v83 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
@@ -4104,12 +4105,22 @@ function boot(){
   loadFB(function(){});
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='flex';
-  if(window.location.search.indexOf('admin')>=0||window.location.hash==='#admin'){
-    AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};AM='login';renderAuth();
-  } else if(USER){startApp();}
-  else{showRole();}
+  try{
+    if(window.location.search.indexOf('admin')>=0||window.location.hash==='#admin'){
+      AR={id:'admin',col:'#8b5cf6',ic:'&#x2699;',lbl:'Admin'};AM='login';renderAuth();
+    } else if(USER){startApp();}
+    else{showRole();}
+  }catch(bootErr){
+    console.error('Boot error:',bootErr);
+    var be=document.getElementById('boot-err');
+    if(be){be.style.display='block';be.innerHTML='&#x26A0; App error: '+bootErr.message+'<br><small>Try clearing app data or reinstalling</small>';}
+    // Show loading again so error is visible
+    document.getElementById('loading').style.display='flex';
+    document.getElementById('app').style.display='none';
+  }
 }
 boot();
+
 </script>
 </body>
 </html>
