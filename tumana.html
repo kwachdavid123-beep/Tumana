@@ -583,15 +583,15 @@ function startCust(){
   var _now=Date.now();
   var _lastFetch=window._shopFetchAt||0;
   var _stale=(_now-_lastFetch)>120000; // refresh if > 2 min old
-  if(!_stale&&SHOPS.length){renderShopList(SHOPS);return;}
+  if(!_stale&&SHOPS.length){showHome();return;}
   loadFB(function(db){
-    if(!db){if(SHOPS.length)renderShopList(SHOPS);return;}
+    if(!db){if(SHOPS.length)showHome();return;}
     db.collection('shops').where('verified','==',true).get().then(function(s){
       var ok=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
       window._shopFetchAt=Date.now();
       ok.sort(function(a,b){return(b.delivery_enabled===true?1:0)-(a.delivery_enabled===true?1:0);});
       if(ok.length){SHOPS=ok;window._shopFetchAt=Date.now();try{localStorage.setItem('tumana_shops',JSON.stringify(ok));}catch(e){}}
-      renderShopList(SHOPS);
+      showHome();
     }).catch(function(){try{var cs2=JSON.parse(localStorage.getItem('tumana_shops')||'[]');if(cs2.length){SHOPS=cs2;toast('Showing cached shops — offline');}}catch(e){}});
   });
   showHome();
@@ -4082,7 +4082,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v83 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v84 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
