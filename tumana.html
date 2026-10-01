@@ -224,6 +224,7 @@ var NAV_HIST=[];
 var NAV_HIST=[];
 function navPush(fn,args){
   cleanListeners();
+  if(window._riderMapCleanup){try{window._riderMapCleanup();}catch(e){}window._riderMapCleanup=null;}
   NAV_HIST.push({fn:fn,args:args||[]});
   if(NAV_HIST.length>10)NAV_HIST.shift();
   var bb=document.getElementById('back-btn');
@@ -1332,8 +1333,49 @@ function showActiveOrder(orderId){
       if(o.status==='shop_accepted'){
         h+='<button id="pay-now-btn" class="btn bg" style="font-size:16px;padding:16px;font-weight:800">&#x1F4B8; Pay Now - KSh '+(items.reduce(function(a,it){return a+(it.price*it.qty);},0)+fee)+'</button>';
       }
+      // Live rider map slot (shown when rider is assigned)
+      if(o.rider_phone&&o.status!=='delivered'&&o.status!=='rejected'){
+        h+='<div style="margin:12px 0 0">';
+        h+='<div style="font-size:13px;font-weight:800;color:#8b5cf6;margin-bottom:8px">&#x1F6F5; Rider Live Location</div>';
+        h+='<div id="live-rider-map" style="width:100%;height:220px;border-radius:12px;background:#1a1a22;overflow:hidden"></div>';
+        h+='<div id="live-rider-info" style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-top:4px;padding-bottom:4px">Loading rider location...</div>';
+        h+='</div>';
+      }
       h+='<button class="btn bo" onclick="showOrds()" style="margin-top:8px">Back to Orders</button>';
       pg().innerHTML='<div style="padding:14px 18px 100px">'+h+'</div>';
+      // Init live rider map if rider assigned
+      if(o.rider_phone&&document.getElementById('live-rider-map')){
+        var _rSub=null;
+        (function initLiveRiderMap(){
+          function _doMap(){
+            var L=window.L,el=document.getElementById('live-rider-map');if(!L||!el)return;
+            var cLat=o.delivery_lat||CHEMELIL_LAT,cLng=o.delivery_lng||CHEMELIL_LNG;
+            var lm=L.map(el,{zoomControl:false,attributionControl:false}).setView([cLat,cLng],15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(lm);
+            L.marker([cLat,cLng],{icon:L.divIcon({html:'<div style="font-size:22px;margin:-22px 0 0 -11px">&#x1F3E0;</div>',className:'',iconSize:[22,22]})}).addTo(lm);
+            var rMk=null;
+            loadFB(function(db2){
+              if(!db2)return;
+              _rSub=db2.collection('liveLocations').doc(o.rider_phone).onSnapshot(function(snap){
+                var info=document.getElementById('live-rider-info');
+                if(!snap.exists){if(info)info.textContent='Rider location not available yet';return;}
+                var d=snap.data();
+                if(!d.lat||!d.lng){if(info)info.textContent='Waiting for rider GPS...';return;}
+                if(rMk){rMk.setLatLng([d.lat,d.lng]);}
+                else{rMk=L.marker([d.lat,d.lng],{icon:L.divIcon({html:'<div style="font-size:26px;margin:-26px 0 0 -13px">&#x1F6F5;</div>',className:'',iconSize:[26,26]})}).addTo(lm).bindPopup(o.rider_name||'Rider');}
+                lm.fitBounds(L.latLngBounds([[cLat,cLng],[d.lat,d.lng]]),{padding:[30,30]});
+                var ago=Math.round((Date.now()-(d.ts||0))/60000);
+                if(info)info.textContent=d.online?'GPS: '+(ago<1?'just now':ago+'min ago')+' • '+o.rider_name:'Rider went offline';
+              });
+            });
+          }
+          if(window.L){setTimeout(_doMap,300);}
+          else{var ls=document.createElement('script');ls.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';ls.onload=function(){setTimeout(_doMap,200);};document.head.appendChild(ls);}
+        })();
+        // Cleanup when navigating away
+        var _prevPop=window._riderMapCleanup;
+        window._riderMapCleanup=function(){if(_rSub){try{_rSub();}catch(e){}_rSub=null;}if(_prevPop)_prevPop();};
+      }
       // Wire Pay Now
       var pb=document.getElementById('pay-now-btn');
       if(pb)pb.addEventListener('click',function(){showPaymentSheet(items.reduce(function(a,it){return a+(it.price*it.qty);},0),o.delivery_fee||calcFee(1));});
@@ -2729,41 +2771,56 @@ var _liveLocInterval=null;
 function startLiveLocation(){
   stopLiveLocation();
   if(!navigator.geolocation)return;
-  // Start continuous location tracking (WhatsApp-style)
-  _liveLocWatcher=navigator.geolocation.watchPosition(function(pos){
-    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-    window._custLat=lat;window._custLng=lng;
-    try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
-    // Update Firestore every 30s max (debounce)
+  var _lastLat=null,_lastLng=null,_lastWrite=0;
+  // Haversine distance in metres between two GPS points
+  function _gpsMetres(la1,ln1,la2,ln2){
+    var R=6371000,dLat=(la2-la1)*Math.PI/180,dLng=(ln2-ln1)*Math.PI/180;
+    var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  function _writeLocation(lat,lng,acc,hdg){
     var now=Date.now();
-    if(!window._lastGpsUpload||now-window._lastGpsUpload>30000){
-      window._lastGpsUpload=now;
-      loadFB(function(db){
-        if(!db)return;
-        db.collection('riders').doc(USER.phone).set({
-          lat:lat,lng:lng,acc:acc,gps_at:now,online:true
-        },{merge:true}).catch(function(){});
-      });
-    }
+    var moved=(_lastLat===null)||_gpsMetres(_lastLat,_lastLng,lat,lng)>30;
+    var elapsed=now-_lastWrite>5000;
+    if(!moved||!elapsed)return;
+    _lastLat=lat;_lastLng=lng;_lastWrite=now;
+    window._custLat=lat;window._custLng=lng;
+    try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:now}));}catch(e){}
+    loadFB(function(db){
+      if(!db)return;
+      var locData={lat:lat,lng:lng,acc:acc,heading:hdg||null,ts:now,online:true,name:USER.name||USER.phone};
+      // liveLocations = fast-write collection for tracking (separate from rider profile)
+      db.collection('liveLocations').doc(USER.phone).set(locData).catch(function(){});
+      // Update rider profile status less frequently (every 60s)
+      if(now-(_lastProfileWrite||0)>60000){
+        _lastProfileWrite=now;
+        db.collection('riders').doc(USER.phone).set({online:true,last_seen:now},{merge:true}).catch(function(){});
+      }
+    });
+  }
+  _liveLocWatcher=navigator.geolocation.watchPosition(function(pos){
+    _writeLocation(pos.coords.latitude,pos.coords.longitude,
+      Math.round(pos.coords.accuracy),pos.coords.heading||null);
   },function(){
-    // watchPosition failed — try single getGPSRobust
-    getGPSRobust(function(lat,lng){
-      loadFB(function(db){if(db)db.collection('riders').doc(USER.phone).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});});
-    },function(){},null);
-  },{enableHighAccuracy:false,timeout:20000,maximumAge:10000});
-  // Also update every 60s as backup
+    getGPSRobust(function(lat,lng){_writeLocation(lat,lng,50,null);},function(){},null);
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:3000});
+  // Backup heartbeat every 30s (keeps liveLocations fresh even if standing still)
   _liveLocInterval=setInterval(function(){
-    if(!RON)return;
-    getGPSRobust(function(lat,lng){
-      window._custLat=lat;window._custLng=lng;
-      loadFB(function(db){if(db)db.collection('riders').doc(USER.phone).set({lat:lat,lng:lng,gps_at:Date.now()},{merge:true}).catch(function(){});});
-    },function(){},null);
-  },60000);
-  toast('Live location sharing started');
+    if(!RON||_lastLat===null)return;
+    _lastWrite=0; // force write on next tick
+    _writeLocation(_lastLat,_lastLng,50,null);
+  },30000);
+  toast('Live location ON ✓');
 }
 function stopLiveLocation(){
   if(_liveLocWatcher!==null){try{navigator.geolocation.clearWatch(_liveLocWatcher);}catch(e){}  _liveLocWatcher=null;}
   if(_liveLocInterval){clearInterval(_liveLocInterval);_liveLocInterval=null;}
+  // Mark offline in liveLocations so customer map shows rider is offline
+  if(USER&&USER.phone)loadFB(function(db){
+    if(!db)return;
+    db.collection('liveLocations').doc(USER.phone).set({online:false,ts:Date.now()},{merge:true}).catch(function(){});
+    db.collection('riders').doc(USER.phone).set({online:false},{merge:true}).catch(function(){});
+  });
 }
 function startJL(){
   if(RUNSUB){RUNSUB();RUNSUB=null;}
@@ -4082,7 +4139,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v84 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v85 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
