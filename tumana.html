@@ -1509,140 +1509,242 @@ function searchLocalPlaces(query){
 
 
 function showMapPicker(onConfirm,defaultLat,defaultLng){
-  // Best starting point: passed default → window cache → localStorage cache → Chemelil center
-  var lat=defaultLat||window._custLat||CHEMELIL_LAT;
-  var lng=defaultLng||window._custLng||CHEMELIL_LNG;
-  try{
-    var cg=JSON.parse(localStorage.getItem('tumana_gps')||'null');
-    if(cg&&cg.lat&&!defaultLat){lat=cg.lat;lng=cg.lng;}
-  }catch(e){}
+  // New: card-based location picker - faster, no map required
+  showLocationPicker(onConfirm,'Pin Your Delivery Location',defaultLat,defaultLng);
+}
 
-  showSh('<div class="hd"></div>'
-    +'<div style="font-size:16px;font-weight:800;margin:8px 18px 6px">Pin Your Location</div>'
-    +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin:0 18px 8px">GPS auto-finds you. Drag pin or tap map to adjust.</div>'
-    +'<div id="map-pick-wrap" style="position:relative;width:100%;height:310px;background:#1a1a22">'
-    +'<div id="map-pick" style="width:100%;height:310px"></div>'
-    // GPS status badge — shown over map
-    +'<div id="map-gps-badge" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;white-space:nowrap;z-index:9999;pointer-events:none">&#x1F4E1; Getting your GPS...</div>'
-    // My Location button
-    +'<button id="map-my-loc" style="position:absolute;top:8px;right:8px;z-index:9999;background:#10b981;border:none;color:#fff;font-size:18px;width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.4)" title="Go to my location">&#x1F3AF;</button>'
-    +'<div id="map-pin-info" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:3px 10px;border-radius:20px;pointer-events:none;z-index:9999"></div>'
-    +'</div>'
-    +'<div style="padding:10px 18px 0;display:flex;gap:8px">'
-    +'<button id="map-confirm" class="btn bg" style="flex:1;font-size:14px;padding:13px">&#x2714; Confirm This Location</button>'
-    +'<button class="btn bo" onclick="hideSh()" style="padding:13px 14px">Cancel</button>'
-    +'</div>');
-
-  function initMap(){
-    var L=window.L;
-    var el=document.getElementById('map-pick');
-    if(!L||!el)return;
-    // Clear stale Leaflet state
-    if(el._leaflet_id)try{el._leaflet_id=null;}catch(e){}
-    var map=L.map('map-pick',{zoomControl:true,attributionControl:false}).setView([lat,lng],16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-    var pin=L.marker([lat,lng],{draggable:true,
-      icon:L.divIcon({html:'<div style="font-size:32px;margin-top:-32px;margin-left:-16px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))">&#x1F4CD;</div>',className:'',iconSize:[32,32]})
-    }).addTo(map);
-    var curLat=lat,curLng=lng;
-
-    function updateInfo(la,ln){
-      curLat=la;curLng=ln;
-      var e=document.getElementById('map-pin-info');
-      if(e)e.textContent=la.toFixed(5)+', '+ln.toFixed(5);
-    }
-    function setBadge(msg,color){
-      var b=document.getElementById('map-gps-badge');
-      if(!b)return;
-      b.textContent=msg;b.style.background=color||'rgba(0,0,0,.75)';b.style.display='block';
-    }
-    function hideBadge(delay){
-      setTimeout(function(){
-        var b=document.getElementById('map-gps-badge');if(b)b.style.display='none';
-      },delay||2000);
-    }
-    function flyToGPS(gLat,gLng,acc){
-      map.flyTo([gLat,gLng],17,{animate:true,duration:1.2});
-      setTimeout(function(){
-        pin.setLatLng([gLat,gLng]);
-        updateInfo(gLat,gLng);
-      },400);
-      window._custLat=gLat;window._custLng=gLng;
-      try{localStorage.setItem('tumana_gps',JSON.stringify({lat:gLat,lng:gLng,ts:Date.now()}));}catch(e){}
-      setBadge('&#x2705; GPS ±'+acc+'m','rgba(16,185,129,.9)');
-      hideBadge(3000);
-    }
-
-    function tryGPS(showFail){
-      if(!navigator.geolocation){
-        setBadge('&#x1F4CD; Drag pin to your spot','rgba(245,158,11,.85)');
-        hideBadge(3000);return;
-      }
-      setBadge('&#x1F4E1; Getting GPS...','rgba(0,0,0,.75)');
-      navigator.geolocation.getCurrentPosition(
-        function(pos){flyToGPS(pos.coords.latitude,pos.coords.longitude,Math.round(pos.coords.accuracy));},
-        function(){
-          // Try high-accuracy as fallback
-          navigator.geolocation.getCurrentPosition(
-            function(pos){flyToGPS(pos.coords.latitude,pos.coords.longitude,Math.round(pos.coords.accuracy));},
-            function(){
-              setBadge('&#x1F4CD; GPS blocked — drag pin to your spot','rgba(245,158,11,.85)');
-              hideBadge(4000);
-            },
-            {enableHighAccuracy:true,timeout:12000,maximumAge:0}
-          );
-        },
-        {enableHighAccuracy:false,timeout:8000,maximumAge:60000}
-      );
-    }
-
-    updateInfo(lat,lng);
-    pin.on('dragend',function(e){var p=e.target.getLatLng();updateInfo(p.lat,p.lng);});
-    map.on('click',function(e){
-      pin.setLatLng(e.latlng);
-      updateInfo(e.latlng.lat,e.latlng.lng);
-      var b=document.getElementById('map-gps-badge');if(b)b.style.display='none';
+function showLocationPicker(onConfirm,title,defLat,defLng){
+  var _selected=null; // {name,lat,lng}
+  // Pre-select if coords match a known place
+  if(defLat&&defLng){
+    CHEMELIL_PLACES.forEach(function(p){
+      if(Math.abs(p.lat-defLat)<0.001&&Math.abs(p.lng-defLng)<0.001)_selected=p;
     });
+  }
 
-    // My Location button
-    var mlBtn=document.getElementById('map-my-loc');
-    if(mlBtn)mlBtn.addEventListener('click',function(){tryGPS(true);});
+  function buildSh(){
+    var h='<div class="hd"></div>';
+    h+='<div style="font-size:16px;font-weight:800;margin:0 0 10px">'+(title||'Select Location')+'</div>';
 
-    // Auto-trigger GPS on open
-    tryGPS(false);
+    // Search input
+    h+='<div style="position:relative;margin-bottom:12px">'
+      +'<input id="loc-search" type="text" placeholder="&#x1F50D; Type a place name..." autocomplete="off" '
+      +'style="width:100%;background:#111116;border:1.5px solid rgba(16,185,129,.25);border-radius:10px;padding:11px 36px 11px 12px;font-size:15px;color:#fff;font-family:inherit;outline:none;box-sizing:border-box">'
+      +'<span id="loc-gps-btn" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:18px;cursor:pointer" title="Use GPS">&#x1F4CD;</span>'
+      +'</div>';
+
+    // Selected display
+    h+='<div id="loc-selected" style="display:'+(  _selected?'flex':'none')+';align-items:center;gap:8px;background:rgba(16,185,129,.1);border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:10px 12px;margin-bottom:10px">'
+      +'<span style="font-size:18px">&#x2705;</span>'
+      +'<div style="flex:1"><div id="loc-sel-name" style="font-size:14px;font-weight:800;color:#10b981">'+(_selected?_selected.name:'')+'</div>'
+      +'<div style="font-size:11px;color:rgba(255,255,255,.4)">Tap a card below to change</div></div>'
+      +'</div>';
+
+    // Quick-pick landmark cards
+    h+='<div style="font-size:11px;font-weight:800;color:rgba(255,255,255,.35);letter-spacing:.5px;margin-bottom:8px">QUICK SELECT</div>';
+    h+='<div id="loc-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;max-height:300px;overflow-y:auto;padding-bottom:4px">';
+
+    var icons={'Market':'&#x1F6D2;','Factory':'&#x1F3ED;','School':'&#x1F3EB;','Health':'&#x1F3E5;','Town':'&#x1F3D9;','Centre':'&#x1F3D9;',
+      'Kachakwama':'&#x1F4CD;','Kandolo':'&#x1F4CD;','Miwani':'&#x1F3D8;','Fort':'&#x1F5FA;','Kibos':'&#x1F4CD;','Church':'&#x26EA;',
+      'Primary':'&#x1F3EB;','Secondary':'&#x1F3EB;','Hospital':'&#x1F3E5;','Police':'&#x1F46E;','Stage':'&#x1F68C;'};
+    function getIcon(name){
+      var ic='&#x1F4CD;';
+      Object.keys(icons).forEach(function(k){if(name.includes(k))ic=icons[k];});
+      return ic;
+    }
+
+    // Load community locs too
+    var allPlaces=CHEMELIL_PLACES.slice();
+    try{
+      var cl=JSON.parse(localStorage.getItem('tumana_comm_locs')||'[]');
+      cl.forEach(function(l){if(l.name&&l.lat)allPlaces.push({name:l.name,lat:l.lat,lng:l.lng,community:true});});
+    }catch(e){}
+
+    allPlaces.forEach(function(p,i){
+      var isSel=_selected&&_selected.name===p.name;
+      h+='<div class="loc-card" data-i="'+i+'" style="cursor:pointer;padding:10px 10px;border-radius:10px;border:1.5px solid rgba(255,255,255,'+(isSel?'.3':'.07')+');background:rgba(255,255,255,'+(isSel?'.08':'.03')+');transition:all .15s">'
+        +'<div style="font-size:20px;margin-bottom:4px">'+getIcon(p.name)+'</div>'
+        +'<div style="font-size:12px;font-weight:700;color:'+(isSel?'#10b981':'rgba(255,255,255,.85)')+';line-height:1.3">'+p.name+'</div>'
+        +(p.community?'<div style="font-size:9px;color:rgba(16,185,129,.6);margin-top:2px">Community</div>':'')
+        +'</div>';
+    });
+    h+='</div>';
+
+    // Map pin option (advanced)
+    h+='<div style="text-align:center;margin:10px 0 4px">'
+      +'<button id="loc-map-btn" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline">&#x1F5FA; Pin on map instead</button>'
+      +'</div>';
 
     // Confirm
-    var cb=document.getElementById('map-confirm');
+    h+='<button id="loc-confirm" class="btn bg" style="margin-top:6px;font-size:15px;padding:14px;opacity:'+(_selected?1:.5)+'" '
+      +(_selected?'':'disabled')+'">Confirm Location</button>';
+    return h;
+  }
+
+  showSh(buildSh());
+  var _allPlaces=CHEMELIL_PLACES.slice();
+  try{var cl=JSON.parse(localStorage.getItem('tumana_comm_locs')||'[]');cl.forEach(function(l){if(l.name&&l.lat)_allPlaces.push(l);});}catch(e){}
+
+  function selectPlace(p){
+    _selected=p;
+    var selDiv=document.getElementById('loc-selected');
+    var selName=document.getElementById('loc-sel-name');
+    var confirmBtn=document.getElementById('loc-confirm');
+    if(selDiv){selDiv.style.display='flex';}
+    if(selName)selName.textContent=p.name;
+    if(confirmBtn){confirmBtn.disabled=false;confirmBtn.style.opacity='1';}
+    // Highlight selected card
+    document.querySelectorAll('.loc-card').forEach(function(card){
+      var idx=parseInt(card.getAttribute('data-i'));
+      var isThis=_allPlaces[idx]&&_allPlaces[idx].name===p.name;
+      card.style.borderColor=isThis?'rgba(16,185,129,.4)':'rgba(255,255,255,.07)';
+      card.style.background=isThis?'rgba(16,185,129,.08)':'rgba(255,255,255,.03)';
+      card.querySelector('div:nth-child(2)').style.color=isThis?'#10b981':'rgba(255,255,255,.85)';
+    });
+    var si=document.getElementById('loc-search');if(si)si.value=p.name;
+  }
+
+  // Wire card clicks
+  document.querySelectorAll('.loc-card').forEach(function(card){
+    card.addEventListener('click',function(){
+      var i=parseInt(this.getAttribute('data-i'));
+      if(_allPlaces[i])selectPlace(_allPlaces[i]);
+    });
+  });
+
+  // Search/type
+  var si=document.getElementById('loc-search');
+  if(si){
+    if(_selected)si.value=_selected.name;
+    si.addEventListener('input',function(){
+      var q=(this.value||'').trim().toLowerCase();
+      // Filter cards
+      document.querySelectorAll('.loc-card').forEach(function(card){
+        var i=parseInt(card.getAttribute('data-i'));
+        var name=(_allPlaces[i]&&_allPlaces[i].name)||'';
+        card.style.display=(!q||name.toLowerCase().includes(q))?'':'none';
+      });
+      // If typed something not in list, allow as custom location
+      var confirmBtn=document.getElementById('loc-confirm');
+      if(this.value.trim().length>2&&confirmBtn){
+        confirmBtn.disabled=false;confirmBtn.style.opacity='1';
+      }
+    });
+    si.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){e.preventDefault();
+        // Select first visible card
+        var first=document.querySelector('.loc-card[style*="block"],.loc-card:not([style*="none"])');
+        if(first){var i=parseInt(first.getAttribute('data-i'));if(_allPlaces[i])selectPlace(_allPlaces[i]);}
+      }
+    });
+  }
+
+  // GPS button
+  var gpsBt=document.getElementById('loc-gps-btn');
+  if(gpsBt)gpsBt.addEventListener('click',function(){
+    var btn=this;btn.textContent='&#x23F3;';
+    navigator.geolocation.getCurrentPosition(function(pos){
+      btn.textContent='&#x2705;';
+      var lat=pos.coords.latitude,lng=pos.coords.longitude;
+      window._custLat=lat;window._custLng=lng;
+      try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
+      // Find nearest place
+      var best=null,bestD=99999;
+      _allPlaces.forEach(function(p){
+        if(!p.lat)return;
+        var d=Math.sqrt(Math.pow(p.lat-lat,2)+Math.pow(p.lng-lng,2));
+        if(d<bestD){bestD=d;best=p;}
+      });
+      if(bestD<0.005&&best){
+        selectPlace(best);
+        toast('GPS found \u2714 ' +best.name);
+      } else {
+        // Use GPS coords with custom name
+        var si2=document.getElementById('loc-search');
+        var custName='My Location (GPS)';
+        if(si2)si2.value=custName;
+        _selected={name:custName,lat:lat,lng:lng};
+        var cb=document.getElementById('loc-confirm');
+        if(cb){cb.disabled=false;cb.style.opacity='1';}
+        var sd=document.getElementById('loc-selected');
+        var sn=document.getElementById('loc-sel-name');
+        if(sd)sd.style.display='flex';if(sn)sn.textContent=custName;
+        toast('\u2705 GPS location captured');
+      }
+      setTimeout(function(){btn.textContent='&#x1F4CD;';},3000);
+    },function(){
+      btn.textContent='&#x274C;';
+      toast('GPS not available \u2014 select from list or type location');
+      setTimeout(function(){btn.textContent='&#x1F4CD;';},3000);
+    },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+  });
+
+  // Map pin (advanced)
+  var mapBt=document.getElementById('loc-map-btn');
+  if(mapBt)mapBt.addEventListener('click',function(){
+    hideSh();
+    // Open Leaflet map as before
+    var lat=(_selected&&_selected.lat)||window._custLat||CHEMELIL_LAT;
+    var lng=(_selected&&_selected.lng)||window._custLng||CHEMELIL_LNG;
+    setTimeout(function(){_openLeafletPicker(onConfirm,lat,lng);},200);
+  });
+
+  // Confirm
+  var confBt=document.getElementById('loc-confirm');
+  if(confBt)confBt.addEventListener('click',function(){
+    var si2=document.getElementById('loc-search');
+    var typed=(si2&&si2.value.trim())||'';
+    if(_selected){
+      hideSh();
+      window._custLat=_selected.lat||window._custLat;
+      window._custLng=_selected.lng||window._custLng;
+      saveAddr(_selected.name,_selected.lat||null,_selected.lng||null);
+      onConfirm(_selected.lat||window._custLat,_selected.lng||window._custLng,_selected.name);
+    } else if(typed.length>2){
+      hideSh();
+      saveAddr(typed,window._custLat||null,window._custLng||null);
+      onConfirm(window._custLat,window._custLng,typed);
+    }
+  });
+}
+
+function _openLeafletPicker(onConfirm,lat,lng){
+  // Leaflet map as advanced option
+  lat=lat||CHEMELIL_LAT;lng=lng||CHEMELIL_LNG;
+  showSh('<div class="hd"></div>'
+    +'<div style="font-size:15px;font-weight:800;margin-bottom:8px">Pin Exact Location</div>'
+    +'<div id="leaf-map" style="width:100%;height:280px;border-radius:12px;background:#1a1a22"></div>'
+    +'<div id="leaf-info" style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin:6px 0">Drag pin or tap map</div>'
+    +'<button id="leaf-confirm" class="btn bg" style="font-size:14px;padding:13px">Confirm Pin Location</button>'
+    +'<button class="btn bo" onclick="hideSh()" style="margin-top:6px">Cancel</button>');
+  function initLeaf(){
+    var L=window.L,el=document.getElementById('leaf-map');if(!L||!el)return;
+    var map=L.map(el,{zoomControl:true,attributionControl:false}).setView([lat,lng],16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+    var pin=L.marker([lat,lng],{draggable:true,icon:L.divIcon({html:'<div style="font-size:32px;margin:-32px 0 0 -16px">&#x1F4CD;</div>',className:'',iconSize:[32,32]})}).addTo(map);
+    var curLat=lat,curLng=lng;
+    pin.on('dragend',function(e){var p=e.target.getLatLng();curLat=p.lat;curLng=p.lng;});
+    map.on('click',function(e){pin.setLatLng(e.latlng);curLat=e.latlng.lat;curLng=e.latlng.lng;});
+    // GPS fly
+    navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(pos){
+      map.flyTo([pos.coords.latitude,pos.coords.longitude],17,{duration:1});
+      pin.setLatLng([pos.coords.latitude,pos.coords.longitude]);
+      curLat=pos.coords.latitude;curLng=pos.coords.longitude;
+    },function(){},{enableHighAccuracy:true,timeout:8000,maximumAge:60000});
+    var cb=document.getElementById('leaf-confirm');
     if(cb)cb.addEventListener('click',function(){
       hideSh();
       fetch('https://nominatim.openstreetmap.org/reverse?lat='+curLat+'&lon='+curLng+'&format=json')
         .then(function(r){return r.json();})
         .then(function(d){
-          var addr='Pinned Location';
-          if(d.address){
-            addr=(d.address.village||d.address.town||d.address.suburb||d.address.county||'Chemelil');
-            if(d.address.road)addr+=' - '+d.address.road;
-          }
-          saveCommunityLoc(addr,curLat,curLng);
-          saveAddr(addr,curLat,curLng);
+          var addr=d.address?(d.address.village||d.address.suburb||d.address.county||'Pinned Location'):'Pinned Location';
+          saveAddr(addr,curLat,curLng);saveCommunityLoc(addr,curLat,curLng);
           onConfirm(curLat,curLng,addr);
         }).catch(function(){onConfirm(curLat,curLng,'Pinned location');});
     });
   }
-
-  if(window.L){
-    setTimeout(initMap,200);
-  } else {
-    if(!document.getElementById('leaflet-css')){
-      var lc=document.createElement('link');lc.id='leaflet-css';lc.rel='stylesheet';
-      lc.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
-      document.head.appendChild(lc);
-    }
-    var ls=document.createElement('script');
-    ls.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-    ls.onload=function(){setTimeout(initMap,300);};
-    document.head.appendChild(ls);
-  }
+  if(window.L){setTimeout(initLeaf,200);}
+  else{var ls=document.createElement('script');ls.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';ls.onload=function(){setTimeout(initLeaf,300);};document.head.appendChild(ls);}
 }
 
 function showProfile(){
@@ -4139,7 +4241,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v85 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v86 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
