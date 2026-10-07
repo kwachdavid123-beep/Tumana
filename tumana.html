@@ -277,17 +277,20 @@ function saveCommunityLoc(name,lat,lng){
   });
 }
 function loadCommunityLocs(cb){
-  // Load from Firestore
+  // Check cache freshness — only hit Firestore if >24hrs old
+  var cached=getCommunityLocs();
+  var lastFetch=0;try{lastFetch=parseInt(localStorage.getItem('tumana_locs_at')||'0');}catch(e){}
+  var fresh=(Date.now()-lastFetch)<86400000; // 24 hours
+  if(fresh&&cached.length){cb(cached);return;} // serve cache instantly
   loadFB(function(db){
-    if(!db){cb(getCommunityLocs());return;}
+    if(!db){cb(cached);return;}
     db.collection('named_locations').limit(100).get().then(function(snap){
       var locs=snap.docs.map(function(d){return d.data();});
-      // Merge with local
       var local=getCommunityLocs();
       local.forEach(function(l){if(!locs.find(function(f){return f.name.toLowerCase()===l.name.toLowerCase();}))locs.push(l);});
-      try{localStorage.setItem('tumana_locs',JSON.stringify(locs));}catch(e){}
+      try{localStorage.setItem('tumana_locs',JSON.stringify(locs));localStorage.setItem('tumana_locs_at',String(Date.now()));}catch(e){}
       cb(locs);
-    }).catch(function(){cb(getCommunityLocs());});
+    }).catch(function(){cb(cached);});
   });
 }
 
@@ -1708,6 +1711,23 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
   });
 }
 
+// Global helper for pickup form location taps
+window._openLocPick=function(field){
+  var isFrom=field==='pfr';
+  var title=isFrom?'Select Pickup Location':'Select Dropoff Location';
+  var latKey=isFrom?'_gpsLat':'_dropLat';
+  var lngKey=isFrom?'_gpsLng':'_dropLng';
+  showLocationPicker(function(lat,lng,name){
+    window[latKey]=lat;window[lngKey]=lng;
+    var inp=document.getElementById(field);if(inp)inp.value=name;
+    var disp=document.getElementById(field+'-display');
+    var txt=document.getElementById(field+'-txt');
+    if(txt)txt.textContent=name;
+    if(disp){disp.style.borderColor=isFrom?'rgba(16,185,129,.5)':'rgba(245,158,11,.5)';}
+    saveAddr(name,lat,lng);updateFare&&updateFare();
+  },title,window[latKey],window[lngKey]);
+};
+
 function _openLeafletPicker(onConfirm,lat,lng){
   // Leaflet map as advanced option
   lat=lat||CHEMELIL_LAT;lng=lng||CHEMELIL_LNG;
@@ -1919,36 +1939,27 @@ function showPickup(){
     });
   }
 
-  document.getElementById('geo-pick').addEventListener('click',function(){geoSearch('pfr','pfr-suggest','_gpsLat','_gpsLng',null);});
-  document.getElementById('map-pick-btn').addEventListener('click',function(){
-    showMapPicker(function(lat,lng,addr){
-      window._gpsLat=lat;window._gpsLng=lng;
-      var f=document.getElementById('pfr');if(f)f.value=addr;
-      saveCommunityLoc(addr,lat,lng);updateFare();
-    },window._gpsLat,window._gpsLng);
+  // Wire pfr/pto inputs to open card picker (readonly + tap to open)
+  ['pfr','pto'].forEach(function(fid){
+    var inp = document.getElementById(fid);
+    if(!inp) return;
+    inp.setAttribute('readonly','true');
+    inp.style.cursor = 'pointer';
+    inp.placeholder = fid==='pfr' ? '&#x1F4CD; Tap to select pickup location' : '&#x1F3E0; Tap to select dropoff location';
+    inp.addEventListener('click', function(){
+      if(window._openLocPick) window._openLocPick(fid);
+    });
+    inp.addEventListener('focus', function(){ this.blur(); if(window._openLocPick) window._openLocPick(fid); });
   });
-  document.getElementById('geo-drop').addEventListener('click',function(){geoSearch('pto','pto-suggest','_dropLat','_dropLng',null);});
-  document.getElementById('map-drop-btn').addEventListener('click',function(){
-    showMapPicker(function(lat,lng,addr){
-      window._dropLat=lat;window._dropLng=lng;
-      var f=document.getElementById('pto');if(f)f.value=addr;
-      saveCommunityLoc(addr,lat,lng);updateFare();
-    },window._dropLat,window._dropLng);
-  });
+  // Update _openLocPick to also update the text input value
+
 
   // Also search on Enter key
   var pfrEl=document.getElementById('pfr');var ptoEl=document.getElementById('pto');
   if(pfrEl)pfrEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();geoSearch('pfr','pfr-suggest','_gpsLat','_gpsLng',null);}});
   if(ptoEl)ptoEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();geoSearch('pto','pto-suggest','_dropLat','_dropLng',null);}});
 
-  document.getElementById('gps-pick').addEventListener('click',function(){
-    var btn=this;btn.disabled=true;btn.textContent='Getting GPS...';
-    getGPSRobust(function(la,ln,acc){window._gpsLat=la;window._gpsLng=ln;var f=document.getElementById('pfr');if(f&&!f.value)f.value='My GPS (±'+acc+'m)';btn.disabled=false;btn.textContent='GPS captured';updateFare();},function(msg){btn.disabled=false;btn.textContent='GPS Unavailable';var st=document.getElementById('gps-pick-st');if(st)st.textContent=msg||'GPS failed';},document.getElementById('gps-pick-st'));
-  });
-  document.getElementById('gps-drop').addEventListener('click',function(){
-    var btn=this;btn.disabled=true;btn.textContent='Getting GPS...';
-    getGPSRobust(function(la,ln,acc){window._dropLat=la;window._dropLng=ln;var f=document.getElementById('pto');if(f&&!f.value)f.value='Dropoff GPS (±'+acc+'m)';btn.disabled=false;btn.textContent='GPS captured';updateFare();},function(msg){btn.disabled=false;btn.textContent='GPS Unavailable';var st=document.getElementById('gps-drop-st');if(st)st.textContent=msg||'GPS failed';},document.getElementById('gps-drop-st'));
-  });
+  // GPS handled inside showLocationPicker card picker
   document.getElementById('reqb').addEventListener('click',function(){
     var from=(document.getElementById('pfr').value||'').trim();var to=(document.getElementById('pto').value||'').trim();
     if(!from){toast('Enter pickup location');return;}if(!to){toast('Enter drop-off location');return;}
@@ -4241,7 +4252,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v86 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v87 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
