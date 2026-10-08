@@ -1858,126 +1858,141 @@ function showPickup(){
   var estDf=calcFee(1);
   var savedLocs=CHEMELIL_PLACES.concat(getCommunityLocs());
   var topLocs=savedLocs.slice(0,6);
-  var locsHtml=topLocs.length?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">'+topLocs.map(function(l){return '<button class="loc-chip" data-lat="'+l.lat+'" data-lng="'+l.lng+'" data-name="'+l.name+'" style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;color:#10b981;cursor:pointer;font-family:inherit">&#x1F4CD; '+l.name+'</button>';}).join('')+'</div>':'';
+
+  // Build saved place chips
+  var chipsHtml='';
+  if(topLocs.length){
+    chipsHtml='<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.35);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Saved Places</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">'
+      +topLocs.map(function(l){
+        return '<button class="loc-chip" data-lat="'+l.lat+'" data-lng="'+l.lng+'" data-name="'+l.name+'"'
+          +' style="background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.18);border-radius:20px;'
+          +'padding:6px 12px;font-size:12px;font-weight:700;color:#10b981;cursor:pointer;font-family:inherit">'
+          +'&#x1F4CD; '+l.name+'</button>';
+      }).join('')
+      +'</div>';
+  }
+
   pg().innerHTML='<div style="padding:14px 18px 100px">'
-    +'<div style="font-size:19px;font-weight:700;margin-bottom:14px">Request a Rider</div>'
-    +(topLocs.length?'<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Saved Places</div>'+locsHtml:'')
-    +'<div style="font-size:10px;font-weight:800;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">&#x1F7E2; Pickup From</div>'
-    +'<div style="background:#111116;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:13px;margin-bottom:6px">'
-    +'<input id="pfr" type="text" placeholder="Type place name e.g. Kandolo, Market..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none;margin-bottom:8px">'
-    +'<div id="pfr-suggest" style="margin-bottom:6px"></div>'
-    +'<button id="geo-pick" style="width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:#10b981;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F50D; Search by Name</button>'
-    +'<button id="map-pick-btn" style="width:100%;padding:9px;background:rgba(16,185,129,.12);border:1.5px solid rgba(16,185,129,.3);border-radius:8px;color:#10b981;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:5px">&#x1F4CD; Pin on Map (WhatsApp-style)</button>'
-    +'<button id="gps-pick" style="width:100%;padding:7px;background:rgba(16,185,129,.03);border:1px solid rgba(16,185,129,.1);border-radius:8px;color:rgba(255,255,255,.4);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px">&#x1F4F6; Use GPS</button>'
-    +'<div id="gps-pick-st" style="font-size:11px;color:rgba(255,255,255,.35);text-align:center;margin-top:3px"></div></div>'
-    +'<div style="font-size:10px;font-weight:800;color:#ef4444;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">&#x1F534; Drop Off To</div>'
-    +'<div style="background:#111116;border:1.5px solid rgba(239,68,68,.3);border-radius:13px;padding:13px;margin-bottom:10px">'
-    +'<input id="pto" type="text" placeholder="Type destination e.g. Chemelil Factory..." style="background:transparent;border:none;font-size:15px;color:#fff;font-family:inherit;width:100%;outline:none;margin-bottom:8px">'
-    +'<div id="pto-suggest" style="margin-bottom:6px"></div>'
-    +'<button id="geo-drop" style="width:100%;padding:9px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:8px;color:#ef4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#x1F50D; Search by Name</button>'
-    +'<button id="map-drop-btn" style="width:100%;padding:9px;background:rgba(239,68,68,.1);border:1.5px solid rgba(239,68,68,.3);border-radius:8px;color:#ef4444;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:5px">&#x1F4CD; Pin on Map (WhatsApp-style)</button>'
-    +'<button id="gps-drop" style="width:100%;padding:7px;background:rgba(239,68,68,.03);border:1px solid rgba(239,68,68,.1);border-radius:8px;color:rgba(255,255,255,.4);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px">&#x1F4F6; Use GPS</button>'
-    +'<div id="gps-drop-st" style="font-size:11px;color:rgba(255,255,255,.35);text-align:center;margin-top:3px"></div></div>'
-    +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.15);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">'
-    +'<div><div style="font-size:12px;color:rgba(255,255,255,.4)">Delivery fee</div><div id="fare-sub" style="font-size:11px;color:rgba(255,255,255,.3);margin-top:2px">~KSh 50 base + distance</div></div>'
-    +'<div id="fared" style="font-size:28px;font-weight:800;color:#10b981">~KSh '+estDf+'</div></div>'
-    +'<button id="reqb" class="btn bg" style="font-size:16px;padding:17px">&#x1F6F5; Request Rider Now</button>'
+    +'<div style="font-size:20px;font-weight:800;margin-bottom:14px">&#x1F6F5; Request a Rider</div>'
+    +chipsHtml
+
+    // ── PICKUP FROM ──────────────────────────────────────────────────
+    +'<div style="font-size:10px;font-weight:800;color:#10b981;letter-spacing:2px;margin-bottom:8px">&#x1F7E2; PICKUP FROM</div>'
+    +'<div id="pfr-card" style="background:#111116;border:2px solid rgba(16,185,129,.25);border-radius:14px;padding:16px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px">'
+    +'<div style="width:44px;height:44px;border-radius:50%;background:rgba(16,185,129,.12);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">&#x1F4CD;</div>'
+    +'<div style="flex:1">'
+    +'<div id="pfr-txt" style="font-size:15px;font-weight:700;color:rgba(255,255,255,.4)">Tap to set pickup location</div>'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.25);margin-top:2px">From the card list or type</div>'
+    +'</div>'
+    +'<span style="font-size:13px;color:#10b981;font-weight:800">Select ›</span>'
+    +'</div>'
+    +'<input id="pfr" type="hidden">'
+
+    // ── DROP OFF TO ──────────────────────────────────────────────────
+    +'<div style="font-size:10px;font-weight:800;color:#ef4444;letter-spacing:2px;margin-bottom:8px">&#x1F534; DROP OFF TO</div>'
+    +'<div id="pto-card" style="background:#111116;border:2px solid rgba(239,68,68,.2);border-radius:14px;padding:16px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px">'
+    +'<div style="width:44px;height:44px;border-radius:50%;background:rgba(239,68,68,.08);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">&#x1F3E0;</div>'
+    +'<div style="flex:1">'
+    +'<div id="pto-txt" style="font-size:15px;font-weight:700;color:rgba(255,255,255,.4)">Tap to set dropoff location</div>'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.25);margin-top:2px">Where should we deliver?</div>'
+    +'</div>'
+    +'<span style="font-size:13px;color:#ef4444;font-weight:800">Select ›</span>'
+    +'</div>'
+    +'<input id="pto" type="hidden">'
+
+    // ── FARE DISPLAY ─────────────────────────────────────────────────
+    +'<div style="background:rgba(16,185,129,.05);border:1.5px solid rgba(16,185,129,.12);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">'
+    +'<div><div style="font-size:12px;color:rgba(255,255,255,.4)">Delivery fee</div>'
+    +'<div id="fare-sub" style="font-size:11px;color:rgba(255,255,255,.3);margin-top:2px">~KSh 50 base + distance</div></div>'
+    +'<div id="fared" style="font-size:28px;font-weight:900;color:#10b981">~KSh '+estDf+'</div></div>'
+
+    +'<button id="reqb" class="btn bg" style="font-size:16px;padding:17px;opacity:.5" disabled>&#x1F6F5; Request Rider Now</button>'
     +'</div>';
+
+  // ── Helpers ─────────────────────────────────────────────────────────
   function updateFare(){
     var km=1;
-    if(window._gpsLat&&window._gpsLng&&window._dropLat&&window._dropLng){km=Math.max(0.2,Math.round(haversineKm(window._gpsLat,window._gpsLng,window._dropLat,window._dropLng)*10)/10);}
+    if(window._gpsLat&&window._gpsLng&&window._dropLat&&window._dropLng){
+      km=Math.max(0.2,Math.round(haversineKm(window._gpsLat,window._gpsLng,window._dropLat,window._dropLng)*10)/10);
+    }
     var fee=calcFee(km);
     var fd=document.getElementById('fared');if(fd)fd.textContent='KSh '+fee;
     var fs=document.getElementById('fare-sub');if(fs)fs.textContent='~'+km+'km × KSh '+(window._ADMIN_PER_KM||20)+' + base';
     window._finalDf=fee;
   }
-  // Wire saved place chips
+
+  function setLoc(field,name,lat,lng){
+    var inp=document.getElementById(field);if(inp)inp.value=name;
+    var card=document.getElementById(field+'-card');
+    var txt=document.getElementById(field+'-txt');
+    var isFrom=field==='pfr';
+    if(txt){txt.textContent='&#x2705; '+name;txt.style.color=isFrom?'#10b981':'#ef4444';}
+    if(card){
+      card.style.borderColor=isFrom?'rgba(16,185,129,.6)':'rgba(239,68,68,.5)';
+      card.style.background=isFrom?'rgba(16,185,129,.06)':'rgba(239,68,68,.04)';
+    }
+    if(lat&&lng){
+      if(isFrom){window._gpsLat=lat;window._gpsLng=lng;}
+      else{window._dropLat=lat;window._dropLng=lng;}
+    }
+    // Enable request button if both set
+    var pfrV=(document.getElementById('pfr')||{}).value||'';
+    var ptoV=(document.getElementById('pto')||{}).value||'';
+    var rb=document.getElementById('reqb');
+    if(rb&&pfrV&&ptoV){rb.disabled=false;rb.style.opacity='1';}
+    saveAddr(name,lat,lng);
+    updateFare();
+  }
+
+  // ── Wire saved place chips ──────────────────────────────────────────
   pg().querySelectorAll('.loc-chip').forEach(function(chip){
     chip.addEventListener('click',function(){
       var name=this.getAttribute('data-name');
       var lat=parseFloat(this.getAttribute('data-lat')||'0');
       var lng=parseFloat(this.getAttribute('data-lng')||'0');
-      var pfr=document.getElementById('pfr');
-      if(pfr&&!pfr.value){pfr.value=name;if(lat&&lng){window._gpsLat=lat;window._gpsLng=lng;updateFare();}}
-      else{var pto=document.getElementById('pto');if(pto){pto.value=name;if(lat&&lng){window._dropLat=lat;window._dropLng=lng;updateFare();}}}
+      var pfrV=(document.getElementById('pfr')||{}).value||'';
+      if(!pfrV){setLoc('pfr',name,lat,lng);}
+      else{setLoc('pto',name,lat,lng);}
     });
   });
 
-  // Geocode search function
-  function geoSearch(inputId,suggestId,setLat,setLng,onDone){
-    var inp=document.getElementById(inputId);var sug=document.getElementById(suggestId);
-    if(!inp||!inp.value.trim()){toast('Type a place name first');return;}
-    var query=inp.value.trim();
-    // Check community locations first
-    var locs=getCommunityLocs();
-    var local=locs.filter(function(l){return l.name.toLowerCase().includes(query.toLowerCase());});
-    if(local.length){
-      var h='';local.slice(0,4).forEach(function(l){h+='<button class="geo-res" data-lat="'+l.lat+'" data-lng="'+l.lng+'" data-name="'+l.name+'" style="width:100%;text-align:left;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:7px 10px;font-size:12px;color:#10b981;cursor:pointer;font-family:inherit;margin-bottom:4px">&#x1F4CD; '+l.name+'</button>';});
-      if(sug)sug.innerHTML=h;
-      if(sug)sug.querySelectorAll('.geo-res').forEach(function(btn){btn.addEventListener('click',function(){
-        var n=this.getAttribute('data-name');var la=parseFloat(this.getAttribute('data-lat'));var ln=parseFloat(this.getAttribute('data-lng'));
-        if(inp)inp.value=n;if(sug)sug.innerHTML='';
-        window[setLat]=la;window[setLng]=ln;
-        saveCommunityLoc(n,la,ln);saveAddr(n,la,ln);updateFare();if(onDone)onDone(n,la,ln);
-        toast('Location set: '+n);
-      });});
-      return;
-    }
-    // Nominatim geocoding
-    if(sug)sug.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.4);padding:4px 0">Searching...</div>';
-    geocodePlace(query,function(err,results){
-      if(err||!results.length){if(sug)sug.innerHTML='<div style="font-size:11px;color:#ef4444;padding:4px 0">Not found — try a different name</div>';return;}
-      var h='';results.slice(0,4).forEach(function(r){h+='<button class="geo-res" data-lat="'+r.lat+'" data-lng="'+r.lng+'" data-name="'+r.name+'" style="width:100%;text-align:left;background:#1a1a22;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px 10px;font-size:12px;color:#fff;cursor:pointer;font-family:inherit;margin-bottom:4px">&#x1F4CD; '+r.name+'<div style="font-size:10px;color:rgba(255,255,255,.35)">'+r.fullName.slice(0,60)+'</div></button>';});
-      if(sug)sug.innerHTML=h;
-      if(sug)sug.querySelectorAll('.geo-res').forEach(function(btn){btn.addEventListener('click',function(){
-        var n=this.getAttribute('data-name');var la=parseFloat(this.getAttribute('data-lat'));var ln=parseFloat(this.getAttribute('data-lng'));
-        if(inp)inp.value=n;if(sug)sug.innerHTML='';
-        window[setLat]=la;window[setLng]=ln;
-        saveCommunityLoc(n,la,ln);saveAddr(n,la,ln);updateFare();if(onDone)onDone(n,la,ln);
-        toast('Location confirmed: '+n);
-      });});
-    });
-  }
-
-  // Wire pfr/pto inputs to open card picker (readonly + tap to open)
-  ['pfr','pto'].forEach(function(fid){
-    var inp = document.getElementById(fid);
-    if(!inp) return;
-    inp.setAttribute('readonly','true');
-    inp.style.cursor = 'pointer';
-    inp.placeholder = fid==='pfr' ? '&#x1F4CD; Tap to select pickup location' : '&#x1F3E0; Tap to select dropoff location';
-    inp.addEventListener('click', function(){
-      if(window._openLocPick) window._openLocPick(fid);
-    });
-    inp.addEventListener('focus', function(){ this.blur(); if(window._openLocPick) window._openLocPick(fid); });
+  // ── Wire location tap cards ─────────────────────────────────────────
+  var pfrCard=document.getElementById('pfr-card');
+  var ptoCard=document.getElementById('pto-card');
+  if(pfrCard)pfrCard.addEventListener('click',function(){
+    showLocationPicker(function(lat,lng,name){setLoc('pfr',name,lat,lng);},'Select Pickup Location',window._gpsLat,window._gpsLng);
   });
-  // Update _openLocPick to also update the text input value
+  if(ptoCard)ptoCard.addEventListener('click',function(){
+    showLocationPicker(function(lat,lng,name){setLoc('pto',name,lat,lng);},'Select Dropoff Location',window._dropLat,window._dropLng);
+  });
 
-
-  // Also search on Enter key
-  var pfrEl=document.getElementById('pfr');var ptoEl=document.getElementById('pto');
-  if(pfrEl)pfrEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();geoSearch('pfr','pfr-suggest','_gpsLat','_gpsLng',null);}});
-  if(ptoEl)ptoEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();geoSearch('pto','pto-suggest','_dropLat','_dropLng',null);}});
-
-  // GPS handled inside showLocationPicker card picker
+  // ── Request Rider ───────────────────────────────────────────────────
   document.getElementById('reqb').addEventListener('click',function(){
-    var from=(document.getElementById('pfr').value||'').trim();var to=(document.getElementById('pto').value||'').trim();
-    if(!from){toast('Enter pickup location');return;}if(!to){toast('Enter drop-off location');return;}
-    saveAddr(from,window._gpsLat,window._gpsLng);
-    saveAddr(to,window._dropLat,window._dropLng);
+    var from=(document.getElementById('pfr').value||'').trim();
+    var to=(document.getElementById('pto').value||'').trim();
+    if(!from){toast('Select pickup location first');return;}
+    if(!to){toast('Select dropoff location first');return;}
     var btn=this;btn.textContent='Requesting...';btn.disabled=true;
     var df=window._finalDf||calcFee(1);
-    var orderData={type:'pickup',customer_phone:USER.phone,customer_name:USER.name,pickup_from:from,delivery_address:to,item_description:'Pickup: '+from+' to '+to,distance:1,delivery_fee:df,total:df,rider_earnings:df,platform_earnings:0,status:'confirmed',rider_phone:null,rider_name:null};
+    var orderData={
+      type:'pickup',customer_phone:USER.phone,customer_name:USER.name,
+      pickup_from:from,delivery_address:to,
+      item_description:'Pickup: '+from+' \u2192 '+to,
+      distance:1,delivery_fee:df,total:df,rider_earnings:df,platform_earnings:0,
+      status:'confirmed',rider_phone:null,rider_name:null,ts:Date.now()
+    };
     if(window._gpsLat){orderData.pickup_lat=window._gpsLat;orderData.pickup_lng=window._gpsLng;}
     if(window._dropLat){orderData.delivery_lat=window._dropLat;orderData.delivery_lng=window._dropLng;}
     loadFB(function(db){
-      if(!db){btn.textContent='Request Rider Now';btn.disabled=false;toast('No connection');return;}
-      db.collection('delivery_orders').add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()}))
-        .then(function(){toast('Rider requested! KSh '+df+' · Track in My Orders');showOrds();})
-        .catch(function(){btn.textContent='Request Rider Now';btn.disabled=false;toast('Error — try again');});
+      if(!db){btn.textContent='Request Rider Now';btn.disabled=false;btn.style.opacity='1';toast('No connection');return;}
+      db.collection('delivery_orders').add(orderData)
+        .then(function(){toast('Rider requested! KSh '+df+' \u2022 Track in My Orders');showOrds();})
+        .catch(function(){btn.textContent='Request Rider Now';btn.disabled=false;btn.style.opacity='1';toast('Error \u2014 try again');});
     });
   });
 }
+
 // ── SHOP: CREATE + DASHBOARD ROUTING ─────────────────────────────────
 function showCreateShop(){
   pg().innerHTML='<div style="padding:20px"><div style="font-size:20px;font-weight:800;margin-bottom:4px">Setup Your Shop</div><div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:20px">Fill in your shop details to get started</div>'
@@ -4252,7 +4267,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v87 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v88 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
