@@ -1573,10 +1573,7 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
     });
     h+='</div>';
 
-    // Map pin option (advanced)
-    h+='<div style="text-align:center;margin:10px 0 4px">'
-      +'<button id="loc-map-btn" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline">&#x1F5FA; Pin on map instead</button>'
-      +'</div>';
+    // Map pin removed — card picker + GPS is sufficient
 
     // Confirm
     h+='<button id="loc-confirm" class="btn bg" style="margin-top:6px;font-size:15px;padding:14px;opacity:'+(_selected?1:.5)+'" '
@@ -1682,15 +1679,7 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
     },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
   });
 
-  // Map pin (advanced)
-  var mapBt=document.getElementById('loc-map-btn');
-  if(mapBt)mapBt.addEventListener('click',function(){
-    hideSh();
-    // Open Leaflet map as before
-    var lat=(_selected&&_selected.lat)||window._custLat||CHEMELIL_LAT;
-    var lng=(_selected&&_selected.lng)||window._custLng||CHEMELIL_LNG;
-    setTimeout(function(){_openLeafletPicker(onConfirm,lat,lng);},200);
-  });
+  // Map pin wiring removed
 
   // Confirm
   var confBt=document.getElementById('loc-confirm');
@@ -2873,7 +2862,13 @@ function showJobs(){
   document.getElementById('rtog').addEventListener('click',function(){
     if(!RON){
       if(USER.verified!==true){
-        toast('Account pending admin verification. You will be notified when approved.');
+        // Show pending card but let rider see profile and earnings
+        var rb2=document.getElementById('rbody');if(rb2)rb2.innerHTML=
+          '<div style="background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.25);border-radius:14px;padding:16px;margin-bottom:12px">'
+          +'<div style="font-size:15px;font-weight:800;color:#f59e0b;margin-bottom:6px">&#x23F3; Pending Verification</div>'
+          +'<div style="font-size:13px;color:rgba(255,255,255,.6);line-height:1.5">Your account is being reviewed by admin.<br>You will be notified on WhatsApp when approved.</div>'
+          +'<div style="margin-top:10px;font-size:12px;color:rgba(255,255,255,.4)">Name: '+USER.name+'<br>Phone: '+USER.phone+'</div>'
+          +'</div>';
         return;
       }
       var savedMpesa=USER.mpesa_phone||(window._riderMpesa||'');
@@ -4267,7 +4262,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v88 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v89 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
