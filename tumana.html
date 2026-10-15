@@ -1582,32 +1582,45 @@ function loadMyLocationsFromCloud(cb){
 }
 
 // ── GPS CAPTURE WITH NEAREST-POINT SNAP ──────────────────────────────
-function captureGPSLocation(onResult,onFail){
-  if(!navigator.geolocation){onFail('GPS not available');return;}
-  navigator.geolocation.getCurrentPosition(
+function captureGPSLocation(onResult,onFail,onProgress){
+  if(!navigator.geolocation){onFail('GPS not available — select from list');return;}
+  // Multi-reading: collect GPS for up to 10s, keep most accurate reading
+  var _best=null,_watcher=null,_timer=null;
+  function _done(){
+    if(_watcher){try{navigator.geolocation.clearWatch(_watcher);}catch(e){}}_watcher=null;
+    if(_timer){clearTimeout(_timer);}_timer=null;
+    if(!_best){onFail('GPS unavailable — select from list');return;}
+    var lat=_best.lat,lng=_best.lng,acc=_best.acc;
+    window._custLat=lat;window._custLng=lng;
+    try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,acc:acc,ts:Date.now()}));}catch(e){}
+    // Snap to nearest known place when accuracy > 100m
+    if(acc>100){
+      var places=CHEMELIL_PLACES.concat(getMyLocations().filter(function(l){return l.lat&&l.lng;}));
+      var nearestP=null,nearestD=99999;
+      places.forEach(function(p){
+        if(!p.lat||!p.lng)return;
+        var d=Math.sqrt(Math.pow(p.lat-lat,2)+Math.pow(p.lng-lng,2));
+        if(d<nearestD){nearestD=d;nearestP=p;}
+      });
+      if(nearestP&&nearestD<0.005){onResult(nearestP.lat,nearestP.lng,nearestP.name,'snapped',acc);return;}
+    }
+    onResult(lat,lng,'My Location (±'+acc+'m)','gps',acc);
+  }
+  _watcher=navigator.geolocation.watchPosition(
     function(pos){
-      var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
-      window._custLat=lat;window._custLng=lng;
-      try{localStorage.setItem('tumana_gps',JSON.stringify({lat:lat,lng:lng,ts:Date.now()}));}catch(e){}
-      // Snap to nearest known place if accuracy > 150m (common in AppGeyser)
-      if(acc>150){
-        var allPlaces=CHEMELIL_PLACES.concat(getMyLocations().filter(function(l){return l.lat&&l.lng;}));
-        var best=null,bestD=99999;
-        allPlaces.forEach(function(p){
-          if(!p.lat||!p.lng)return;
-          var d=Math.sqrt(Math.pow(p.lat-lat,2)+Math.pow(p.lng-lng,2));
-          if(d<bestD){bestD=d;best=p;}
-        });
-        if(best&&bestD<0.005){ // within ~500m
-          onResult(best.lat,best.lng,best.name,'snapped',acc);return;
-        }
+      var acc=Math.round(pos.coords.accuracy);
+      if(!_best||acc<_best.acc){
+        _best={lat:pos.coords.latitude,lng:pos.coords.longitude,acc:acc};
+        if(onProgress)onProgress(acc); // live accuracy update
       }
-      // Good accuracy or no known nearby — use raw GPS
-      onResult(lat,lng,'My Location (GPS ±'+acc+'m)','gps',acc);
+      // Accept immediately if accuracy is excellent (<30m)
+      if(acc<30){_done();}
     },
-    function(){onFail('GPS unavailable in this app — select from list');},
-    {enableHighAccuracy:true,timeout:10000,maximumAge:30000}
+    function(){if(_best){_done();}else{onFail('GPS unavailable — select from list');}},
+    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
   );
+  // Force finish after 10 seconds with best reading so far
+  _timer=setTimeout(function(){_done();},10000);
 }
 
 function showLocationPicker(onConfirm,title,defLat,defLng){
@@ -1742,19 +1755,27 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
   // GPS button
   var gpsBt=document.getElementById('loc-gps-btn');
   if(gpsBt)gpsBt.addEventListener('click',function(){
-    var btn=this;btn.textContent='&#x23F3;';
-    captureGPSLocation(function(lat,lng,name,method,acc){
-      btn.textContent='&#x2705;';
-      var p={name:name,lat:lat,lng:lng};
-      selectPlace(p);
-      var si2=document.getElementById('loc-search');if(si2)si2.value=name;
-      toast(method==='snapped'?'\u1F4CD Nearest: '+name+' (GPS \u00B1'+acc+'m)':'\u2705 GPS: '+name+' (\u00B1'+acc+'m)');
-      setTimeout(function(){btn.textContent='&#x1F4CD;';},3000);
-    },function(msg){
-      btn.textContent='&#x274C;';
-      toast(msg||'GPS unavailable \u2014 select from list');
-      setTimeout(function(){btn.textContent='&#x1F4CD;';},3000);
-    });
+    var btn=this;btn.textContent='&#x1F4E1; Getting GPS...';
+    btn.disabled=true;btn.style.color='#f59e0b';
+    captureGPSLocation(
+      function(lat,lng,name,method,acc){ // success
+        btn.textContent='&#x2705; '+Math.round(acc)+'m';btn.disabled=false;btn.style.color='#10b981';
+        var p={name:name,lat:lat,lng:lng};
+        selectPlace(p);
+        var si2=document.getElementById('loc-search');if(si2)si2.value=name;
+        var msg=method==='snapped'?'\u2705 Snapped to: '+name+' (\xb1'+acc+'m)':'\u2705 GPS: \xb1'+acc+'m';
+        toast(msg);
+        setTimeout(function(){btn.textContent='&#x1F4CD;';btn.style.color='';},4000);
+      },
+      function(msg){ // fail
+        btn.textContent='&#x274C; GPS failed';btn.disabled=false;btn.style.color='#ef4444';
+        toast(msg||'GPS unavailable \u2014 select from list');
+        setTimeout(function(){btn.textContent='&#x1F4CD;';btn.style.color='';},3000);
+      },
+      function(acc){ // progress — live accuracy update
+        btn.textContent='&#x1F4E1; \xb1'+acc+'m...';
+      }
+    );
   });
 
   // Map pin wiring removed
@@ -1997,10 +2018,13 @@ function showPickup(){
     var card=document.getElementById(field+'-card');
     var txt=document.getElementById(field+'-txt');
     var isFrom=field==='pfr';
-    if(txt){txt.textContent='&#x2705; '+name;txt.style.color=isFrom?'#10b981':'#ef4444';}
+    if(txt){txt.textContent='\u2705 '+name;txt.style.color=isFrom?'#10b981':'#ef4444';}
     if(card){
       card.style.borderColor=isFrom?'rgba(16,185,129,.6)':'rgba(239,68,68,.5)';
       card.style.background=isFrom?'rgba(16,185,129,.06)':'rgba(239,68,68,.04)';
+      // Show change button (replaces the Select arrow)
+      var arrow=card.querySelector('span:last-child');
+      if(arrow){arrow.textContent='Change';arrow.style.fontSize='11px';arrow.style.padding='4px 8px';arrow.style.borderRadius='6px';arrow.style.background='rgba(255,255,255,.08)';}
     }
     if(lat&&lng){
       if(isFrom){window._gpsLat=lat;window._gpsLng=lng;}
@@ -4344,7 +4368,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v90 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v91 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
