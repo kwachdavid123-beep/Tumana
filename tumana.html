@@ -1096,9 +1096,8 @@ function showCart(){
   document.getElementById('proceed-checkout').addEventListener('click',function(){
     showSh('<div class="hd"></div><div style="font-size:18px;font-weight:800;margin-bottom:4px">&#x1F4CD; Delivery Location</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:12px">Enter where to deliver — fee is calculated from your GPS</div>'
       +(getSavedAddrs().length?'<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">&#x1F4CD; Saved Locations</div><div id="saved-addrs-list" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>':'')
-      +'<div class="fld"><label>Your Address / House</label><input id="del-addr" type="text" placeholder="Type place name e.g. Kandolo, Market" autocomplete="off"></div>'
-      +'<div id="del-suggest" style="margin-bottom:6px"></div>'
-      +'<button id="del-geo-btn" style="width:100%;padding:9px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:#10b981;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">&#x1F50D; Search & Confirm My Location</button>'
+      +'<div class="fld"><label>Delivery Location</label><div id="del-addr-card" style="display:flex;align-items:center;gap:10px;background:#111116;border:2px solid rgba(16,185,129,.2);border-radius:12px;padding:13px;cursor:pointer"><span style="font-size:20px">&#x1F3E0;</span><span id="del-addr-txt" style="flex:1;font-size:14px;color:rgba(255,255,255,.4)">Tap to select your location</span><span id="del-addr-chg" style="font-size:12px;color:#10b981;font-weight:700">Select ›</span></div><input id="del-addr" type="hidden"></div>'
+      +
       +'<div class="fld"><label>Nearest Landmark</label><input id="del-land" type="text" placeholder="e.g. Opposite Market, near school gate" autocomplete="off"></div>'
       +'<button id="del-gps-btn" style="width:100%;padding:10px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;color:rgba(255,255,255,.7);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">&#x1F4CD; Use My GPS Location (auto-calculates fee)</button>'
       +'<div id="fee-live-box" style="display:none;background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.25);border-radius:11px;padding:12px;margin-bottom:12px">'
@@ -1157,8 +1156,19 @@ function showCart(){
         showResults(results,false);
       });
     }
-    var delGeoBtn=document.getElementById('del-geo-btn');
-    if(delGeoBtn)delGeoBtn.addEventListener('click',delGeoSearch);
+    // Wire delivery location tap card
+    var _dc=document.getElementById('del-addr-card');
+    if(_dc)_dc.addEventListener('click',function(){
+      showLocationPicker(function(lat,lng,name){
+        window._deliveryLat=lat;window._deliveryLng=lng;
+        window._custLat=lat;window._custLng=lng;
+        var inp=document.getElementById('del-addr');if(inp)inp.value=name;
+        var t=document.getElementById('del-addr-txt');if(t){t.textContent=name;t.style.color='#10b981';t.style.fontWeight='700';}
+        var k=document.getElementById('del-addr-chg');if(k)k.textContent='Change';
+        var d=document.getElementById('del-addr-card');if(d)d.style.borderColor='rgba(16,185,129,.5)';
+        saveMyLocation(name,lat,lng);
+      },'Select Delivery Location',window._deliveryLat,window._deliveryLng);
+    });
     if(delAddrEl)delAddrEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();delGeoSearch();}});
 
     document.getElementById('del-gps-btn').addEventListener('click',function(){
@@ -1222,7 +1232,9 @@ function placeOrder(payMethod,mpesaCode){
     subtotal:sub,delivery_fee:df,total:sub+df,rider_earnings:df,platform_earnings:0,distance:CART[0].shopDist||0.5,
     status:'placed',payment_method:payMethod,rider_phone:null,rider_name:null,ts:Date.now()
   };
-  if(window._custLat){orderData.delivery_lat=window._custLat;orderData.delivery_lng=window._custLng;}
+  var _dlat=window._deliveryLat||window._custLat;
+  var _dlng=window._deliveryLng||window._custLng;
+  if(_dlat){orderData.delivery_lat=_dlat;orderData.delivery_lng=_dlng;}
   hideSh();
   loadFB(function(db){
     if(!db){toast('No connection — cannot place order');return;}
@@ -4368,7 +4380,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v91 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v92 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
