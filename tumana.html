@@ -2048,6 +2048,8 @@ function showPickup(){
   navPush(showPickup);
   setTitle('PICKUP','#10b981');setNav('customer','pickup');
   window._gpsLat=null;window._gpsLng=null;window._dropLat=null;window._dropLng=null;
+  var _pfrSet=false,_ptoSet=false; // track selection state reliably
+  var _lastKm=1; // track actual calculated distance
   var estDf=calcFee(1);
   var savedLocs=CHEMELIL_PLACES.concat(getCommunityLocs());
   var topLocs=savedLocs.slice(0,6);
@@ -2106,13 +2108,15 @@ function showPickup(){
   // ── Helpers ─────────────────────────────────────────────────────────
   function updateFare(){
     var km=1;
-    if(window._gpsLat&&window._gpsLng&&window._dropLat&&window._dropLng){
-      km=Math.max(0.2,Math.round(haversineKm(window._gpsLat,window._gpsLng,window._dropLat,window._dropLng)*10)/10);
-    }
+    var gLat=window._gpsLat,gLng=window._gpsLng,dLat=window._dropLat,dLng=window._dropLng;
+    var hasAll=(typeof gLat==='number'&&!isNaN(gLat))&&(typeof gLng==='number'&&!isNaN(gLng))&&(typeof dLat==='number'&&!isNaN(dLat))&&(typeof dLng==='number'&&!isNaN(dLng));
+    if(hasAll)km=Math.max(0.2,Math.round(haversineKm(gLat,gLng,dLat,dLng)*10)/10);
+    _lastKm=km;
     var fee=calcFee(km);
-    var fd=document.getElementById('fared');if(fd)fd.textContent='KSh '+fee;
-    var fs=document.getElementById('fare-sub');if(fs)fs.textContent='~'+km+'km × KSh '+(window._ADMIN_PER_KM||20)+' + base';
     window._finalDf=fee;
+    var fd=document.getElementById('fared');if(fd)fd.textContent='KSh '+fee;
+    var fs=document.getElementById('fare-sub');
+    if(fs)fs.textContent=hasAll?km+'km • KSh '+fee:'Select both locations for exact fare';
   }
 
   function setLoc(field,name,lat,lng){
@@ -2128,10 +2132,11 @@ function showPickup(){
       var arrow=card.querySelector('span:last-child');
       if(arrow){arrow.textContent='Change';arrow.style.fontSize='11px';arrow.style.padding='4px 8px';arrow.style.borderRadius='6px';arrow.style.background='rgba(255,255,255,.08)';}
     }
-    if(lat&&lng){
+    if(typeof lat==='number'&&!isNaN(lat)&&typeof lng==='number'&&!isNaN(lng)){
       if(isFrom){window._gpsLat=lat;window._gpsLng=lng;}
       else{window._dropLat=lat;window._dropLng=lng;}
     }
+    if(isFrom)_pfrSet=true; else _ptoSet=true;
     saveMyLocation(name,lat,lng); // save to personal location history
     // Enable request button if both set
     var pfrV=(document.getElementById('pfr')||{}).value||'';
@@ -2148,8 +2153,7 @@ function showPickup(){
       var name=this.getAttribute('data-name');
       var lat=parseFloat(this.getAttribute('data-lat')||'0');
       var lng=parseFloat(this.getAttribute('data-lng')||'0');
-      var pfrV=(document.getElementById('pfr')||{}).value||'';
-      if(!pfrV){setLoc('pfr',name,lat,lng);}
+      if(!_pfrSet){setLoc('pfr',name,lat,lng);}
       else{setLoc('pto',name,lat,lng);}
     });
   });
@@ -2176,11 +2180,11 @@ function showPickup(){
       type:'pickup',customer_phone:USER.phone,customer_name:USER.name,
       pickup_from:from,delivery_address:to,
       item_description:'Pickup: '+from+' \u2192 '+to,
-      distance:1,delivery_fee:df,total:df,rider_earnings:df,platform_earnings:0,
+      distance:_lastKm,delivery_fee:df,total:df,rider_earnings:df,platform_earnings:0,
+      pickup_lat:window._gpsLat,pickup_lng:window._gpsLng,
+      delivery_lat:window._dropLat,delivery_lng:window._dropLng,
       status:'confirmed',rider_phone:null,rider_name:null,ts:Date.now()
     };
-    if(window._gpsLat){orderData.pickup_lat=window._gpsLat;orderData.pickup_lng=window._gpsLng;}
-    if(window._dropLat){orderData.delivery_lat=window._dropLat;orderData.delivery_lng=window._dropLng;}
     loadFB(function(db){
       if(!db){btn.textContent='Request Rider Now';btn.disabled=false;btn.style.opacity='1';toast('No connection');return;}
       db.collection('delivery_orders').add(orderData)
@@ -4471,7 +4475,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v93 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v94 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}

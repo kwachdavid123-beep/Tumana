@@ -2,7 +2,7 @@
 // Upload to: kwachdavid123-beep.github.io/Tumana/sw.js
 // After first online load, the app works completely offline.
 
-var CACHE = 'tumana-v93';
+var CACHE = 'tumana-v94';
 
 // Everything needed to boot the app offline
 var PRECACHE = [
