@@ -967,6 +967,25 @@ function showHome(){
     }).catch(function(){});
   });
 }
+function updateCartFloat(){
+  var btn=document.getElementById('cart-float');
+  if(!btn){
+    btn=document.createElement('div');
+    btn.id='cart-float';
+    btn.style.cssText='display:none;position:fixed;bottom:76px;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:400px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:15px 18px;border-radius:16px;cursor:pointer;align-items:center;gap:12px;z-index:10000;box-shadow:0 6px 32px rgba(16,185,129,.5);font-family:inherit;box-sizing:border-box';
+    btn.addEventListener('click',function(){showCart();});
+    document.body.appendChild(btn);
+  }
+  if(!CART.length){btn.style.display='none';return;}
+  var total=CART.reduce(function(s,i){return s+(i.price||0)*(i.qty||1);},0);
+  var qty=CART.reduce(function(s,i){return s+(i.qty||1);},0);
+  btn.style.display='flex';
+  btn.innerHTML='<span style="font-size:18px">&#x1F6D2;</span>'
+    +'<div style="flex:1;text-align:center"><div style="font-size:13px;font-weight:800">View Cart ('+qty+' item'+(qty>1?'s':'')+')</div>'
+    +'<div style="font-size:11px;opacity:.8">KSh '+total+' + delivery</div></div>'
+    +'<span style="font-size:16px">&#x276F;</span>';
+}
+
 function showShopDetail(shopId,shopName){
   navPush(showShopDetail,[shopId,shopName]);
   setTitle(shopName||'Shop','#10b981');setNav('customer','home');
@@ -1018,15 +1037,8 @@ function wireCartButtons(){
     }
     updateCartFloat();
   }
-  function updateCartFloat(){
-    var btn=document.getElementById('cart-float');
-    if(!btn)return;
-    if(!CART.length){btn.style.display='none';return;}
-    var total=CART.reduce(function(s,i){return s+(i.price||0)*(i.qty||1);},0);
-    var qty=CART.reduce(function(s,i){return s+(i.qty||1);},0);
-    btn.style.display='flex';
-    btn.innerHTML='<span style="font-size:18px">&#x1F6D2;</span><div style="flex:1;text-align:center"><div style="font-size:13px;font-weight:800">View Cart ('+qty+' item'+(qty>1?'s':'')+')</div><div style="font-size:11px;opacity:.8">KSh '+total+' + delivery</div></div><span style="font-size:16px">&#x276F;</span>';
-  }
+  // updateCartFloat is defined globally
+
   // Create floating cart button if not exists
   if(!document.getElementById('cart-float')){
     var cf=document.createElement('div');
@@ -1237,7 +1249,7 @@ function placeOrder(payMethod,mpesaCode){
   loadFB(function(db){
     if(!db){toast('No connection — cannot place order');return;}
     db.collection('delivery_orders').add(Object.assign({},orderData,{ts:firebase.firestore.FieldValue.serverTimestamp()}))
-      .then(function(){CART=[];window._deliveryAddr='';window._finalDf=0;toast('Order placed! Shop will review shortly.');showOrds();})
+      .then(function(){CART=[];updateCartFloat();window._deliveryAddr='';window._finalDf=0;toast('Order placed! Shop will review shortly.');showOrds();})
       .catch(function(){toast('Error placing order — check connection');});
   });
 }
@@ -1778,14 +1790,17 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
       cl.forEach(function(l){if(l.name&&l.lat&&_myNames.indexOf(l.name.toLowerCase())<0)allPlaces.push({name:l.name,lat:l.lat,lng:l.lng,community:true});});
     }catch(e){}
 
-    allPlaces.forEach(function(p,i){
+        allPlaces.forEach(function(p,i){
       var isSel=_selected&&_selected.name===p.name;
-      h+='<div class="loc-card" data-i="'+i+'" style="cursor:pointer;padding:10px 10px;border-radius:10px;border:1.5px solid rgba(255,255,255,'+(isSel?'.3':'.07')+');background:rgba(255,255,255,'+(isSel?'.08':'.03')+');transition:all .15s">'
+      var pLat=(p.lat!=null&&!isNaN(p.lat))?p.lat:'';
+      var pLng=(p.lng!=null&&!isNaN(p.lng))?p.lng:'';
+      h+='<div class="loc-card" data-name="'+encodeURIComponent(p.name)+'" data-lat="'+pLat+'" data-lng="'+pLng+'" style="cursor:pointer;padding:10px;border-radius:10px;border:1.5px solid rgba(255,255,255,'+(isSel?'.3':'.07')+');background:rgba(255,255,255,'+(isSel?'.08':'.03')+');transition:all .15s">'
         +'<div style="font-size:20px;margin-bottom:4px">'+getIcon(p.name)+'</div>'
         +'<div style="font-size:12px;font-weight:700;color:'+(isSel?'#10b981':'rgba(255,255,255,.85)')+';line-height:1.3">'+p.name+'</div>'
         +(p.community?'<div style="font-size:9px;color:rgba(16,185,129,.6);margin-top:2px">Community</div>':'')
         +'</div>';
     });
+;
     h+='</div>';
 
     // Map pin removed — card picker + GPS is sufficient
@@ -1822,8 +1837,11 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
   // Wire card clicks
   document.querySelectorAll('.loc-card').forEach(function(card){
     card.addEventListener('click',function(){
-      var i=parseInt(this.getAttribute('data-i'));
-      if(_allPlaces[i])selectPlace(_allPlaces[i]);
+      var name=decodeURIComponent(this.getAttribute('data-name')||'');
+      var lat=parseFloat(this.getAttribute('data-lat'));
+      var lng=parseFloat(this.getAttribute('data-lng'));
+      var place={name:name,lat:isNaN(lat)?null:lat,lng:isNaN(lng)?null:lng};
+      if(name)selectPlace(place);
     });
   });
 
@@ -1835,8 +1853,7 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
       var q=(this.value||'').trim().toLowerCase();
       // Filter cards
       document.querySelectorAll('.loc-card').forEach(function(card){
-        var i=parseInt(card.getAttribute('data-i'));
-        var name=(_allPlaces[i]&&_allPlaces[i].name)||'';
+        var name=decodeURIComponent(card.getAttribute('data-name')||'');
         card.style.display=(!q||name.toLowerCase().includes(q))?'':'none';
       });
       // If typed something not in list, allow as custom location
@@ -1849,7 +1866,12 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
       if(e.key==='Enter'){e.preventDefault();
         // Select first visible card
         var first=document.querySelector('.loc-card[style*="block"],.loc-card:not([style*="none"])');
-        if(first){var i=parseInt(first.getAttribute('data-i'));if(_allPlaces[i])selectPlace(_allPlaces[i]);}
+        if(first){
+          var fn=decodeURIComponent(first.getAttribute('data-name')||'');
+          var fl=parseFloat(first.getAttribute('data-lat'));
+          var fng=parseFloat(first.getAttribute('data-lng'));
+          if(fn)selectPlace({name:fn,lat:isNaN(fl)?null:fl,lng:isNaN(fng)?null:fng});
+        }
       }
     });
   }
@@ -4475,7 +4497,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v94 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v95 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
