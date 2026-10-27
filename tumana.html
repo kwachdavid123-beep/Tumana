@@ -1879,28 +1879,32 @@ function showLocationPicker(onConfirm,title,defLat,defLng){
   // GPS button
   var gpsBt=document.getElementById('loc-gps-btn');
   if(gpsBt)gpsBt.addEventListener('click',function(){
-    var btn=this;btn.textContent='&#x1F4E1; Getting GPS...';
-    btn.disabled=true;btn.style.color='#f59e0b';
-    captureGPSLocation(
-      function(lat,lng,name,method,acc){ // success
-        btn.textContent='&#x2705; '+Math.round(acc)+'m';btn.disabled=false;btn.style.color='#10b981';
-        var p={name:name,lat:lat,lng:lng};
-        selectPlace(p);
-        var si2=document.getElementById('loc-search');if(si2)si2.value=name;
-        var msg=method==='snapped'?'\u2705 Snapped to: '+name+' (\xb1'+acc+'m)':'\u2705 GPS: \xb1'+acc+'m';
-        toast(msg);
-        setTimeout(function(){btn.textContent='&#x1F4CD;';btn.style.color='';},4000);
-      },
-      function(msg){ // fail
-        btn.textContent='&#x274C; GPS failed';btn.disabled=false;btn.style.color='#ef4444';
-        toast(msg||'GPS unavailable \u2014 select from list');
-        setTimeout(function(){btn.textContent='&#x1F4CD;';btn.style.color='';},3000);
-      },
-      function(acc){ // progress — live accuracy update
-        btn.textContent='&#x1F4E1; \xb1'+acc+'m...';
-      }
-    );
-  });
+    var btn=this;
+    btn.textContent='Getting...';
+    btn.disabled=true;
+    var _st={textContent:'',style:{color:''}};
+    getGPSRobust(function(lat,lng,acc){
+      var places=CHEMELIL_PLACES.concat(getMyLocations().filter(function(l){return l.lat&&l.lng;}));
+      var best=null,bestD=99999;
+      places.forEach(function(p){
+        if(!p.lat||!p.lng)return;
+        var d=Math.sqrt(Math.pow(p.lat-lat,2)+Math.pow(p.lng-lng,2));
+        if(d<bestD){bestD=d;best=p;}
+      });
+      var place=acc>150&&best&&bestD<0.005
+        ?{name:best.name,lat:best.lat,lng:best.lng}
+        :{name:'My Location ('+Math.round(acc)+'m)',lat:lat,lng:lng};
+      selectPlace(place);
+      var si2=document.getElementById('loc-search');if(si2)si2.value=place.name;
+      toast('GPS OK '+Math.round(acc)+'m'+(acc>150&&best?' near '+best.name:''));
+      btn.textContent='OK '+Math.round(acc)+'m';btn.style.color='#10b981';btn.disabled=false;
+      setTimeout(function(){btn.textContent='GPS';btn.style.color='';},5000);
+    },function(msg){
+      btn.textContent='GPS failed';btn.style.color='#ef4444';btn.disabled=false;
+      toast((msg||'GPS unavailable')+' - select from list');
+      setTimeout(function(){btn.textContent='GPS';btn.style.color='';},4000);
+    },_st);
+  })
 
   // Map pin wiring removed
 
@@ -4497,7 +4501,7 @@ function boot(){
 
   
   var _own={app:'TUMANA',owner:'David Kwach',year:2026,project:'chawkpro1',region:'Chemelil,Kenya'};
-  console.log('%cTUMANA v95 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
+  console.log('%cTUMANA v96 | Built by '+_own.owner+' | '+_own.region+' | 2026','color:#10b981;font-weight:bold;font-size:14px');
   try{
     var s=localStorage.getItem('tumana_user')||localStorage.getItem('tu');
     if(s){var p=JSON.parse(s);if(p&&p.role&&p.phone&&['customer','rider','shop','admin'].indexOf(p.role)>=0){if(!p.name)p.name=p.phone;USER=p;}}
